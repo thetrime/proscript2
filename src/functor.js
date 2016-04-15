@@ -1,3 +1,5 @@
+var AtomTerm = require('./atom_term.js');
+
 var functor_table = {};
 
 function Functor(name, arity)
@@ -6,15 +8,21 @@ function Functor(name, arity)
     this.arity = arity;
 }
 
-function get(name, arity)
+// name is an AtomTerm
+Functor.get = function(name, arity)
 {
-    if (functor_table[name] === undefined)
-	functor_table[name] = {};
-    var arities = functor_table[name];
-    if (arities[arity] === undefined)
-	arities[arity] = new Functor(name, arity);
-    return arities[arity];
+    if (name instanceof AtomTerm)
+    {
+	if (functor_table[name.value] === undefined)
+	    functor_table[name.value] = {};
+	var arities = functor_table[name.value];
+	if (arities[arity] === undefined)
+	    arities[arity] = new Functor(name.value, arity);
+	return arities[arity];
+    }
+    else
+	throw("bad input to functor.get");
 }
 
 
-module.exports = {get: get};
+module.exports = Functor;

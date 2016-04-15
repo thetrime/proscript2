@@ -2,6 +2,7 @@ var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
+var Functor = require('./functor.js');
 
 
 function dereference_recursive(term)
@@ -98,7 +99,7 @@ function compileClause(term, instructions)
 	var envSize = reserved;
 	var variables = {}
 	envSize += analyzeVariables(term, variables, []);
-	if (reserved != 0)
+	if (envSize != 0)
 	    instructions.push({opcode: Instructions.iAllocate, envSize:envSize, reserved:reserved});
 	if (context.hasGlobalCut)
 	    instructions.push({opcode: Instructions.iSaveCut,
@@ -113,7 +114,7 @@ function compileClause(term, instructions)
 	console.log(term.functor);
 	console.log(Constants.clauseFunctor);
 	// FIXME: A fact CAN have important variables in it. Like foo(A, A) should not succeed if the only clause is foo(a, b).
-	compileHead(term, [], instructions);
+	compileHead(term, {}, instructions);
 	instructions.push({opcode: Instructions.iExitFact});
     }
 }
@@ -217,18 +218,18 @@ function compileTermCreation(term, variables, instructions)
 {
     if (term instanceof VariableTerm)
     {
-	if (variables[term].fresh)
+	if (variables[term.name].fresh)
 	{
 	    instructions.push({opcode: Instructions.iFirstVar,
-			       name:variables[term].variable.name,
-			       slot:variables[term].slot});
-	    variables[term].fresh = false;
+			       name:term.name,
+			       slot:variables[term.name].slot});
+	    variables[term.name].fresh = false;
 	}
 	else
 	{
 	    instructions.push({opcode: Instructions.iVar,
-			       name:variables[term].variable.name,
-			       slot:variables[term].slot});
+			       name:term.name,
+			       slot:variables[term.name].slot});
 
 	}
     }
@@ -300,11 +301,11 @@ function analyzeVariables(term, map, list)
     rc = 0;
     if (term instanceof VariableTerm)
     {
-	if (map[term] === undefined)
+	if (map[term.name] === undefined)
 	{
-	    map[term] = ({variable: term,
-			  fresh: true,
-			  slot: list.length});
+	    map[term.name] = ({variable: term,
+			       fresh: true,
+			       slot: list.length});
 	    list.push(term);
 	    rc++;
 	}
