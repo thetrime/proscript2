@@ -17,11 +17,10 @@ var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
 var Constants = require('./constants.js');
 
-function parse_infix(s, lhs, precedence)
+function parse_infix(s, lhs, precedence, vars)
 {
     var token = read_token(s);
-    var rhs = {};
-    rhs = read_expression(s, precedence, false, false);
+    var rhs = read_expression(s, precedence, false, false, vars);
     return new CompoundTerm(token, [lhs, rhs]);
 }
 
@@ -108,12 +107,6 @@ var infix_operators = {":-": {precedence: 1200, fixity: "xfx"},
 function read_expression(s, precedence, isarg, islist, vars)
 {
     var token = read_token(s);
-    if (token.variable_name != undefined)
-    {
-	if (vars[token.variable_name] === undefined)
-	    vars[token.variable_name] = new VariableTerm(token.variable_name);
-	return vars[token.variable_name];
-    }
     if (token == null)
     {
 	return null; // end of file
@@ -213,7 +206,14 @@ function read_expression(s, precedence, isarg, islist, vars)
 	    var next = read_token(s);
             if (next != ")")
                 return syntax_error("mismatched ( at " + next);
-        }
+	}
+	else if (token.variable_name != undefined)
+	{
+	    // It is a variable
+	    if (vars[token.variable_name] === undefined)
+		vars[token.variable_name] = new VariableTerm(token.variable_name);
+	    lhs = vars[token.variable_name];
+	}
         else
         {
 	    // It is an atom
@@ -269,8 +269,8 @@ function read_expression(s, precedence, isarg, islist, vars)
                 }
             }
 	    lhs = new CompoundTerm(lhs, args);
-            // Now, where were we?
-	    var infix_operator = peek_token(s);
+	    // Now, where were we?
+	    infix_operator = peek_token(s);
 	}
         // Pretend that . is an operator with infinite precedence
         if (infix_operator == ".")
@@ -293,17 +293,17 @@ function read_expression(s, precedence, isarg, islist, vars)
 	if (op !== undefined)
         {
             if (op.fixity == "xfx" && precedence > op.precedence)
-            {
-                lhs = parse_infix(s, lhs, op.precedence);
+	    {
+		lhs = parse_infix(s, lhs, op.precedence, vars);
 	    }
             else if (op.fixity == "xfy" && precedence > op.precedence)
             {
                 // Is this 0.5 thing right? Will it eventually drive up precedence to the wrong place? We never want to reach the next integer...
-                lhs = parse_infix(s, lhs, op.precedence+0.5); 
+		lhs = parse_infix(s, lhs, op.precedence+0.5, vars);
 	    }
             else if (op.fixity == "yfx" && precedence >= op.precedence)
             {
-                lhs = parse_infix(s, lhs, op.precedence);
+		lhs = parse_infix(s, lhs, op.precedence, vars);
 	    }
             else if (op.fixity == "xf" && precedence > op.precedence)
             {
