@@ -27,6 +27,8 @@ var Instructions =
 	iCall: "i_call",
 
 	iUnify: "i_unify",
+	iFirstVar: "i_firstvar",
+	iVar: "i_var",
 	iPushArgument: "i_pusharg",
 	iPushConstant: "i_pushconst",
 	iPushFunctor: "i_pushfunctor",
@@ -92,9 +94,10 @@ function compileClause(term, instructions)
 	reserved += getReservedEnvironmentSlots(term.args[1], context);
 	// Finally, we need a slot for each variable, since this is to be a stack-based, rather than register-based machine
 	// If it were register-based, we would need a register for each variable instead
+	// FIXME: By arranging these more carefully we might do better for LCO
 	var envSize = reserved;
-	var variables = [];
-	//    envSize += analyzeVariables(term, permanentVariables);
+	var variables = {}
+	envSize += analyzeVariables(term, variables, []);
 	if (reserved != 0)
 	    instructions.push({opcode: Instructions.iAllocate, envSize:envSize, reserved:reserved});
 	if (context.hasGlobalCut)
@@ -214,15 +217,27 @@ function compileTermCreation(term, variables, instructions)
 {
     if (term instanceof VariableTerm)
     {
-	instructions.push({opcode: Instructions.iPush,
-			   slot:variables.indexOf(term)});
+	if (variables[term].fresh)
+	{
+	    instructions.push({opcode: Instructions.iFirstVar,
+			       name:variables[term].variable.name,
+			       slot:variables[term].slot});
+	    variables[term].fresh = false;
+	}
+	else
+	{
+	    instructions.push({opcode: Instructions.iVar,
+			       name:variables[term].variable.name,
+			       slot:variables[term].slot});
+
+	}
     }
     else if (term instanceof CompoundTerm)
     {
-	for (var i = 0; i < term.functor.arity; i++)
-	    compileTermCreation(term.args[i], variables, instructions);
 	instructions.push({opcode: Instructions.iPushFunctor,
 			   functor:term.functor});
+	for (var i = 0; i < term.functor.arity; i++)
+	    compileTermCreation(term.args[i], variables, instructions);
     }
     else // then it must be a constant
     {
@@ -278,13 +293,28 @@ function getReservedEnvironmentSlots(term, context)
     return slots;
 }
 
-// analyzeVariables builds a map of all the variables and returns
-function analyzeVariables(term, map)
+// analyzeVariables builds a map of all the variables and returns the number of slots in the
+// environment needed to hold them all
+function analyzeVariables(term, map, list)
 {
+    rc = 0;
     if (term instanceof VariableTerm)
     {
-
+	if (map[term] === undefined)
+	{
+	    map[term] = ({variable: term,
+			  fresh: true,
+			  slot: list.length});
+	    list.push(term);
+	    rc++;
+	}
     }
+    else if (term instanceof CompoundTerm)
+    {
+	for (var i = 0; i < term.functor.arity; i++)
+	    rc += analyzeVariables(term.args[i], map, list);
+    }
+    return rc;
 }
 
 module.exports = compilePredicate;
