@@ -13,7 +13,7 @@ debug = function (msg)
 
 
 var util = require('util');
-var clause = Parser.test("foo(A, B, C):- C is A + B, writeln(C).");
+var clause = Parser.test("foo(A, q(B), x, A):- splunge(X, A + B, x), !, writeln(X).");
 console.log(util.inspect(clause, {showHidden: false, depth: null}));
 var instructions = compilePredicate([clause]);
 console.log(util.inspect(instructions, {showHidden: false, depth: null}));
