@@ -21,37 +21,82 @@ function dereference_recursive(term)
 
 var Instructions =
     {
-	iFail: "i_fail",
-	iAllocate: "i_allocate",
-	iEnter: "i_enter",
-	iSaveCut: "i_save_cut",
-	iExit: "i_exit",
-	iExitFact: "i_exitfact",
-	iCall: "i_call",
-	iDepart: "i_depart",
-	iCut: "i_cut",
+	iFail: {label: "i_fail",
+		opcode: 0,
+		args: []},
+	iEnter: {label: "i_enter",
+		 opcode: 1,
+		 args: []},
+	iSaveCut: {label:"i_save_cut",
+		   opcode: 2,
+		   args: []},
+	iExit: {label:"i_exit",
+		opcode: 3,
+		args: []},
+	iExitFact: {label:"i_exitfact",
+		    opcode: 4,
+		    args: []},
+	iCall: {label:"i_call",
+		opcode: 5,
+		args: ["functor"]},
+	iDepart: {label:"i_depart",
+		  opcode: 6,
+		  args: ["functor"]},
+	iCut: {label:"i_cut",
+	       opcode: 7,
+	       args: []},
+	iUnify: {label:"i_unify",
+		 opcode: 8,
+		 args: []},
+	bFirstVar: {label: "b_firstvar",
+		    opcode: 9,
+		    args:["slot"]},
+	bArgVar: {label: "b_argvar",
+		  opcode: 10,
+		  args: ["slot"]},
+	bVar: {label: "b_var",
+	       opcode: 11,
+	       args: ["slot"]},
+	bPop: {label: "b_pop",
+	       opcode: 12,
+	       args: []},
+	bConstant: {label: "b_constant",
+		    opcode: 13,
+		    args: ["constant"]},
+	bFunctor: {label: "b_functor",
+		   opcode: 14,
+		   args: ["functor"]},
+	hConstant: {label: "h_constant",
+		    opcode: 15,
+		    args: ["constant"]},
+	hFirstVar: {label: "h_firstvar",
+		    opcode: 16,
+		    args: ["slot"]},
+	hFunctor: {label: "h_functor",
+		   opcode: 17,
+		   args: ["functor"]},
+	hPop: {label: "h_pop",
+	       opcode: 18,
+	       args: []},
+	hVoid: {label: "h_void",
+		opcode: 19,
+		args: []},
+	hVar: {label: "h_var",
+	       opcode: 20,
+	       args: ["slot"]},
+	tryMeElse: {label: "try_me_else",
+		    opcode: 21,
+		    args: ["address"]},
+	retryMeElse: {label: "retry_me_else",
+		      opcode: 22,
+		      args: ["address"]},
+	trustMe: {label: "trust_me",
+		  opcode: 23,
+		  args: []},
 
-	iUnify: "i_unify",
-	bFirstVar: "b_firstvar",
-	bArgVar: "b_argvar",
-	bVar: "b_var",
-	bPop: "b_pop",
-	bConstant: "b_constant",
-	bFunctor: "b_functor",
-
-	hConstant: "h_constant",
-	hFirstVar: "h_firstvar",
-	hFunctor: "h_functor",
-	hPop: "h_pop",
-	hVoid: "h_void",
-	hVar: "h_var",
-
-
-	tryMeElse: "try_me_else",
-	retryMeElse: "retry_me_else",
-	trustMe: "trust_me",
-
-	nop: "nop"
+	nop: {label: "nop",
+	      opcode: 255,
+	      args: []}
     };
 
 function compilePredicate(clauses)
@@ -80,7 +125,7 @@ function compilePredicate(clauses)
 	    for (var i = 0; i < clauses.length-1; i++)
 	    {
 		instructions[clausePointers[i]] = {opcode: (i == 0)?(Instructions.tryMeElse):(Instructions.retryMeElse),
-						   retry: clausePointers[i+1]}
+						   address: clausePointers[i+1]}
 	    }
 	    instructions[clausePointers[clauses.length-1]] = {opcode: Instructions.trustMe};
 	}
@@ -92,8 +137,81 @@ function compilePredicate(clauses)
 
 function assemble(instructions)
 {
-    return {instructions: instructions,
-	    constants: []};
+    var size = 0;
+    var constant_count = 0;
+    for (var i = 0; i < instructions.length; i++)
+	size += instructionSize(instructions[i].opcode);
+    console.log("bytecode size: " + size);
+    var constants = [];
+    var bytes = new Uint8Array(size);
+    var currentInstruction = 0;
+    for (var i = 0; i < instructions.length; i++)
+    {
+	currentInstruction += assembleInstruction(instructions[i], bytes, currentInstruction, constants);
+    }
+    return {bytecode: bytes,
+	    instructions:instructions,
+	    constants: constants};
+}
+
+function instructionSize(i)
+{
+    var rc = 1;
+    for (var t = 0; t < i.args.length; t++)
+    {
+	if (i.args[t] == "functor")
+	    rc +=2;
+	else if (i.args[t] == "constant")
+	    rc += 2;
+	else if (i.args[t] == "address")
+	    rc += 4;
+	else if (i.args[t] == "slot")
+	    rc += 2;
+    }
+    return rc;
+}
+
+function assembleInstruction(instruction, bytecode, ptr, constants)
+{
+    var rc = 1;
+    bytecode[ptr] = instruction.opcode.opcode;
+    for (var i = 0; i < instruction.opcode.args.length; i++)
+    {
+	var arg = instruction.opcode.args[i];
+	if (arg == "functor")
+	{
+	    rc+=2;
+	    if (constants.indexOf(instruction.functor) == -1)
+		constants.push(instruction.functor);
+	    bytecode[ptr+1] = (constants.indexOf(instruction.functor) >> 8) & 255
+	    bytecode[ptr+2] = (constants.indexOf(instruction.functor) >> 0) & 255
+	}
+	else if (arg == "constant")
+	{
+	    if (instruction.constant === undefined)
+		throw "up";
+	    if (constants.indexOf(instruction.constant) == -1)
+		constants.push(instruction.constant);
+	    bytecode[ptr+1] = (constants.indexOf(instruction.constant) >> 8) & 255
+	    bytecode[ptr+2] = (constants.indexOf(instruction.constant) >> 0) & 255
+	    rc += 2;
+	}
+	else if (arg == "address")
+	{
+	    bytecode[ptr+1] = (arg.address >> 24) & 0xff;
+	    bytecode[ptr+2] = (arg.address >> 16) & 0xff;
+	    bytecode[ptr+3] = (arg.address >> 8) & 0xff;
+	    bytecode[ptr+4] = (arg.address >> 0) & 0xff;
+	    rc += 4;
+	}
+	else if (arg == "slot")
+	{
+	    bytecode[ptr+1] = (instruction.slot >> 8) & 255;
+	    bytecode[ptr+2] = (instruction.slot >> 0) & 255;
+	    rc += 2;
+	}
+    }
+    return rc;
 }
 
 function compileClause(term, instructions)
@@ -115,8 +233,6 @@ function compileClause(term, instructions)
 	envSize += analyzeVariables(term.args[0], true, 0, variables, context);
 	envSize += analyzeVariables(term.args[1], false, 1, variables, context);
 	console.log(variables);
-//	if (envSize != 0)
-//	    instructions.push({opcode: Instructions.iAllocate, envSize:envSize, reserved:reserved});
 	if (context.hasGlobalCut)
 	    instructions.push({opcode: Instructions.iSaveCut,
 			       slot: 0});
@@ -172,12 +288,12 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
     else if (arg instanceof AtomTerm)
     {
 	instructions.push({opcode: Instructions.hConstant,
-			   atom: arg});
+			   constant: arg});
     }
     else if (arg instanceof IntegerTerm)
     {
 	instructions.push({opcode: Instructions.hConstant,
-			   integer: arg});
+			   constant: arg});
     }
     else if (arg instanceof CompoundTerm)
     {
@@ -228,7 +344,7 @@ function compileBody(term, variables, instructions, isTailGoal)
 	    instructions.push({opcode: Instructions.nop});
 	    compileBody(term.args[0], variables, instructions, isTailGoal);
 	    instructions[currentInstruction] = {opcode: Instructions.tryMeElse,
-						retry: instructions.length};
+						address: instructions.length};
 	    instructions.push({opcode: Instructions.trustMe});
 	    compileBody(term.args[1], variables, instructions, isTailGoal);
 	}
