@@ -1,80 +1,94 @@
 var LOOKUP_OPCODE = require('./opcodes.js').opcodes;
+var Functor = require('./functor.js');
+var Frame = require('./frame.js');
+var Module = require('./module.js');
 
-function execute(bytecode)
+function execute(currentFrame)
 {
-    var ptr = 0;
+    var currentModule = Module.get("user");
+    var PC = 0;
+    var nextFrame = {slots: [],
+                     code: undefined,
+                     parent: currentFrame,
+                     PC: undefined};
     while(true)
     {
-	if (bytecode[ptr] === undefined)
+	if (currentFrame.code[PC] === undefined)
 	    throw("Illegal fetch");
-	console.log(LOOKUP_OPCODE[bytecode[ptr]].label);
-	switch(LOOKUP_OPCODE[bytecode[ptr]].label)
+	console.log(LOOKUP_OPCODE[currentFrame.code[PC]].label);
+	switch(LOOKUP_OPCODE[currentFrame.code[PC]].label)
 	{
 	    case "i_fail":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "i_save_cut":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "i_enter":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "i_exit":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "i_exitfact":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "i_depart":
-	    ptr+=3;
-	    continue;
 	    case "i_call":
-	    ptr+=3;
-	    continue;
+            {
+                var functor = Functor.lookup((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
+                nextFrame.code = currentModule.getPredicate(functor);
+                nextFrame.PC = PC+3;
+                currentFrame = nextFrame;
+	        PC = 0; // Start from the beginning of the frame
+                continue;
+            }
 	    case "i_cut":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "i_unify":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "b_firstvar":
-	    ptr+=3;
+	    PC+=3;
 	    continue;
 	    case "b_argvar":
-	    ptr+=3;
+	    PC+=3;
 	    continue;
 	    case "b_var":
-	    ptr+=3;
+	    PC+=3;
 	    continue;
 	    case "b_pop":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "b_atom":
-	    ptr+=3;
+	    PC+=3;
 	    continue;
 	    case "b_functor":
-	    ptr+=3;
+	    PC+=3;
 	    continue;
 	    case "h_firstvar":
-	    ptr+=3;
+	    PC+=3;
 	    continue;
 	    case "h_pop":
-	    ptr++;
+	    PC++;
 	    continue;
 	    case "h_void":
-	    ptr++;
-	    continue;
+            {
+	        PC++;
+	        continue;
+            }
 	    case "h_var":
-	    ptr+=3;
+	    PC+=3;
 	    continue;
 	    case "try_me_else":
-	    ptr+=5;
+	    PC+=5;
 	    continue;
 	    case "retry_me_else":
-	    ptr+=5;
+	    PC+=5;
 	    continue;
 	    case "trust_me":
-	    ptr+=5;
+	    PC+=5;
 	    continue;
 	}
     }

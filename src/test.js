@@ -26,7 +26,9 @@ console.log(util.inspect(query, {showHidden: false, depth: null}));
 var queryCode = Compiler.compileQuery(query);
 console.log(util.inspect(queryCode, {showHidden: false, depth: null}));
 
-Kernel.execute(queryCode.bytecode);
+
+
+Kernel.execute({code:queryCode.bytecode});
 
 /*
 push_functor is/2

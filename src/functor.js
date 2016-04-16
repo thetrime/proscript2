@@ -28,5 +28,9 @@ Functor.get = function(name, arity)
 	throw("bad input to functor.get");
 }
 
+Functor.lookup = function(i)
+{
+    return functor_table[i];
+}
 
 module.exports = Functor;
