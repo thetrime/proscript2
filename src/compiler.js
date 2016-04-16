@@ -4,6 +4,7 @@ var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
 var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
+var Instructions = require('./opcodes.js').opcode_map;
 
 
 function dereference_recursive(term)
@@ -18,86 +19,6 @@ function dereference_recursive(term)
     }
     return term;
 }
-
-var Instructions =
-    {
-	iFail: {label: "i_fail",
-		opcode: 0,
-		args: []},
-	iEnter: {label: "i_enter",
-		 opcode: 1,
-		 args: []},
-	iSaveCut: {label:"i_save_cut",
-		   opcode: 2,
-		   args: []},
-	iExit: {label:"i_exit",
-		opcode: 3,
-		args: []},
-	iExitFact: {label:"i_exitfact",
-		    opcode: 4,
-		    args: []},
-	iCall: {label:"i_call",
-		opcode: 5,
-		args: ["functor"]},
-	iDepart: {label:"i_depart",
-		  opcode: 6,
-		  args: ["functor"]},
-	iCut: {label:"i_cut",
-	       opcode: 7,
-	       args: []},
-	iUnify: {label:"i_unify",
-		 opcode: 8,
-		 args: []},
-	bFirstVar: {label: "b_firstvar",
-		    opcode: 9,
-		    args:["slot"]},
-	bArgVar: {label: "b_argvar",
-		  opcode: 10,
-		  args: ["slot"]},
-	bVar: {label: "b_var",
-	       opcode: 11,
-	       args: ["slot"]},
-	bPop: {label: "b_pop",
-	       opcode: 12,
-	       args: []},
-	bConstant: {label: "b_constant",
-		    opcode: 13,
-		    args: ["constant"]},
-	bFunctor: {label: "b_functor",
-		   opcode: 14,
-		   args: ["functor"]},
-	hConstant: {label: "h_constant",
-		    opcode: 15,
-		    args: ["constant"]},
-	hFirstVar: {label: "h_firstvar",
-		    opcode: 16,
-		    args: ["slot"]},
-	hFunctor: {label: "h_functor",
-		   opcode: 17,
-		   args: ["functor"]},
-	hPop: {label: "h_pop",
-	       opcode: 18,
-	       args: []},
-	hVoid: {label: "h_void",
-		opcode: 19,
-		args: []},
-	hVar: {label: "h_var",
-	       opcode: 20,
-	       args: ["slot"]},
-	tryMeElse: {label: "try_me_else",
-		    opcode: 21,
-		    args: ["address"]},
-	retryMeElse: {label: "retry_me_else",
-		      opcode: 22,
-		      args: ["address"]},
-	trustMe: {label: "trust_me",
-		  opcode: 23,
-		  args: []},
-
-	nop: {label: "nop",
-	      opcode: 255,
-	      args: []}
-    };
 
 function compilePredicate(clauses)
 {
@@ -142,16 +63,14 @@ function assemble(instructions)
     for (var i = 0; i < instructions.length; i++)
 	size += instructionSize(instructions[i].opcode);
     console.log("bytecode size: " + size);
-    var constants = [];
     var bytes = new Uint8Array(size);
     var currentInstruction = 0;
     for (var i = 0; i < instructions.length; i++)
     {
-	currentInstruction += assembleInstruction(instructions[i], bytes, currentInstruction, constants);
+	currentInstruction += assembleInstruction(instructions[i], bytes, currentInstruction);
     }
     return {bytecode: bytes,
-	    instructions:instructions,
-	    constants: constants};
+	    instructions:instructions};
 }
 
 function instructionSize(i)
@@ -161,7 +80,9 @@ function instructionSize(i)
     {
 	if (i.args[t] == "functor")
 	    rc +=2;
-	else if (i.args[t] == "constant")
+	else if (i.args[t] == "atom")
+	    rc += 2;
+	else if (i.args[t] == "integer")
 	    rc += 2;
 	else if (i.args[t] == "address")
 	    rc += 4;
@@ -171,7 +92,7 @@ function instructionSize(i)
     return rc;
 }
 
-function assembleInstruction(instruction, bytecode, ptr, constants)
+function assembleInstruction(instruction, bytecode, ptr)
 {
     var rc = 1;
     bytecode[ptr] = instruction.opcode.opcode;
@@ -181,19 +102,13 @@ function assembleInstruction(instruction, bytecode, ptr, constants)
 	if (arg == "functor")
 	{
 	    rc+=2;
-	    if (constants.indexOf(instruction.functor) == -1)
-		constants.push(instruction.functor);
-	    bytecode[ptr+1] = (constants.indexOf(instruction.functor) >> 8) & 255
-	    bytecode[ptr+2] = (constants.indexOf(instruction.functor) >> 0) & 255
+	    bytecode[ptr+1] = (instruction.functor.index >> 8) & 255
+	    bytecode[ptr+2] = (instruction.functor.index >> 0) & 255
 	}
-	else if (arg == "constant")
+	else if (arg == "atom")
 	{
-	    if (instruction.constant === undefined)
-		throw "up";
-	    if (constants.indexOf(instruction.constant) == -1)
-		constants.push(instruction.constant);
-	    bytecode[ptr+1] = (constants.indexOf(instruction.constant) >> 8) & 255
-	    bytecode[ptr+2] = (constants.indexOf(instruction.constant) >> 0) & 255
+	    bytecode[ptr+1] = (instruction.atom.index >> 8) & 255
+	    bytecode[ptr+2] = (instruction.atom.index >> 8) & 255
 	    rc += 2;
 	}
 	else if (arg == "address")
@@ -213,6 +128,15 @@ function assembleInstruction(instruction, bytecode, ptr, constants)
     }
     return rc;
 }
+
+
+function compileQuery(term)
+{
+    var instructions = [];
+    compileClause(new CompoundTerm(Constants.clauseFunctor, [Constants.trueAtom, dereference_recursive(term)]), instructions);
+    return assemble(instructions);
+}
+
 
 function compileClause(term, instructions)
 {
@@ -287,13 +211,13 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
     }
     else if (arg instanceof AtomTerm)
     {
-	instructions.push({opcode: Instructions.hConstant,
-			   constant: arg});
+	instructions.push({opcode: Instructions.hAtom,
+			   atom: arg});
     }
     else if (arg instanceof IntegerTerm)
     {
-	instructions.push({opcode: Instructions.hConstant,
-			   constant: arg});
+	instructions.push({opcode: Instructions.hInteger,
+			   integer: arg});
     }
     else if (arg instanceof CompoundTerm)
     {
@@ -414,11 +338,20 @@ function compileTermCreation(term, variables, instructions)
 	    compileTermCreation(term.args[i], variables, instructions);
 	instructions.push({opcode: Instructions.bPop});
     }
-    else // then it must be a constant
+    else if (term instanceof AtomTerm)
     {
-	instructions.push({opcode: Instructions.bConstant,
-			   constant:term});
+	instructions.push({opcode: Instructions.bAtom,
+			   atom:term});
+    }
+    else if (term instanceof IntegerTerm)
+    {
+	instructions.push({opcode: Instructions.bInteger,
+			   integer:term});
 
+    }
+    else
+    {
+	throw "Bad type";
     }
 }
 
@@ -521,4 +454,5 @@ function analyzeVariables(term, isHead, depth, map, context)
     return rc;
 }
 
-module.exports = compilePredicate;
+module.exports = {compilePredicate:compilePredicate,
+		  compileQuery:compileQuery};
