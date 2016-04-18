@@ -5,6 +5,7 @@ var AtomTerm = require('./atom_term.js');
 var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
 var Instructions = require('./opcodes.js').opcode_map;
+var util = require('util');
 
 
 function dereference_recursive(term)
@@ -53,7 +54,9 @@ function compilePredicate(clauses)
     }
 
     // Now convert instructions into an array of primitive types and an array of constants
-    return assemble(instructions);
+    var result = assemble(instructions);
+    //console.log(util.inspect(result, {showHidden: false, depth: null}));
+    return result;
 }
 
 function assemble(instructions)

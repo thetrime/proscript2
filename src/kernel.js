@@ -2,8 +2,9 @@ var LOOKUP_OPCODE = require('./opcodes.js').opcodes;
 var Functor = require('./functor.js');
 var Frame = require('./frame.js');
 var Module = require('./module.js');
+var util = require('util');
 
-function execute(currentFrame)
+function execute(env, currentFrame)
 {
     var currentModule = Module.get("user");
     var PC = 0;
@@ -37,10 +38,11 @@ function execute(currentFrame)
 	    case "i_call":
             {
                 var functor = Functor.lookup((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
-                nextFrame.code = currentModule.getPredicate(functor);
+                nextFrame.code = env.getPredicateCode(functor);
+                console.log("Code: " + util.inspect(nextFrame.code));
                 nextFrame.PC = PC+3;
                 currentFrame = nextFrame;
-	        PC = 0; // Start from the beginning of the frame
+                PC = 0; // Start from the beginning of the frame
                 continue;
             }
 	    case "i_cut":
@@ -70,10 +72,16 @@ function execute(currentFrame)
 	    case "h_firstvar":
 	    PC+=3;
 	    continue;
-	    case "h_pop":
+            case "h_functor":
+	    PC+=3;
+            continue;
+            case "h_pop":
 	    PC++;
 	    continue;
-	    case "h_void":
+            case "h_atom":
+            PC+=3;
+            continue;
+            case "h_void":
             {
 	        PC++;
 	        continue;

@@ -1,5 +1,6 @@
 var module_map = [];
 var Compiler = require('./compiler.js');
+var util = require('util');
 
 function Module(name)
 {
@@ -15,16 +16,29 @@ Module.prototype.definePredicate = function(functor)
 
 Module.prototype.addClause = function(functor, clause)
 {
+    if (this.predicates[functor.index] === undefined)
+        this.definePredicate(functor);
+    console.log(">>> Defined " + util.inspect(functor));
     this.predicates[functor.index].clauses.push(clause);
 }
 
 Module.prototype.compilePredicate = function(functor)
 {
-    this.predicates[functor.index].code = Compiler.compilePredicate(this.predicates[functor.index].clauses);
+    var compiled = Compiler.compilePredicate(this.predicates[functor.index].clauses);
+    this.predicates[functor.index].code = compiled.bytecode;
+    this.predicates[functor.index].instructions = compiled.instructions;
 }
 
-Module.prototype.getPredicate = function(functor)
+Module.prototype.getPredicateCode = function(functor)
 {
+    console.log(">>> looking for " + util.inspect(functor));
+    if (this.predicates[functor.index] === undefined)
+    {
+        console.log("No such predicate in module " + this.name);
+        return undefined;
+    }
+    if (this.predicates[functor.index].code === undefined)
+        this.compilePredicate(functor);
     return this.predicates[functor.index].code;
 }
 
