@@ -8,15 +8,16 @@ function execute(env, currentFrame)
 {
     var currentModule = Module.get("user");
     var PC = 0;
-    var nextFrame = {slots: [],
-                     code: undefined,
-                     parent: currentFrame,
-                     PC: undefined};
+    var nextFrame = new Frame(currentFrame);
     while(true)
     {
-	if (currentFrame.code[PC] === undefined)
-	    throw("Illegal fetch");
-	console.log(LOOKUP_OPCODE[currentFrame.code[PC]].label);
+        if (currentFrame.code[PC] === undefined)
+        {
+            console.log(util.inspect(currentFrame));
+            console.log("Illegal fetch at " + PC);
+            throw("Illegal fetch");
+        }
+        console.log(currentFrame.functor + " " + PC + ": " + LOOKUP_OPCODE[currentFrame.code[PC]].label);
 	switch(LOOKUP_OPCODE[currentFrame.code[PC]].label)
 	{
 	    case "i_fail":
@@ -27,22 +28,44 @@ function execute(env, currentFrame)
 	    continue;
 	    case "i_enter":
 	    PC++;
-	    continue;
-	    case "i_exit":
-	    PC++;
-	    continue;
+            continue;
+            case "i_exitquery":
+            {
+                return;
+            }
+            case "i_exit":
+            {
+                PC = currentFrame.returnPC;
+                currentFrame = currentFrame.parent;
+                nextFrame = new Frame(currentFrame);
+                continue;
+            }
 	    case "i_exitfact":
-	    PC++;
-	    continue;
-	    case "i_depart":
-	    case "i_call":
+            {
+                throw "not implemented";
+            }
+            case "i_depart":
             {
                 var functor = Functor.lookup((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
+                nextFrame.functor = functor;
                 nextFrame.code = env.getPredicateCode(functor);
-                console.log("Code: " + util.inspect(nextFrame.code));
-                nextFrame.PC = PC+3;
+                nextFrame.returnPC = currentFrame.parent.returnPC;
+                nextFrame.parent = currentFrame.parent;
                 currentFrame = nextFrame;
-                PC = 0; // Start from the beginning of the frame
+                nextFrame = new Frame(currentFrame);
+                PC = 0; // Start from the beginning of the code in the next frame
+                continue;
+
+            }
+            case "i_call":
+            {
+                var functor = Functor.lookup((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
+                nextFrame.functor = functor;
+                nextFrame.code = env.getPredicateCode(functor);
+                nextFrame.returnPC = PC+3;
+                currentFrame = nextFrame;
+                nextFrame = new Frame(currentFrame);
+                PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
 	    case "i_cut":

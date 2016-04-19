@@ -18,12 +18,14 @@ debug = function (msg)
 
 var env = new Environment();
 env.consultString("foo(A, q(B), x, A):- splunge(X, A + B, x), !, writeln(X).");
+env.consultString("splunge(X, _, X).");
+env.consultString("writeln(_).");
 
 
 var query = Parser.test("foo(a, B, C, D).");
-console.log(util.inspect(query, {showHidden: false, depth: null}));
+//console.log(util.inspect(query, {showHidden: false, depth: null}));
 var queryCode = Compiler.compileQuery(query);
-console.log(util.inspect(queryCode, {showHidden: false, depth: null}));
+//console.log(util.inspect(queryCode, {showHidden: false, depth: null}));
 
 env.execute(queryCode);
 

@@ -4,6 +4,8 @@ var util = require('util');
 var Kernel = require('./kernel.js');
 var AtomTerm = require('./atom_term.js');
 var Constants = require('./constants.js');
+var Frame = require('./frame.js');
+var Instructions = require('./opcodes.js').opcode_map;
 
 function Environment()
 {
@@ -27,10 +29,13 @@ Environment.prototype.consultString = function(data)
 Environment.prototype.execute = function(queryCode)
 {
     // make a frame with 0 args (since a query has no head)
-    var queryFrame = {code:queryCode.bytecode,
-                      slot: [],
-                      parent: undefined,
-                      PC: 0}
+    var topFrame = new Frame("$top");
+    topFrame.functor = "$top";
+    topFrame.code = [Instructions.iExitQuery.opcode];
+
+    var queryFrame = new Frame(topFrame);
+    queryFrame.functor = "$query";
+    queryFrame.code = queryCode.bytecode;
     Kernel.execute(this, queryFrame);
 }
 

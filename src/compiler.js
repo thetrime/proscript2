@@ -65,7 +65,6 @@ function assemble(instructions)
     var constant_count = 0;
     for (var i = 0; i < instructions.length; i++)
 	size += instructionSize(instructions[i].opcode);
-    console.log("bytecode size: " + size);
     var bytes = new Uint8Array(size);
     var currentInstruction = 0;
     for (var i = 0; i < instructions.length; i++)
@@ -137,7 +136,8 @@ function compileQuery(term)
 {
     var instructions = [];
     compileClause(new CompoundTerm(Constants.clauseFunctor, [Constants.trueAtom, dereference_recursive(term)]), instructions);
-    return assemble(instructions);
+    var code = assemble(instructions);
+    return code;
 }
 
 
@@ -159,23 +159,22 @@ function compileClause(term, instructions)
 	var context = {nextSlot:0};
 	envSize += analyzeVariables(term.args[0], true, 0, variables, context);
 	envSize += analyzeVariables(term.args[1], false, 1, variables, context);
-	console.log(variables);
-	if (context.hasGlobalCut)
+        if (context.hasGlobalCut)
 	    instructions.push({opcode: Instructions.iSaveCut,
 			       slot: 0});
 	compileHead(term.args[0], variables, instructions);
 	instructions.push({opcode: Instructions.iEnter});
 	compileBody(term.args[1], variables, instructions, true);
-	instructions.push({opcode: Instructions.iExit});
     }
     else
     {
-	// Fact
-	console.log(term.functor);
-	console.log(Constants.clauseFunctor);
-	// FIXME: A fact CAN have important variables in it. Like foo(A, A) should not succeed if the only clause is foo(a, b).
-	compileHead(term, {}, instructions);
-	instructions.push({opcode: Instructions.iExitFact});
+        // Fact
+        var variables = {};
+        var context = {nextSlot:0};
+        var envSize = analyzeVariables(term, true, 0, variables, context);
+        compileHead(term, variables, instructions);
+        instructions.push({opcode: Instructions.iEnter});
+        instructions.push({opcode: Instructions.iExit});
     }
 }
 

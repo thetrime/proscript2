@@ -19,3 +19,14 @@
 \------------------------/
 
 */
+
+function Frame(parent)
+{
+    this.parent = parent;
+    this.slots = [];
+    this.code = undefined;
+    this.returnPC = 0;
+}
+
+
+module.exports = Frame;

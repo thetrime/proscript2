@@ -10,6 +10,10 @@ function Functor(name, arity)
     functor_table[functor_index] = this;
     this.index = functor_index;
     functor_index++;
+    this.toString = function()
+    {
+        return this.name + "/" + this.arity
+    };
 }
 
 // name is an AtomTerm
