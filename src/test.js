@@ -20,22 +20,19 @@ debug = function (msg)
 
 
 var env = new Environment();
-env.consultString("foo(A, q(B), x, A):- splunge(X, A + B, x), !, writeln(X).");
-env.consultString("splunge(X, _, X).");
-env.consultString("writeln(_).");
-
-
-var query = new CompoundTerm("foo", [AtomTerm.get("a"), new VariableTerm("B"), new VariableTerm("C"), new VariableTerm("D")]);
-
+env.consultString("foo(a).");
+var arg = new VariableTerm("A");
+var query = new CompoundTerm("foo", [arg]);
 env.execute(query);
+console.log(arg);
+
 
 /*
-push_functor is/2
-firstVar C
-push_functor +/2
-firstVar A
-firstVar B
-var C
-icall [idepart really] writeln/1
-iexit
+$query 0: i_enter
+$query 1: b_firstvar
+$query 4: i_depart
+foo/1 0: h_atom
+foo/1 3: i_enter
+foo/1 4: i_exit
+$top 0: i_exitquery
 */

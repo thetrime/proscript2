@@ -8,7 +8,6 @@ function AtomTerm(value)
     atom_table[atom_index] = this;
     this.index = atom_index;
     atom_index++;
-
 }
 
 AtomTerm.prototype.dereference = function()
@@ -23,5 +22,9 @@ AtomTerm.get = function(value)
     return atom_map[value];
 }
 
+AtomTerm.lookup = function(i)
+{
+    return atom_table[i];
+}
 
 module.exports = AtomTerm;

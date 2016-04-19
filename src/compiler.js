@@ -108,9 +108,9 @@ function assembleInstruction(instruction, bytecode, ptr)
 	    bytecode[ptr+2] = (instruction.functor.index >> 0) & 255
 	}
 	else if (arg == "atom")
-	{
-	    bytecode[ptr+1] = (instruction.atom.index >> 8) & 255
-	    bytecode[ptr+2] = (instruction.atom.index >> 8) & 255
+        {
+            bytecode[ptr+1] = (instruction.atom.index >> 8) & 255
+            bytecode[ptr+2] = (instruction.atom.index >> 0) & 255
 	    rc += 2;
 	}
 	else if (arg == "address")
@@ -213,7 +213,7 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
     }
     else if (arg instanceof AtomTerm)
     {
-	instructions.push({opcode: Instructions.hAtom,
+        instructions.push({opcode: Instructions.hAtom,
 			   atom: arg});
     }
     else if (arg instanceof IntegerTerm)

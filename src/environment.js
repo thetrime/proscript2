@@ -39,6 +39,7 @@ Environment.prototype.execute = function(queryTerm)
     var queryFrame = new Frame(topFrame);
     queryFrame.functor = "$query";
     queryFrame.code = queryCode.bytecode;
+    queryFrame.slots = [queryTerm.args[0]];
     Kernel.execute(this, queryFrame);
 }
 
