@@ -6,6 +6,7 @@ var AtomTerm = require('./atom_term.js');
 var Constants = require('./constants.js');
 var Frame = require('./frame.js');
 var Instructions = require('./opcodes.js').opcode_map;
+var Compiler = require('./compiler.js');
 
 function Environment()
 {
@@ -26,8 +27,10 @@ Environment.prototype.consultString = function(data)
     this.getModule().addClause(functor, clause);
 }
 
-Environment.prototype.execute = function(queryCode)
+Environment.prototype.execute = function(queryTerm)
 {
+    var queryCode = Compiler.compileQuery(queryTerm);
+
     // make a frame with 0 args (since a query has no head)
     var topFrame = new Frame("$top");
     topFrame.functor = "$top";

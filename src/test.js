@@ -2,6 +2,9 @@ var Compiler = require('./compiler.js');
 var Parser = require('./parser.js');
 var Environment = require('./environment.js');
 var util = require('util');
+var CompoundTerm = require('./compound_term.js');
+var VariableTerm = require('./variable_term.js');
+var AtomTerm = require('./atom_term.js');
 
 
 debug_msg = function (msg)
@@ -22,12 +25,9 @@ env.consultString("splunge(X, _, X).");
 env.consultString("writeln(_).");
 
 
-var query = Parser.test("foo(a, B, C, D).");
-//console.log(util.inspect(query, {showHidden: false, depth: null}));
-var queryCode = Compiler.compileQuery(query);
-//console.log(util.inspect(queryCode, {showHidden: false, depth: null}));
+var query = new CompoundTerm("foo", [AtomTerm.get("a"), new VariableTerm("B"), new VariableTerm("C"), new VariableTerm("D")]);
 
-env.execute(queryCode);
+env.execute(query);
 
 /*
 push_functor is/2
