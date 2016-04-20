@@ -35,10 +35,10 @@ function compilePredicate(clauses)
 	{
 	    // Save room for the try-retry-trust construct
 	    if (clauses.length > 1)
-	    {
-		instructions.push({opcode: Instructions.nop});
-		clausePointers[i] = instructions.length;
-	    }
+            {
+                clausePointers[i] = instructions.length;
+                instructions.push({opcode: Instructions.nop});
+            }
 	    compileClause(dereference_recursive(clauses[i]), instructions);
 	}
 	// Now go back and fill in the try-retry-trust constructs
@@ -69,8 +69,9 @@ function assemble(instructions)
     var currentInstruction = 0;
     for (var i = 0; i < instructions.length; i++)
     {
-	currentInstruction += assembleInstruction(instructions[i], bytes, currentInstruction);
+        currentInstruction += assembleInstruction(instructions, i, bytes, currentInstruction);
     }
+//    console.log(instructions);
     return {bytecode: bytes,
 	    instructions:instructions};
 }
@@ -94,9 +95,10 @@ function instructionSize(i)
     return rc;
 }
 
-function assembleInstruction(instruction, bytecode, ptr)
+function assembleInstruction(instructions, iP, bytecode, ptr)
 {
     var rc = 1;
+    var instruction = instructions[iP];
     bytecode[ptr] = instruction.opcode.opcode;
     for (var i = 0; i < instruction.opcode.args.length; i++)
     {
@@ -114,11 +116,15 @@ function assembleInstruction(instruction, bytecode, ptr)
 	    rc += 2;
 	}
 	else if (arg == "address")
-	{
-	    bytecode[ptr+1] = (arg.address >> 24) & 0xff;
-	    bytecode[ptr+2] = (arg.address >> 16) & 0xff;
-	    bytecode[ptr+3] = (arg.address >> 8) & 0xff;
-	    bytecode[ptr+4] = (arg.address >> 0) & 0xff;
+        {
+            var target = instruction.address;
+            var offset = 0;
+            for (var t = iP; t < target; t++)
+                offset += instructionSize(instructions[t].opcode);
+            bytecode[ptr+1] = (offset >> 24) & 0xff;
+            bytecode[ptr+2] = (offset >> 16) & 0xff;
+            bytecode[ptr+3] = (offset >> 8) & 0xff;
+            bytecode[ptr+4] = (offset >> 0) & 0xff;
 	    rc += 4;
 	}
 	else if (arg == "slot")

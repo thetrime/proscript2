@@ -5,42 +5,94 @@ var Module = require('./module.js');
 var util = require('util');
 var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
+var Choicepoint = require('./choicepoint.js');
 
-function execute(env, currentFrame)
+
+// Binding is done in a slightly weird way
+// To bind a variable to a value (which might also be a variable)
+// we set two properties: First, .value is set to the value directly
+// but also .limit is set to the current value of env.lTop
+// This means we can undo bindings by simply descreasing env.lTop, provided
+// that deref() respects the value of lTop
+function deref(env, term)
 {
-    var currentModule = Module.get("user");
-    var PC = 0;
-    var argP = 0;
-    var nextFrame = new Frame(currentFrame);
     while(true)
     {
-        if (currentFrame.code[PC] === undefined)
+        if (term instanceof VariableTerm)
         {
-            console.log(util.inspect(currentFrame));
-            console.log("Illegal fetch at " + PC);
+            if (term.limit >= env.lTop)
+            {
+                // Reset the variable if the binding is above lTop
+                term.value = null;
+                return term;
+            }
+            else if (term.value == null)
+            {
+                // Already unbound
+                return term
+            }
+            term = term.value;
+            continue;
+        }
+        return term;
+    }
+}
+
+function backtrack(env)
+{
+    if (env.choicepoints.length == 0)
+        return false;
+    var choicepoint = env.choicepoints.pop();
+    env.currentFrame = choicepoint.frame;
+    env.PC = choicepoint.retryPC;
+    env.lTop = choicepoint.retrylTop;
+    return true;
+}
+
+function bind(env, variable, value)
+{
+    variable.limit = env.lTop++;
+    variable.value = value;
+}
+
+function execute(env)
+{
+    var currentModule = Module.get("user");
+    var argP = 0;
+    var nextFrame = new Frame(env.currentFrame);
+    while(true)
+    {
+        if (env.currentFrame.code[env.PC] === undefined)
+        {
+            console.log(util.inspect(env.currentFrame));
+            console.log("Illegal fetch at " + env.PC);
             throw("Illegal fetch");
         }
-        console.log(currentFrame.functor + " " + PC + ": " + LOOKUP_OPCODE[currentFrame.code[PC]].label);
-	switch(LOOKUP_OPCODE[currentFrame.code[PC]].label)
+        console.log(env.currentFrame.functor + " " + env.PC + ": " + LOOKUP_OPCODE[env.currentFrame.code[env.PC]].label);
+        switch(LOOKUP_OPCODE[env.currentFrame.code[env.PC]].label)
 	{
-	    case "i_fail":
-	    PC++;
-	    continue;
+            case "i_fail":
+            {
+                if (backtrack(env))
+                    continue;
+                return false;
+            }
 	    case "i_save_cut":
-	    PC++;
+	    env.PC++;
 	    continue;
 	    case "i_enter":
-	    PC++;
+	    env.PC++;
             continue;
             case "i_exitquery":
             {
-                return;
+                return true;
             }
             case "i_exit":
             {
-                PC = currentFrame.returnPC;
-                currentFrame = currentFrame.parent;
-                nextFrame = new Frame(currentFrame);
+                env.PC = env.currentFrame.PC;
+                env.currentFrame = env.currentFrame.parent;
+                nextFrame = new Frame(env.currentFrame);
+                argP = 0;
                 continue;
             }
 	    case "i_exitfact":
@@ -49,108 +101,120 @@ function execute(env, currentFrame)
             }
             case "i_depart":
             {
-                var functor = Functor.lookup((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
+                var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
                 nextFrame.functor = functor;
                 nextFrame.code = env.getPredicateCode(functor);
-                nextFrame.returnPC = currentFrame.parent.returnPC;
-                nextFrame.parent = currentFrame.parent;
-                currentFrame = nextFrame;
-                nextFrame = new Frame(currentFrame);
-                // FIXME: Need to save argP - maybe not for i_depart
+                nextFrame.PC = env.currentFrame.PC;
+                nextFrame.parent = env.currentFrame.parent;
+                env.currentFrame = nextFrame;
+                nextFrame = new Frame(env.currentFrame);
                 argP = 0;
-                PC = 0; // Start from the beginning of the code in the next frame
+                env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
 
             }
             case "i_call":
             {
-                var functor = Functor.lookup((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
+                var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
                 nextFrame.functor = functor;
                 nextFrame.code = env.getPredicateCode(functor);
-                nextFrame.returnPC = PC+3;
-                currentFrame = nextFrame;
-                nextFrame = new Frame(currentFrame);
-                // FIXME: Need to save argP I think
+                nextFrame.PC = env.PC+3;
+                env.currentFrame = nextFrame;
+                nextFrame = new Frame(env.currentFrame);
                 argP = 0;
-                PC = 0; // Start from the beginning of the code in the next frame
+                env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
 	    case "i_cut":
-	    PC++;
+	    env.PC++;
 	    continue;
 	    case "i_unify":
-	    PC++;
+	    env.PC++;
 	    continue;
             case "b_firstvar":
             {
-                var slot = ((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
-                console.log("nextFrame.slots[" + argP + "] <- " + util.inspect(currentFrame.slots[slot]));
-                nextFrame.slots[argP++] = currentFrame.slots[slot];
-                PC+=3;
+                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+                nextFrame.slots[argP++] = env.currentFrame.slots[slot];
+                env.PC+=3;
                 continue;
             }
-	    case "b_argvar":
-	    PC+=3;
-	    continue;
+            case "b_argvar":
+            {
+                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+                env.PC+=3;
+                nextFrame.slots[argP++] = env.currentFrame.slots[slot]; // FIXME: Need to trail this?
+                continue;
+            }
 	    case "b_var":
-	    PC+=3;
+	    env.PC+=3;
 	    continue;
 	    case "b_pop":
-	    PC++;
+	    env.PC++;
 	    continue;
 	    case "b_atom":
-	    PC+=3;
+	    env.PC+=3;
 	    continue;
 	    case "b_functor":
-	    PC+=3;
+	    env.PC+=3;
 	    continue;
 	    case "h_firstvar":
-	    PC+=3;
+	    env.PC+=3;
 	    continue;
             case "h_functor":
-	    PC+=3;
+	    env.PC+=3;
             continue;
             case "h_pop":
-	    PC++;
+	    env.PC++;
 	    continue;
             case "h_atom":
             {
-                console.log(currentFrame.code);
-                var atom = AtomTerm.lookup((currentFrame.code[PC+1] << 8) | (currentFrame.code[PC+2]));
-                var arg = currentFrame.slots[argP]; // FIXME: Must deref
-                PC+=3;
-                console.log("Trying to match " + util.inspect(arg) + " and " + util.inspect(atom));
+                var atom = AtomTerm.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+                var arg = deref(env, env.currentFrame.slots[argP]);
+                env.PC+=3;
                 if (arg == atom)
                     continue;
                 if (arg instanceof VariableTerm)
                 {
-                    // FIXME: Must trail
-                    arg.value = atom;
+                    bind(env, arg, atom);
                 }
                 else
                 {
-                    // FIXME: Backtrack
+                    if (backtrack(env))
+                        continue;
+                    return false;
                 }
                 continue;
             }
             case "h_void":
             {
-	        PC++;
+	        env.PC++;
 	        continue;
             }
 	    case "h_var":
-	    PC+=3;
+	    env.PC+=3;
 	    continue;
-	    case "try_me_else":
-	    PC+=5;
-	    continue;
-	    case "retry_me_else":
-	    PC+=5;
-	    continue;
-	    case "trust_me":
-	    PC+=5;
-	    continue;
-	}
+            case "try_me_else":
+            case "retry_me_else":
+            {
+                var address = (env.currentFrame.code[env.PC+1] << 24) | (env.currentFrame.code[env.PC+2] << 16) | (env.currentFrame.code[env.PC+3] << 8) | (env.currentFrame.code[env.PC+4] << 0) + env.PC;
+                var backtrackFrame = new Choicepoint(env.currentFrame, address);
+                backtrackFrame.retrylTop = env.lTop;
+                backtrackFrame.PC = address;
+                backtrackFrame.code = env.currentFrame.code;
+                backtrackFrame.functor = env.currentFrame.functor;
+                env.choicepoints.push(backtrackFrame);
+                env.PC+=5;
+                continue;
+            }
+            case "trust_me":
+	    env.PC+=5;
+            continue;
+            default:
+            {
+                console.log("Unknown instruction: " +LOOKUP_Oenv.PCODE[env.currentFrame.code[env.PC]].label);
+                throw "illegal instruction";
+            }
+        }
     }
 }
 

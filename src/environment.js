@@ -11,7 +11,15 @@ var Compiler = require('./compiler.js');
 function Environment()
 {
     this.userModule = Module.get("user");
+    this.reset();
+}
+
+Environment.prototype.reset = function()
+{
     this.currentModule = this.userModule;
+    this.choicepoints = [];
+    this.trail = [];
+    this.lTop = 0;
 }
 
 Environment.prototype.getModule = function()
@@ -40,7 +48,10 @@ Environment.prototype.execute = function(queryTerm)
     queryFrame.functor = "$query";
     queryFrame.code = queryCode.bytecode;
     queryFrame.slots = [queryTerm.args[0]];
-    Kernel.execute(this, queryFrame);
+    queryFrame.PC = 0;
+    this.PC = 0;
+    this.currentFrame = queryFrame;
+    return Kernel.execute(this);
 }
 
 Environment.prototype.getPredicateCode = function(functor)
@@ -51,7 +62,6 @@ Environment.prototype.getPredicateCode = function(functor)
         p = this.userModule.getPredicateCode(functor);
         if (p === undefined)
             throw "undefined predicate";
-        // FIXME: Not so simple
     }
     return p;
 }

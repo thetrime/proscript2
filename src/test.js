@@ -5,6 +5,7 @@ var util = require('util');
 var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
+var Functor = require('./functor.js');
 
 
 debug_msg = function (msg)
@@ -20,11 +21,21 @@ debug = function (msg)
 
 
 var env = new Environment();
-env.consultString("foo(a).");
+env.consultString("foo(X):- bar(X), qux(X).");
+env.consultString("bar(a).");
+env.consultString("bar(b).");
+env.consultString("bar(c).");
+
+env.consultString("qux(c).");
+
+
+
 var arg = new VariableTerm("A");
 var query = new CompoundTerm("foo", [arg]);
-env.execute(query);
-console.log(arg);
+if (!env.execute(query))
+    console.log("Failed");
+else
+    console.log(arg);
 
 
 /*

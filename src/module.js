@@ -12,13 +12,13 @@ Module.prototype.definePredicate = function(functor)
 {
     this.predicates[functor.index] = {clauses: [],
                                       code: undefined};
+    console.log(">>> Defined " + this.name + ":" + functor);
 }
 
 Module.prototype.addClause = function(functor, clause)
 {
     if (this.predicates[functor.index] === undefined)
         this.definePredicate(functor);
-    console.log(">>> Defined " + util.inspect(functor));
     this.predicates[functor.index].clauses.push(clause);
 }
 

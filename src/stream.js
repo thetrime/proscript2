@@ -334,9 +334,9 @@ function getb(s)
 {
     if (s.buffer_size == 0)
     {
-        debug_msg("Buffering...");
+        //debug_msg("Buffering...");
         s.buffer_size = s.read(s, 1, STREAM_BUFFER_SIZE, s.buffer);
-        debug_msg("Buffer now contains " + s.buffer_size + " elements");
+        //debug_msg("Buffer now contains " + s.buffer_size + " elements");
     }
     if (s.buffer_size < 0)
         return s.buffer_size;
@@ -352,9 +352,9 @@ function peekb(s)
 {
     if (s.buffer_size == 0)
     {
-        debug_msg("Buffering...");
+        //debug_msg("Buffering...");
         s.buffer_size = s.read(s, 1, STREAM_BUFFER_SIZE, s.buffer);
-        debug_msg("Buffer now contains " + s.buffer_size + " elements");
+        //debug_msg("Buffer now contains " + s.buffer_size + " elements");
     }
     if (s.buffer_size < 0)
         return s.buffer_size;
