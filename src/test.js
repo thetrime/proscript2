@@ -30,7 +30,9 @@ env.consultString("qux(c(X)):- baz(X)");
 env.consultString("baz(mouse).");
 env.consultString("baz(cat).");
 
-
+//env.getPredicateCode(Functor.get(AtomTerm.get("foo"), 1));
+//env.getPredicateCode(Functor.get(AtomTerm.get("qux"), 1));
+//throw "halt";
 
 var arg = new VariableTerm("A");
 var query = new CompoundTerm("foo", [arg]);

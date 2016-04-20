@@ -427,7 +427,7 @@ function analyzeVariables(term, isHead, depth, map, context)
 	if (map[term.name] === undefined)
 	{
 	    map[term.name] = ({variable: term,
-			       isArg: isHead,
+                               isArg: (isHead && depth == 0),
 			       fresh: true,
 			       slot: context.nextSlot});
 	    context.nextSlot++;

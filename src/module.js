@@ -38,6 +38,7 @@ Module.prototype.getPredicateCode = function(functor)
     }
     if (this.predicates[functor.index].code === undefined)
         this.compilePredicate(functor);
+    //console.log(util.inspect(this.predicates[functor.index], {showHidden: false, depth: null}));
     return this.predicates[functor.index].code;
 }
 

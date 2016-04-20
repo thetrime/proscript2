@@ -8,13 +8,46 @@ var AtomTerm = require('./atom_term.js');
 var CompoundTerm = require('./compound_term.js');
 var Choicepoint = require('./choicepoint.js');
 
+var READ = 0;
+var WRITE = 1;
 
-// Binding is done in a slightly weird way
-// To bind a variable to a value (which might also be a variable)
-// we set two properties: First, .value is set to the value directly
-// but also .limit is set to the current value of env.lTop
-// This means we can undo bindings by simply descreasing env.lTop, provided
-// that deref() respects the value of lTop
+/*
+  Overview:
+
+  In general, executing a clause involves two distinct phases. First, we attempt to unify
+  arguments in the head with the arguments on the stack. These are the H_ insructions.
+  During this phase, the argP[argI] points to the next cell to be matched. If we start matching
+  a subterm, for example in the clause
+     foo(a, b(c), d):- ....
+  then we push the current context to argS, storing argP, argI and the mode (read/write), and
+  reinitialize argP to the arguments of the compound we are now trying to match, and argI to 0.
+  Initially, when we start executing the head instructions, the value of argP is the array of
+  args to the goal.
+
+  Once the head is matched, we can start executing the body. This switching of modes is activated
+  by the I_ENTER instruction. To understand how to execute the body, suppose the body is made up of
+  several sub-goals. For each one, we must push the arguments onto a new frame, then switch
+  execution to it. This is accomplished via the B_ instructions. During this phase, argP points
+  to the slots array in the next frame, and argI will be set to the nth arg. If we need to push
+  a compound, then again we stash the current context and set argP to be the args of the compound.
+
+  Binding is complicated. In a traditional WAM, we have a very clear idea of directionality of
+  binding - the address of a variable is strongly related to its cell value. However here, we do not.
+  When binding a value X to a variable V (X may or may not /also/ be a variable - more on that in
+  a moment), we set two properties of V. First, .value is set to X. This is simple enough. But also
+  we set .limit to env.lTop. With a suitable modification to deref(), this means we can unbind
+  all variables above the current value of env.lTop, which means that to backtrack we only need to
+  decrease lTop to an earlier value.
+
+  There is a complication when X and V are both variables because we have to make explicit which
+  way the binding is happening. bind() always binds the var to the value, so if you want to bind
+  them in reverse, simply reverse the order of the arguments.
+
+  One consequence of this is that we can no longer do things like comparing variable values to find
+  out which way the binding is to happen. See B_ARGVAR
+
+*/
+
 function deref(env, term)
 {
     while(true)
@@ -39,6 +72,15 @@ function deref(env, term)
     }
 }
 
+function link(env, value)
+{
+    if (value === undefined)
+        throw "Illegal link";
+    var v = new VariableTerm("_");
+    bind(env, v, value);
+    return v;
+}
+
 function backtrack(env)
 {
     if (env.choicepoints.length == 0)
@@ -59,12 +101,28 @@ function bind(env, variable, value)
     variable.value = value;
 }
 
+function newArgFrame(env)
+{
+    env.argS.push({p: env.argP,
+                   i: env.argI,
+                   m: env.mode});
+}
+
+function popArgFrame(env)
+{
+    var argFrame = env.argS.pop();
+    env.argP = argFrame.p;
+    env.argI = argFrame.i;
+    env.mode = argFrame.m;
+}
+
 function execute(env)
 {
     var currentModule = Module.get("user");
     env.argS = [];
     env.argI = 0;
     env.argP = env.currentFrame.slots;
+    env.mode = READ;
     var nextFrame = undefined;
     while(true)
     {
@@ -94,6 +152,7 @@ function execute(env)
                 nextFrame = new Frame(env.currentFrame);
                 env.argI = 0;
                 env.argP = nextFrame.slots;
+                // FIXME: assert(env.argS.length == 0)
                 env.PC++;
                 continue;
             }
@@ -121,7 +180,7 @@ function execute(env)
                 nextFrame.code = env.getPredicateCode(functor);
                 nextFrame.PC = env.currentFrame.returnPC;
                 nextFrame.parent = env.currentFrame.parent;
-                env.argP = env.currentFrame.slots;
+                env.argP = nextFrame.slots;
                 env.argI = 0;
                 env.currentFrame = nextFrame;
                 nextFrame = new Frame(env.currentFrame);
@@ -136,11 +195,12 @@ function execute(env)
                 nextFrame.code = env.getPredicateCode(functor);
                 nextFrame.returnPC = env.PC+3;
                 env.currentFrame = nextFrame;
+                // Reset argI to be at the start of the current array. argP SHOULD already be slots for the next frame since we were
+                // just filling it in
+                // FIXME: assert(env.argS.length === 0)
+                // FIXME: assert(env.argP === env.currentFrame.slots)
                 env.argI = 0;
-                env.argP = nextFrame.slots;
                 nextFrame = new Frame(env.currentFrame);
-                console.log(util.inspect(env.argP));
-                console.log("Calling " + functor);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
@@ -166,13 +226,27 @@ function execute(env)
             case "b_argvar":
             {
                 var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+                var arg = env.currentFrame.slots[slot];
+                arg = deref(env, arg);
+                if (arg instanceof VariableTerm)
+                {
+                    // FIXME: This MAY require trailing
+                    env.argP[env.argI] = new VariableTerm("_");
+                    bind(env, arg, env.argP[env.argI]);
+                }
+                else
+                {
+                    env.argP[env.argI] = arg;
+                }
+                env.argI++;
                 env.PC+=3;
-                env.argP[env.argI++] = env.currentFrame.slots[slot]; // FIXME: Need to trail this?
                 continue;
             }
             case "b_var":
             {
-                throw "not implemented";
+                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+                env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
+                env.argI++;
                 env.PC+=3;
                 continue;
             }
@@ -196,7 +270,29 @@ function execute(env)
             }
             case "h_firstvar":
             {
-                throw "not implemented";
+                // varFrame(FR, *PC++) in SWI-Prolog is the same as
+                // env.currentFrame.slot[(env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2])] in PS2
+                // basically varFrameP(FR, n) is (((Word)f) + n), which is to say it is a pointer to the nth word in the frame
+                // In PS2 parlance, these are 'slots'
+                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+                if (env.mode == WRITE) // write
+                {
+                    env.currentFrame.slots[slot] = new VariableTerm("_");
+                    bind(env, env.currentFrame.slots[slot], env.argP[env.argI]);
+                }
+                else
+                {
+                    if (env.argP[env.argI] instanceof VariableTerm)
+                    {
+                        env.currentFrame.slots[slot] = env.argP[env.argI]
+                    }
+                    else
+                    {
+                        env.currentFrame.slots[slot] = new VariableTerm("_");
+                        bind(env.currentFrame.slots[slot], env.argP[env.argI]);
+                    }
+                }
+                env.argI++;
                 env.PC+=3;
                 continue;
             }
@@ -209,8 +305,7 @@ function execute(env)
                 {
                     if (arg.functor === functor)
                     {
-                        env.argS.push({p: env.argP,
-                                       i: env.argI});
+                        newArgFrame(env);
                         env.argP = arg.args;
                         env.argI = 0;
                         continue;
@@ -218,14 +313,14 @@ function execute(env)
                 }
                 else if (arg instanceof VariableTerm)
                 {
-                    env.argS.push({p: env.argP,
-                                   i: env.argI});
+                    newArgFrame(env);
                     var args = new Array(functor.arity);
                     for (var i = 0; i < args.length; i++)
                         args[i] = new VariableTerm("_");
                     bind(env, arg, new CompoundTerm(functor, args));
                     env.argP = args;
                     env.argI = 0;
+                    env.mode = WRITE;
                     continue;
                 }
                 console.log("argP: " + util.inspect(env.argP));
@@ -237,9 +332,7 @@ function execute(env)
             }
             case "h_pop":
             {
-                var argFrame = env.argS.pop();
-                env.argP = argFrame.p;
-                env.argI = argFrame.i;
+                popArgFrame(env);
                 env.PC++;
                 continue;
             }
