@@ -24,9 +24,11 @@ var env = new Environment();
 env.consultString("foo(X):- bar(X), qux(X).");
 env.consultString("bar(a).");
 env.consultString("bar(b).");
-env.consultString("bar(c).");
+env.consultString("bar(c(cat)).");
 
-env.consultString("qux(c).");
+env.consultString("qux(c(X)):- baz(X)");
+env.consultString("baz(mouse).");
+env.consultString("baz(cat).");
 
 
 
@@ -35,7 +37,7 @@ var query = new CompoundTerm("foo", [arg]);
 if (!env.execute(query))
     console.log("Failed");
 else
-    console.log(arg);
+    console.log(util.inspect(arg, {showHidden: false, depth: null}));
 
 
 /*

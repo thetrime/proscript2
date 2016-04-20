@@ -5,6 +5,7 @@ var Module = require('./module.js');
 var util = require('util');
 var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
+var CompoundTerm = require('./compound_term.js');
 var Choicepoint = require('./choicepoint.js');
 
 
@@ -46,6 +47,9 @@ function backtrack(env)
     env.currentFrame = choicepoint.frame;
     env.PC = choicepoint.retryPC;
     env.lTop = choicepoint.retrylTop;
+    env.argP = choicepoint.argP;
+    env.argI = choicepoint.argI;
+    env.argS = choicepoint.argS;
     return true;
 }
 
@@ -58,8 +62,10 @@ function bind(env, variable, value)
 function execute(env)
 {
     var currentModule = Module.get("user");
-    var argP = 0;
-    var nextFrame = new Frame(env.currentFrame);
+    env.argS = [];
+    env.argI = 0;
+    env.argP = env.currentFrame.slots;
+    var nextFrame = undefined;
     while(true)
     {
         if (env.currentFrame.code[env.PC] === undefined)
@@ -77,22 +83,31 @@ function execute(env)
                     continue;
                 return false;
             }
-	    case "i_save_cut":
-	    env.PC++;
-	    continue;
-	    case "i_enter":
-	    env.PC++;
-            continue;
+            case "i_save_cut":
+            {
+                throw "not implemented";
+                env.PC++;
+                continue;
+            }
+            case "i_enter":
+            {
+                nextFrame = new Frame(env.currentFrame);
+                env.argI = 0;
+                env.argP = nextFrame.slots;
+                env.PC++;
+                continue;
+            }
             case "i_exitquery":
             {
                 return true;
             }
             case "i_exit":
             {
-                env.PC = env.currentFrame.PC;
+                env.PC = env.currentFrame.returnPC;
                 env.currentFrame = env.currentFrame.parent;
                 nextFrame = new Frame(env.currentFrame);
-                argP = 0;
+                env.argP = nextFrame.slots;
+                env.argI = 0;
                 continue;
             }
 	    case "i_exitfact":
@@ -104,11 +119,12 @@ function execute(env)
                 var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
                 nextFrame.functor = functor;
                 nextFrame.code = env.getPredicateCode(functor);
-                nextFrame.PC = env.currentFrame.PC;
+                nextFrame.PC = env.currentFrame.returnPC;
                 nextFrame.parent = env.currentFrame.parent;
+                env.argP = env.currentFrame.slots;
+                env.argI = 0;
                 env.currentFrame = nextFrame;
                 nextFrame = new Frame(env.currentFrame);
-                argP = 0;
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
 
@@ -118,23 +134,32 @@ function execute(env)
                 var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
                 nextFrame.functor = functor;
                 nextFrame.code = env.getPredicateCode(functor);
-                nextFrame.PC = env.PC+3;
+                nextFrame.returnPC = env.PC+3;
                 env.currentFrame = nextFrame;
+                env.argI = 0;
+                env.argP = nextFrame.slots;
                 nextFrame = new Frame(env.currentFrame);
-                argP = 0;
+                console.log(util.inspect(env.argP));
+                console.log("Calling " + functor);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
-	    case "i_cut":
-	    env.PC++;
-	    continue;
-	    case "i_unify":
-	    env.PC++;
-	    continue;
+            case "i_cut":
+            {
+                throw "not implemented";
+                env.PC++;
+                continue;
+            }
+            case "i_unify":
+            {
+                throw "not implemented";
+                env.PC++;
+                continue;
+            }
             case "b_firstvar":
             {
                 var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
-                nextFrame.slots[argP++] = env.currentFrame.slots[slot];
+                env.argP[env.argI++] = env.currentFrame.slots[slot];
                 env.PC+=3;
                 continue;
             }
@@ -142,34 +167,86 @@ function execute(env)
             {
                 var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
                 env.PC+=3;
-                nextFrame.slots[argP++] = env.currentFrame.slots[slot]; // FIXME: Need to trail this?
+                env.argP[env.argI++] = env.currentFrame.slots[slot]; // FIXME: Need to trail this?
                 continue;
             }
-	    case "b_var":
-	    env.PC+=3;
-	    continue;
-	    case "b_pop":
-	    env.PC++;
-	    continue;
-	    case "b_atom":
-	    env.PC+=3;
-	    continue;
-	    case "b_functor":
-	    env.PC+=3;
-	    continue;
-	    case "h_firstvar":
-	    env.PC+=3;
-	    continue;
+            case "b_var":
+            {
+                throw "not implemented";
+                env.PC+=3;
+                continue;
+            }
+            case "b_pop":
+            {
+                throw "not implemented";
+                env.PC++;
+                continue;
+            }
+            case "b_atom":
+            {
+                throw "not implemented";
+                env.PC+=3;
+                continue;
+            }
+            case "b_functor":
+            {
+                throw "not implemented";
+                env.PC+=3;
+                continue;
+            }
+            case "h_firstvar":
+            {
+                throw "not implemented";
+                env.PC+=3;
+                continue;
+            }
             case "h_functor":
-	    env.PC+=3;
-            continue;
+            {
+                var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+                var arg = deref(env, env.argP[env.argI++]);
+                env.PC+=3;
+                if (arg instanceof CompoundTerm)
+                {
+                    if (arg.functor === functor)
+                    {
+                        env.argS.push({p: env.argP,
+                                       i: env.argI});
+                        env.argP = arg.args;
+                        env.argI = 0;
+                        continue;
+                    }
+                }
+                else if (arg instanceof VariableTerm)
+                {
+                    env.argS.push({p: env.argP,
+                                   i: env.argI});
+                    var args = new Array(functor.arity);
+                    for (var i = 0; i < args.length; i++)
+                        args[i] = new VariableTerm("_");
+                    bind(env, arg, new CompoundTerm(functor, args));
+                    env.argP = args;
+                    env.argI = 0;
+                    continue;
+                }
+                console.log("argP: " + util.inspect(env.argP));
+                console.log("Failed to unify " + util.inspect(arg) + " with the functor " + util.inspect(functor));
+
+                if (backtrack(env))
+                    continue;
+                return false;
+            }
             case "h_pop":
-	    env.PC++;
-	    continue;
+            {
+                var argFrame = env.argS.pop();
+                env.argP = argFrame.p;
+                env.argI = argFrame.i;
+                env.PC++;
+                continue;
+            }
             case "h_atom":
             {
                 var atom = AtomTerm.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
-                var arg = deref(env, env.currentFrame.slots[argP]);
+                var arg = deref(env, env.argP[env.argI++]);
                 env.PC+=3;
                 if (arg == atom)
                     continue;
@@ -179,6 +256,8 @@ function execute(env)
                 }
                 else
                 {
+                    console.log("argP: " + util.inspect(env.argP));
+                    console.log("Failed to unify " + util.inspect(arg) + " with the atom " + util.inspect(atom));
                     if (backtrack(env))
                         continue;
                     return false;
@@ -200,6 +279,9 @@ function execute(env)
                 var backtrackFrame = new Choicepoint(env.currentFrame, address);
                 backtrackFrame.retrylTop = env.lTop;
                 backtrackFrame.PC = address;
+                backtrackFrame.argP = env.argP;
+                backtrackFrame.argI = env.argI;
+                backtrackFrame.argS = env.argS;
                 backtrackFrame.code = env.currentFrame.code;
                 backtrackFrame.functor = env.currentFrame.functor;
                 env.choicepoints.push(backtrackFrame);
@@ -207,8 +289,10 @@ function execute(env)
                 continue;
             }
             case "trust_me":
-	    env.PC+=5;
-            continue;
+            {
+                env.PC++;
+                continue;
+            }
             default:
             {
                 console.log("Unknown instruction: " +LOOKUP_Oenv.PCODE[env.currentFrame.code[env.PC]].label);
