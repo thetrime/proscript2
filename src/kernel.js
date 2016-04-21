@@ -24,6 +24,10 @@ var WRITE = 1;
   Initially, when we start executing the head instructions, the value of argP is the array of
   args to the goal.
 
+  To summarize: argP[argI] always points to an argument that was passed IN that we are trying to
+  unify with some part of the head of the current clause. The instructions themselves determine
+  what we try and match the next cell with
+
   Once the head is matched, we can start executing the body. This switching of modes is activated
   by the I_ENTER instruction. To understand how to execute the body, suppose the body is made up of
   several sub-goals. For each one, we must push the arguments onto a new frame, then switch
@@ -277,11 +281,21 @@ function execute(env)
                 var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
                 if (env.mode == WRITE) // write
                 {
+                    // If in write mode, we must create a variable in the current frame's slot, then bind it to the next arg to be matched
+                    // This happens if we are trying to match a functor to a variable. To do that, we create a new term with the right functor
+                    // but all the args as variables, pushed the current state to argS, then continue matching with argP pointing to the args
+                    // of the functor we just created. In this particular instance, we want to match one of the args (specifically, argI) to
+                    // a variable occurring in the head, for example the X in foo(a(X)):- ...
+                    // the compiler has allocated an appropriate slot in the frame above the arity of the goal we are executing
+                    // we just need to create a variable in that slot, then bind it to the variable in the current frame
                     env.currentFrame.slots[slot] = new VariableTerm("_");
                     bind(env, env.currentFrame.slots[slot], env.argP[env.argI]);
                 }
                 else
                 {
+                    // in read mode, we are trying to match an argument to a variable occurring in the head. If the thing we are trying to
+                    // match is not a variable, put a new variable in the slot and bind it to the thing we actually want
+                    // otherwise, we can just copy the variable directly into the slot
                     if (env.argP[env.argI] instanceof VariableTerm)
                     {
                         env.currentFrame.slots[slot] = env.argP[env.argI]
@@ -292,6 +306,7 @@ function execute(env)
                         bind(env.currentFrame.slots[slot], env.argP[env.argI]);
                     }
                 }
+                // H_FIRSTVAR always succeeds - so move on to match the next cell, and increment PC for the next instructions
                 env.argI++;
                 env.PC+=3;
                 continue;
@@ -301,6 +316,7 @@ function execute(env)
                 var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
                 var arg = deref(env, env.argP[env.argI++]);
                 env.PC+=3;
+                // Try to match a functor
                 if (arg instanceof CompoundTerm)
                 {
                     if (arg.functor === functor)
