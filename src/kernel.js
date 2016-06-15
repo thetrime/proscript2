@@ -56,7 +56,7 @@ function deref(env, term)
 {
     while(true)
     {
-        if (term instanceof VariableTerm)
+	if (term instanceof VariableTerm)
         {
             if (term.limit >= env.lTop)
             {
@@ -109,7 +109,7 @@ function newArgFrame(env)
 {
     env.argS.push({p: env.argP,
                    i: env.argI,
-                   m: env.mode});
+		   m: env.mode});
 }
 
 function popArgFrame(env)
@@ -130,14 +130,14 @@ function execute(env)
     var nextFrame = undefined;
     while(true)
     {
-        if (env.currentFrame.code[env.PC] === undefined)
+	if (env.currentFrame.code.opcodes[env.PC] === undefined)
         {
             console.log(util.inspect(env.currentFrame));
             console.log("Illegal fetch at " + env.PC);
             throw("Illegal fetch");
         }
-        console.log(env.currentFrame.functor + " " + env.PC + ": " + LOOKUP_OPCODE[env.currentFrame.code[env.PC]].label);
-        switch(LOOKUP_OPCODE[env.currentFrame.code[env.PC]].label)
+	console.log(env.currentFrame.functor + " " + env.PC + ": " + LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label);
+	switch(LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label)
 	{
             case "i_fail":
             {
@@ -178,8 +178,8 @@ function execute(env)
                 throw "not implemented";
             }
             case "i_depart":
-            {
-                var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+	    {
+		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
                 nextFrame.functor = functor;
                 nextFrame.code = env.getPredicateCode(functor);
                 nextFrame.PC = env.currentFrame.returnPC;
@@ -194,7 +194,7 @@ function execute(env)
             }
             case "i_call":
             {
-                var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
                 nextFrame.functor = functor;
                 nextFrame.code = env.getPredicateCode(functor);
                 nextFrame.returnPC = env.PC+3;
@@ -222,14 +222,14 @@ function execute(env)
             }
             case "b_firstvar":
             {
-                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 env.argP[env.argI++] = env.currentFrame.slots[slot];
                 env.PC+=3;
                 continue;
             }
             case "b_argvar":
             {
-                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 var arg = env.currentFrame.slots[slot];
                 arg = deref(env, arg);
                 if (arg instanceof VariableTerm)
@@ -248,7 +248,7 @@ function execute(env)
             }
             case "b_var":
             {
-                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
                 env.argI++;
                 env.PC+=3;
@@ -273,15 +273,15 @@ function execute(env)
                 continue;
             }
             case "h_firstvar":
-            {
-                // varFrame(FR, *PC++) in SWI-Prolog is the same as
-                // env.currentFrame.slot[(env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2])] in PS2
+	    {
+		// varFrame(FR, *PC++) in SWI-Prolog is the same as
+		// env.currentFrame.slot[(env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2])] in PS2
                 // basically varFrameP(FR, n) is (((Word)f) + n), which is to say it is a pointer to the nth word in the frame
                 // In PS2 parlance, these are 'slots'
-                var slot = ((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 if (env.mode == WRITE) // write
-                {
-                    // If in write mode, we must create a variable in the current frame's slot, then bind it to the next arg to be matched
+		{
+		    // If in write mode, we must create a variable in the current frame's slot, then bind it to the next arg to be matched
                     // This happens if we are trying to match a functor to a variable. To do that, we create a new term with the right functor
                     // but all the args as variables, pushed the current state to argS, then continue matching with argP pointing to the args
                     // of the functor we just created. In this particular instance, we want to match one of the args (specifically, argI) to
@@ -313,13 +313,13 @@ function execute(env)
             }
             case "h_functor":
             {
-                var functor = Functor.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
-                var arg = deref(env, env.argP[env.argI++]);
+		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+		var arg = deref(env, env.argP[env.argI++]);
                 env.PC+=3;
                 // Try to match a functor
                 if (arg instanceof CompoundTerm)
                 {
-                    if (arg.functor === functor)
+		    if (arg.functor.equals(functor))
                     {
                         newArgFrame(env);
                         env.argP = arg.args;
@@ -354,10 +354,10 @@ function execute(env)
             }
             case "h_atom":
             {
-                var atom = AtomTerm.lookup((env.currentFrame.code[env.PC+1] << 8) | (env.currentFrame.code[env.PC+2]));
+		var atom = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
                 var arg = deref(env, env.argP[env.argI++]);
                 env.PC+=3;
-                if (arg == atom)
+		if (arg.equals(atom))
                     continue;
                 if (arg instanceof VariableTerm)
                 {
@@ -384,7 +384,7 @@ function execute(env)
             case "try_me_else":
             case "retry_me_else":
             {
-                var address = (env.currentFrame.code[env.PC+1] << 24) | (env.currentFrame.code[env.PC+2] << 16) | (env.currentFrame.code[env.PC+3] << 8) | (env.currentFrame.code[env.PC+4] << 0) + env.PC;
+		var address = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
                 var backtrackFrame = new Choicepoint(env.currentFrame, address);
                 backtrackFrame.retrylTop = env.lTop;
                 backtrackFrame.PC = address;
@@ -404,7 +404,7 @@ function execute(env)
             }
             default:
             {
-                console.log("Unknown instruction: " +LOOKUP_Oenv.PCODE[env.currentFrame.code[env.PC]].label);
+		console.log("Unknown instruction: " +LOOKUP_Oenv.PCODE[env.currentFrame.code.opcodes[env.PC]].label);
                 throw "illegal instruction";
             }
         }

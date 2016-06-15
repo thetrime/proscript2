@@ -42,11 +42,13 @@ Environment.prototype.execute = function(queryTerm)
     // make a frame with 0 args (since a query has no head)
     var topFrame = new Frame("$top");
     topFrame.functor = "$top";
-    topFrame.code = [Instructions.iExitQuery.opcode];
+    topFrame.code = {opcodes: [Instructions.iExitQuery.opcode],
+		     constants: []};
 
     var queryFrame = new Frame(topFrame);
     queryFrame.functor = "$query";
-    queryFrame.code = queryCode.bytecode;
+    queryFrame.code = {opcodes: queryCode.bytecode,
+		       constants: queryCode.constants};
     queryFrame.slots = [queryTerm.args[0]];
     queryFrame.returnPC = 0;
     this.PC = 0;
@@ -69,7 +71,7 @@ Environment.prototype.getPredicateCode = function(functor)
 function clauseFunctor(term)
 {
     var head;
-    if (term.functor === Constants.clauseFunctor)
+    if (term.functor.equals(Constants.clauseFunctor))
     {
         head = term.args[0];
     }

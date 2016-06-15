@@ -67,12 +67,14 @@ function assemble(instructions)
 	size += instructionSize(instructions[i].opcode);
     var bytes = new Uint8Array(size);
     var currentInstruction = 0;
+    var constants = [];
     for (var i = 0; i < instructions.length; i++)
     {
-        currentInstruction += assembleInstruction(instructions, i, bytes, currentInstruction);
+	currentInstruction += assembleInstruction(instructions, i, bytes, currentInstruction, constants);
     }
-//    console.log(instructions);
+    //console.log("Compiled: " + util.inspect(instructions, {showHidden: false, depth: null}) + " to " + bytes + " with constants: " + util.inspect(constants, {showHidden: false, depth: null}));
     return {bytecode: bytes,
+	    constants: constants,
 	    instructions:instructions};
 }
 
@@ -95,7 +97,7 @@ function instructionSize(i)
     return rc;
 }
 
-function assembleInstruction(instructions, iP, bytecode, ptr)
+function assembleInstruction(instructions, iP, bytecode, ptr, constants)
 {
     var rc = 1;
     var instruction = instructions[iP];
@@ -106,13 +108,19 @@ function assembleInstruction(instructions, iP, bytecode, ptr)
 	if (arg == "functor")
 	{
 	    rc+=2;
-	    bytecode[ptr+1] = (instruction.functor.index >> 8) & 255
-	    bytecode[ptr+2] = (instruction.functor.index >> 0) & 255
+	    var index = constants.indexOf(instruction.functor);
+	    if (index == -1)
+		index = constants.push(instruction.functor) - 1;
+	    bytecode[ptr+1] = (index >> 8) & 255
+	    bytecode[ptr+2] = (index >> 0) & 255
 	}
 	else if (arg == "atom")
-        {
-            bytecode[ptr+1] = (instruction.atom.index >> 8) & 255
-            bytecode[ptr+2] = (instruction.atom.index >> 0) & 255
+	{
+	    var index = constants.indexOf(instruction.atom);
+	    if (index == -1)
+		index = constants.push(instruction.atom) - 1;
+	    bytecode[ptr+1] = (index >> 8) & 255
+	    bytecode[ptr+2] = (index >> 0) & 255
 	    rc += 2;
 	}
 	else if (arg == "address")
@@ -153,7 +161,7 @@ function compileClause(term, instructions)
     var reserved = 0;
     var context = {isFirstGoal:true,
 		   hasGlobalCut:false};
-    if (term.functor == Constants.clauseFunctor)
+    if (term.functor.equals(Constants.clauseFunctor))
     {
 	// A clause
 	reserved += getReservedEnvironmentSlots(term.args[1], context);
@@ -243,33 +251,33 @@ function compileBody(term, variables, instructions, isTailGoal)
     {
 	compileTermCreation(term, variables, instructions);
 	instructions.push({opcode: isTailGoal?Instructions.iDepart:Instructions.iCall,
-			   functor: Functor.get(AtomTerm.get("call"), 1)});
+			   functor: new Functor(new AtomTerm("call"), 1)});
     }
-    else if (term == Constants.cutAtom)
+    else if (term.equals(Constants.cutAtom))
     {
 	instructions.push({opcode: Instructions.iCut});
     }
-    else if (term == Constants.trueAtom)
+    else if (term.equals(Constants.trueAtom))
     {
 	instructions.push({opcode: Instructions.iTrue});
     }
-    else if (term == Constants.failAtom)
+    else if (term.equals(Constants.failAtom))
     {
 	instructions.push({opcode: Instructions.iFail});
     }
     else if (term instanceof AtomTerm)
     {
 	instructions.push({opcode: isTailGoal?Instructions.iDepart:Instructions.iCall,
-			   functor: Functor.get(term, 0)});
+			   functor: new Functor(term, 0)});
     }
     else if (term instanceof CompoundTerm)
     {
-	if (term.functor == Constants.conjunctionFunctor)
+	if (term.functor.equals(Constants.conjunctionFunctor))
 	{
 	    compileBody(term.args[0], variables, instructions, false);
 	    compileBody(term.args[1], variables, instructions, isTailGoal);
 	}
-	else if (term.functor == Constants.disjunctionFunctor)
+	else if (term.functor.equals(Constants.disjunctionFunctor))
 	{
 	    var currentInstruction = instructions.length;
 	    // Save space for a try-me-else here
@@ -280,20 +288,20 @@ function compileBody(term, variables, instructions, isTailGoal)
 	    instructions.push({opcode: Instructions.trustMe});
 	    compileBody(term.args[1], variables, instructions, isTailGoal);
 	}
-	else if (term.functor == Constants.throwFunctor)
+	else if (term.functor.equals(Constants.throwFunctor))
 	{
 	    compileTermCreation(term.args[0], variables, instructions);
 	    instructions.push({opcode: Instructions.iThrow});
 	}
-	else if (term.functor == Constants.localCutFunctor)
+	else if (term.functor.equals(Constants.localCutFunctor))
 	{
 	    // FIXME: Implement
 	}
-	else if (term.functor == Constants.catchFunctor)
+	else if (term.functor.equals(Constants.catchFunctor))
 	{
 	    // FIXME: Implement
 	}
-	else if (term.functor == Constants.unifyFunctor)
+	else if (term.functor.equals(Constants.unifyFunctor))
 	{
 	    compileTermCreation(term.args[0], variables, instructions);
 	    compileTermCreation(term.args[1], variables, instructions);
@@ -375,33 +383,33 @@ function getReservedEnvironmentSlots(term, context)
     var slots = 0;
     if (term instanceof CompoundTerm)
     {
-	if (term.functor === Constants.conjunctionFunctor)
+	if (term.functor.equals(Constants.conjunctionFunctor))
 	{
 	    slots += getReservedEnvironmentSlots(term.args[0], context);
 	    context.isFirstGoal = false;
 	    slots += getReservedEnvironmentSlots(term.args[1], context);
 	}
-	else if (term.functor === Constants.disjunctionFunctor)
+	else if (term.functor.equals(Constants.disjunctionFunctor))
 	{
 	    context.isFirstGoal = false
 	    slots += getReservedEnvironmentSlots(term.args[0], context);
 	    slots += getReservedEnvironmentSlots(term.args[1], context);
 	}
-	else if (term.functor === Constants.localCutFunctor)
+	else if (term.functor.equals(Constants.localCutFunctor))
 	{
 	    slots++;
 	    context.isFirstGoal = false;
 	    slots += getReservedEnvironmentSlots(term.args[0], context);
 	    slots += getReservedEnvironmentSlots(term.args[1], context);
 	}
-	else if (term.functor === Constants.catchFunctor)
+	else if (term.functor.equals(Constants.catchFunctor))
 	{
 	    context.isFirstGoal = false;
 	    slots += 2;
 	    // FIXME: What about args 0 and 2?
 	}
     }
-    else if (term === Constants.cutAtom && context.isFirstGoal && !context.hasGlobalCut)
+    else if (term.equals(Constants.cutAtom) && context.isFirstGoal && !context.hasGlobalCut)
     {
 	slots++;
 	context.hasGlobalCut = true;

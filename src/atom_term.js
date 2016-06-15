@@ -1,13 +1,6 @@
-var atom_map = {};
-var atom_index = 0;
-var atom_table = [];
-
 function AtomTerm(value)
 {
     this.value = value;
-    atom_table[atom_index] = this;
-    this.index = atom_index;
-    atom_index++;
 }
 
 AtomTerm.prototype.dereference = function()
@@ -15,16 +8,14 @@ AtomTerm.prototype.dereference = function()
     return this;
 }
 
-AtomTerm.get = function(value)
+AtomTerm.prototype.toString = function()
 {
-    if (atom_map[value] === undefined)
-	atom_map[value] = new AtomTerm(value);
-    return atom_map[value];
+    return this.value;
 }
 
-AtomTerm.lookup = function(i)
+AtomTerm.prototype.equals = function(o)
 {
-    return atom_table[i];
+    return (o === this) || ((o || {}).value === this.value);
 }
 
 module.exports = AtomTerm;

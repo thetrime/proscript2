@@ -1,11 +1,11 @@
 var AtomTerm = require('./atom_term.js');
 var Functor = require('./functor.js');
 
-module.exports = {emptyListAtom: AtomTerm.get("[]"),
-		  cutAtom: AtomTerm.get("!"),
+module.exports = {emptyListAtom: new AtomTerm("[]"),
+		  cutAtom: new AtomTerm("!"),
 
-		  clauseFunctor: Functor.get(AtomTerm.get(":-"), 2),
-		  conjunctionFunctor: Functor.get(AtomTerm.get(","), 2),
-		  disjunctionFunctor: Functor.get(AtomTerm.get(";"), 2),
-		  localCutFunctor: Functor.get(AtomTerm.get("->"), 2),
-		  listFunctor: Functor.get(AtomTerm.get("."), 2)};
+		  clauseFunctor: new Functor(new AtomTerm(":-"), 2),
+		  conjunctionFunctor: new Functor(new AtomTerm(","), 2),
+		  disjunctionFunctor: new Functor(new AtomTerm(";"), 2),
+		  localCutFunctor: new Functor(new AtomTerm("->"), 2),
+		  listFunctor: new Functor(new AtomTerm("."), 2)};

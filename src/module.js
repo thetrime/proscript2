@@ -10,36 +10,38 @@ function Module(name)
 
 Module.prototype.definePredicate = function(functor)
 {
-    this.predicates[functor.index] = {clauses: [],
+    this.predicates[functor.toString()] = {clauses: [],
                                       code: undefined};
     console.log(">>> Defined " + this.name + ":" + functor);
 }
 
 Module.prototype.addClause = function(functor, clause)
 {
-    if (this.predicates[functor.index] === undefined)
+    if (this.predicates[functor.toString()] === undefined)
         this.definePredicate(functor);
-    this.predicates[functor.index].clauses.push(clause);
+    this.predicates[functor.toString()].clauses.push(clause);
 }
 
 Module.prototype.compilePredicate = function(functor)
 {
-    var compiled = Compiler.compilePredicate(this.predicates[functor.index].clauses);
-    this.predicates[functor.index].code = compiled.bytecode;
-    this.predicates[functor.index].instructions = compiled.instructions;
+    var compiled = Compiler.compilePredicate(this.predicates[functor.toString()].clauses);
+    this.predicates[functor.toString()].code = {opcodes: compiled.bytecode,
+						constants: compiled.constants};
+    this.predicates[functor.toString()].instructions = compiled.instructions;
 }
 
 Module.prototype.getPredicateCode = function(functor)
 {
-    if (this.predicates[functor.index] === undefined)
+    console.log("Looking for: " + functor);
+    if (this.predicates[functor.toString()] === undefined)
     {
         console.log("No such predicate in module " + this.name);
         return undefined;
     }
-    if (this.predicates[functor.index].code === undefined)
+    if (this.predicates[functor.toString()].code === undefined)
         this.compilePredicate(functor);
-    //console.log(util.inspect(this.predicates[functor.index], {showHidden: false, depth: null}));
-    return this.predicates[functor.index].code;
+    //console.log(util.inspect(this.predicates[functor.toString()], {showHidden: false, depth: null}));
+    return this.predicates[functor.toString()].code;
 }
 
 Module.get = function(name)

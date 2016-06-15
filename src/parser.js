@@ -139,19 +139,19 @@ function read_expression(s, precedence, isarg, islist, vars)
                     {
                         get_raw_char_with_conversion(s.stream);
                         if (mode == 1)
-			    args.push(IntegerTerm.get('"'.charCodeAt(0)));
+			    args.push(new IntegerTerm('"'.charCodeAt(0)));
                         else
 			    args.push('"');
                         continue;
                     }
                 }
                 if (mode == 1)
-		    args.push(IntegerTerm.get(t.charCodeAt(0)));
+		    args.push(new IntegerTerm(t.charCodeAt(0)));
                 else
 		    args.push(t);
             }
             if (mode == 2)
-		lhs = AtomTerm.get(args.join(''));
+		lhs = new AtomTerm(args.join(''));
 	    else
 	    {
 		lhs = make_list(args, Constants.emptyListAtom);
@@ -217,7 +217,7 @@ function read_expression(s, precedence, isarg, islist, vars)
         else
         {
 	    // It is an atom
-	    lhs = AtomTerm.get(token);
+	    lhs = new AtomTerm(token);
 	}
     }
     else if (op.fixity == "fx")

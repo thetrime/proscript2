@@ -1,40 +1,24 @@
 var AtomTerm = require('./atom_term.js');
-var functor_map = {};
-var functor_table = [];
-var functor_index = 0;
+
+var index = 0;
 
 function Functor(name, arity)
 {
+    if (!(name instanceof AtomTerm))
+	throw("Functor() called with something not an atom: " + name);
     this.name = name;
     this.arity = arity;
-    functor_table[functor_index] = this;
-    this.index = functor_index;
-    functor_index++;
-    this.toString = function()
-    {
-        return this.name + "/" + this.arity
-    };
 }
 
-// name is an AtomTerm
-Functor.get = function(name, arity)
+Functor.prototype.toString = function()
 {
-    if (name instanceof AtomTerm)
-    {
-	if (functor_map[name.value] === undefined)
-	    functor_map[name.value] = {};
-	var arities = functor_map[name.value];
-	if (arities[arity] === undefined)
-	    arities[arity] = new Functor(name.value, arity);
-	return arities[arity];
-    }
-    else
-	throw("bad input to functor.get");
+    return this.name + "/" + this.arity
 }
 
-Functor.lookup = function(i)
+Functor.prototype.equals = function(o)
 {
-    return functor_table[i];
+    return o === this || (o instanceof Functor && o.name.equals(this.name) && o.arity == this.arity);
 }
+
 
 module.exports = Functor;
