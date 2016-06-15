@@ -261,9 +261,11 @@ function execute(env)
                 continue;
             }
             case "b_atom":
-            {
-                throw "not implemented";
-                env.PC+=3;
+	    {
+		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+		env.argP[env.argI++] = env.currentFrame.code.constants[index];
+		console.log(env.currentFrame.code.constants[index]);
+		env.PC+=3;
                 continue;
             }
             case "b_functor":
