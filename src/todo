@@ -11,7 +11,7 @@ Other types:
    rationals
 inria-suite
 tail recursion
-LUR cache for atoms/integers/floats
+LRU cache for atoms/integers/floats
 documenting the design
 ISO predicates (and others)
 tidy
