@@ -21,6 +21,11 @@ VariableTerm.prototype.dereference = function()
     }
 }
 
+VariableTerm.prototype.toString = function()
+{
+    return "_" + this.name;
+}
+
 VariableTerm.prototype.equals = function(o)
 {
     return (o === this) || (o instanceof VariableTerm && this.dereference().equals(o.dereference()));

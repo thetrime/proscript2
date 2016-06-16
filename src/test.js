@@ -22,23 +22,14 @@ debug = function (msg)
 
 
 var env = new Environment();
-env.consultString("foo(X):- bar(X), qux(X).");
-env.consultString("bar(a).");
-env.consultString("bar(b).");
+env.consultString("foo(X):- bar(X).");
 env.consultString("bar(c(C)):- cat = C.");
-env.consultString("bar(X):- X = c(cats).");
-env.consultString("bar(c(d)):- x(q, y) = x(q, y).");
-
-env.consultString("qux(c(X)):- baz(X)");
-env.consultString("baz(mouse).");
-env.consultString("baz(cats).");
-env.consultString("baz(d).");
 
 //env.getPredicateCode(Functor.get(AtomTerm.get("foo"), 1));
 //env.getPredicateCode(Functor.get(AtomTerm.get("qux"), 1));
 //throw "halt";
 
-var arg = new VariableTerm("A");
+var arg = new VariableTerm("InputVariable");
 var query = new CompoundTerm("foo", [arg]);
 if (!env.execute(query))
     console.log("Failed");

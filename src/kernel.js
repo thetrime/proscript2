@@ -52,6 +52,7 @@ var WRITE = 1;
 
 */
 
+
 function deref(env, term)
 {
     while(true)
@@ -122,7 +123,7 @@ function link(env, value)
 {
     if (value === undefined)
         throw "Illegal link";
-    var v = new VariableTerm("_");
+    var v = new VariableTerm("_l");
     bind(env, v, value);
     return v;
 }
@@ -272,6 +273,7 @@ function execute(env)
 		// The space formerly held by arg2 will now be free again by virtue of env.argI pointing to it
 		if (unify(env, arg1, arg2))
 		{
+		    //console.log("iUnify: Unified " + util.inspect(arg1) + " and " + util.inspect(arg2));
 		    env.PC++;
 		    continue;
 		}
@@ -293,11 +295,13 @@ function execute(env)
 		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
 		var arg = env.currentFrame.slots[slot];
 		arg = deref(env, arg);
+		//console.log("     " + util.inspect(arg));
 		if (arg instanceof VariableTerm)
                 {
                     // FIXME: This MAY require trailing
-                    env.argP[env.argI] = new VariableTerm("_");
-                    bind(env, arg, env.argP[env.argI]);
+		    env.argP[env.argI] = new VariableTerm("_a");
+		    bind(env, env.argP[env.argI], arg);
+		    //console.log("argP now refers to " + util.inspect(env.argP[env.argI]));
                 }
                 else
                 {
@@ -356,9 +360,9 @@ function execute(env)
                     // a variable occurring in the head, for example the X in foo(a(X)):- ...
                     // the compiler has allocated an appropriate slot in the frame above the arity of the goal we are executing
                     // we just need to create a variable in that slot, then bind it to the variable in the current frame
-                    env.currentFrame.slots[slot] = new VariableTerm("_");
-                    bind(env, env.currentFrame.slots[slot], env.argP[env.argI]);
-                }
+		    env.currentFrame.slots[slot] = new VariableTerm("_f");
+		    bind(env, env.argP[env.argI], env.currentFrame.slots[slot]);
+		}
                 else
                 {
                     // in read mode, we are trying to match an argument to a variable occurring in the head. If the thing we are trying to
@@ -396,15 +400,15 @@ function execute(env)
                     }
                 }
                 else if (arg instanceof VariableTerm)
-                {
-                    newArgFrame(env);
+		{
+		    newArgFrame(env);
                     var args = new Array(functor.arity);
                     for (var i = 0; i < args.length; i++)
-                        args[i] = new VariableTerm("_");
-                    bind(env, arg, new CompoundTerm(functor, args));
+			args[i] = new VariableTerm("_ff");
+		    bind(env, arg, new CompoundTerm(functor, args));
 		    env.argP = args;
-		    throw(0);
-                    env.mode = WRITE;
+		    env.argI = 0;
+		    env.mode = WRITE;
                     continue;
                 }
                 console.log("argP: " + util.inspect(env.argP));
