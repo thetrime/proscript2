@@ -203,8 +203,13 @@ function execute(env)
                 continue;
             }
 	    case "i_exitfact":
-            {
-                throw "not implemented";
+	    {
+		env.PC = env.currentFrame.returnPC;
+                env.currentFrame = env.currentFrame.parent;
+                nextFrame = new Frame(env.currentFrame);
+                env.argP = nextFrame.slots;
+                env.argI = 0;
+		continue;
             }
             case "i_depart":
 	    {

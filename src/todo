@@ -1,0 +1,19 @@
+Modules
+Foreign Predicates
+Missing opcodes
+   i_save_cut
+   i_cut
+   b_pop
+   b_functor
+catch/3
+->/2
+Other types:
+   floats
+   bigintegers
+   rationals
+inria-suite
+tail recursion
+LUR cache for atoms/integers/floats
+documenting the design
+tidy
+   There are at least 2 representations of every instruction(!)

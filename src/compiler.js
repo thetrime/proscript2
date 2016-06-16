@@ -186,9 +186,8 @@ function compileClause(term, instructions)
         var variables = {};
         var context = {nextSlot:0};
         var envSize = analyzeVariables(term, true, 0, variables, context);
-        compileHead(term, variables, instructions);
-        instructions.push({opcode: Instructions.iEnter});
-        instructions.push({opcode: Instructions.iExit});
+	compileHead(term, variables, instructions);
+	instructions.push({opcode: Instructions.iExitFact});
     }
 }
 
