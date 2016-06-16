@@ -3,8 +3,6 @@ Foreign Predicates
 Missing opcodes
    i_save_cut
    i_cut
-   b_pop
-   b_functor
 catch/3
 ->/2
 Other types:
