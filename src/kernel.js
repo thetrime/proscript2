@@ -483,4 +483,5 @@ function execute(env)
     }
 }
 
-module.exports = {execute: execute};
+module.exports = {execute: execute,
+		  backtrack: backtrack};

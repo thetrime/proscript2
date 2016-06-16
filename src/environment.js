@@ -68,6 +68,11 @@ Environment.prototype.getPredicateCode = function(functor)
     return p;
 }
 
+Environment.prototype.backtrack = function()
+{
+    return Kernel.backtrack(this) && Kernel.execute(this);
+}
+
 function clauseFunctor(term)
 {
     var head;
