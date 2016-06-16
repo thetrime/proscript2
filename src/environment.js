@@ -4,10 +4,12 @@ var util = require('util');
 var Kernel = require('./kernel.js');
 var AtomTerm = require('./atom_term.js');
 var Constants = require('./constants.js');
+var Stream = require('./stream.js');
 var Frame = require('./frame.js');
 var Instructions = require('./opcodes.js').opcode_map;
 var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
+var IO = require('./io.js');
 
 function Environment()
 {
@@ -84,7 +86,19 @@ Environment.prototype.consultURL = function(url, callback)
 	var status = xhr.status;
 	if (status == 200)
 	{
-	    _this.consultString(xhr.responseText);
+	    var stream = Stream.new_stream(xhr_read,
+					   null,
+					   null,
+					   null,
+					   null,
+					   IO.toByteArray(xhr.responseText));
+	    var clause = null;
+	    while ((clause = Parser.readTerm(stream, [])) != null)
+	    {
+		console.log("Clause: " + clause);
+		var functor = clauseFunctor(clause);
+		_this.getModule().addClause(functor, clause);
+	    }
 	    callback();
 	}
 	else
@@ -95,6 +109,25 @@ Environment.prototype.consultURL = function(url, callback)
 	}
     };
     xhr.send();
+}
+
+function xhr_read(stream, size, count, buffer)
+{
+    var bytes_read = 0;
+    var records_read;
+    for (records_read = 0; records_read < count; records_read++)
+    {
+        for (var b = 0; b < size; b++)
+        {
+            t = stream.data.shift();
+            if (t === undefined)
+            {                
+                return records_read;
+            }
+            buffer[bytes_read++] = t;
+        }
+    }
+    return records_read;
 }
 
 function clauseFunctor(term)
