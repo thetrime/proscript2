@@ -165,8 +165,8 @@ function execute(env)
                 return true;
             }
             case "i_exit":
-            {
-                env.PC = env.currentFrame.returnPC;
+	    {
+		env.PC = env.currentFrame.returnPC;
                 env.currentFrame = env.currentFrame.parent;
                 nextFrame = new Frame(env.currentFrame);
                 env.argP = nextFrame.slots;
@@ -180,11 +180,12 @@ function execute(env)
             case "i_depart":
 	    {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-                nextFrame.functor = functor;
-                nextFrame.code = env.getPredicateCode(functor);
-                nextFrame.PC = env.currentFrame.returnPC;
-                nextFrame.parent = env.currentFrame.parent;
-                env.argP = nextFrame.slots;
+		nextFrame.functor = functor;
+		nextFrame.code = env.getPredicateCode(functor);
+		nextFrame.PC = env.currentFrame.returnPC;
+		nextFrame.returnPC = env.currentFrame.returnPC;
+		nextFrame.parent = env.currentFrame.parent;
+		env.argP = nextFrame.slots;
                 env.argI = 0;
                 env.currentFrame = nextFrame;
                 nextFrame = new Frame(env.currentFrame);
@@ -264,7 +265,6 @@ function execute(env)
 	    {
 		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
 		env.argP[env.argI++] = env.currentFrame.code.constants[index];
-		console.log(env.currentFrame.code.constants[index]);
 		env.PC+=3;
                 continue;
             }

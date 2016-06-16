@@ -12,7 +12,6 @@ VariableTerm.prototype.dereference = function()
     while (true)
     {
 	var value = deref.value;
-	console.log("value: " + util.inspect(value));
 	if (value == null)
 	    return deref;
 	if (value instanceof VariableTerm)
