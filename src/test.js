@@ -26,10 +26,12 @@ env.consultString("foo(X):- bar(X), qux(X).");
 env.consultString("bar(a).");
 env.consultString("bar(b).");
 env.consultString("bar(c(C)):- cat = C.");
+env.consultString("bar(c(d)):- x = x.");
 
 env.consultString("qux(c(X)):- baz(X)");
 env.consultString("baz(mouse).");
-env.consultString("baz(cat).");
+env.consultString("baz(cats).");
+env.consultString("baz(d).");
 
 //env.getPredicateCode(Functor.get(AtomTerm.get("foo"), 1));
 //env.getPredicateCode(Functor.get(AtomTerm.get("qux"), 1));
