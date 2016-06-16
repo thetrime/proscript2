@@ -76,6 +76,35 @@ function deref(env, term)
     }
 }
 
+function unify(env, a, b)
+{
+    a = deref(env, a);
+    b = deref(env, b);
+    if (a.equals(b))
+	return true;
+    if (a instanceof VariableTerm || b instanceof VariableTerm)
+    {
+	if (a instanceof VariableTerm && b instanceof VariableTerm)
+	{
+	    // CHECKME: Is this the right order?
+	    if (a.limit > b.limit)
+		bind(env, a, b);
+	    else
+		bind(env, b, a);
+	}
+	else
+	{
+	    var v;
+	    if (a instanceof VariableTerm)
+		bind(env, a, b);
+	    else
+		bind(env, b, a);
+	}
+	return true;
+    }
+    return false;
+}
+
 function link(env, value)
 {
     if (value === undefined)
@@ -216,10 +245,23 @@ function execute(env)
                 continue;
             }
             case "i_unify":
-            {
-                throw "not implemented";
-                env.PC++;
-                continue;
+	    {
+		// When we get here argI points to the next *free* space in the frame
+		// So first we must reduce it
+		env.argI--;
+		var arg1 = env.argP[env.argI--];
+		var arg2 = env.argP[env.argI];
+		// The space formerly held by arg2 will now be free again by virtue of env.argI pointing to it
+		if (unify(env, arg1, arg2))
+		{
+		    env.PC++;
+		    continue;
+		}
+		console.log("Failed to unify " + util.inspect(arg1) + " and " + util.inspect(arg2));
+                if (backtrack(env))
+                    continue;
+                return false;
+
             }
             case "b_firstvar":
             {
@@ -250,7 +292,7 @@ function execute(env)
             case "b_var":
             {
 		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
+		env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
                 env.argI++;
                 env.PC+=3;
                 continue;

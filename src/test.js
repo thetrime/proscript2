@@ -22,11 +22,10 @@ debug = function (msg)
 
 
 var env = new Environment();
-env.consultString("=(X,X).");
 env.consultString("foo(X):- bar(X), qux(X).");
 env.consultString("bar(a).");
 env.consultString("bar(b).");
-env.consultString("bar(c(C)):- C = cat.");
+env.consultString("bar(c(C)):- cat = C.");
 
 env.consultString("qux(c(X)):- baz(X)");
 env.consultString("baz(mouse).");
