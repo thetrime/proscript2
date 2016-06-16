@@ -61,7 +61,7 @@ function deref(env, term)
             if (term.limit >= env.lTop)
             {
                 // Reset the variable if the binding is above lTop
-                term.value = null;
+		term.value = null;
                 return term;
             }
             else if (term.value == null)
@@ -94,11 +94,24 @@ function unify(env, a, b)
 	}
 	else
 	{
-	    var v;
 	    if (a instanceof VariableTerm)
 		bind(env, a, b);
 	    else
 		bind(env, b, a);
+	}
+	return true;
+    }
+    if (a instanceof CompoundTerm && b instanceof CompoundTerm && a.functor.equals(b.functor))
+    {
+	var lTop = env.lTop;
+	for (var i = 0; i < a.args.length; i++)
+	{
+	    if (!unify(env, a.args[i], b.args[i]))
+	    {
+		// Undo any bindings we might have done so far
+		env.lTop = lTop;
+		return false;
+	    }
 	}
 	return true;
     }
@@ -262,7 +275,7 @@ function execute(env)
 		    env.PC++;
 		    continue;
 		}
-		console.log("Failed to unify " + util.inspect(arg1) + " and " + util.inspect(arg2));
+		console.log("iUnify: Failed to unify " + util.inspect(arg1) + " and " + util.inspect(arg2));
                 if (backtrack(env))
                     continue;
                 return false;
@@ -278,9 +291,9 @@ function execute(env)
             case "b_argvar":
             {
 		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                var arg = env.currentFrame.slots[slot];
-                arg = deref(env, arg);
-                if (arg instanceof VariableTerm)
+		var arg = env.currentFrame.slots[slot];
+		arg = deref(env, arg);
+		if (arg instanceof VariableTerm)
                 {
                     // FIXME: This MAY require trailing
                     env.argP[env.argI] = new VariableTerm("_");
@@ -291,7 +304,7 @@ function execute(env)
                     env.argP[env.argI] = arg;
                 }
                 env.argI++;
-                env.PC+=3;
+		env.PC+=3;
                 continue;
             }
             case "b_var":
@@ -304,7 +317,7 @@ function execute(env)
             }
             case "b_pop":
             {
-                throw "not implemented";
+		popArgFrame(env);
                 env.PC++;
                 continue;
             }
@@ -317,9 +330,15 @@ function execute(env)
             }
             case "b_functor":
             {
-                throw "not implemented";
-                env.PC+=3;
-                continue;
+		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+		var functor = env.currentFrame.code.constants[index];
+		var new_term_args = new Array(functor.arity);
+		env.argP[env.argI++] = new CompoundTerm(functor, new_term_args);
+		newArgFrame(env);
+		env.argP = new_term_args;
+		env.argI = 0;
+		env.PC+=3;
+		continue;
             }
             case "h_firstvar":
 	    {
@@ -350,9 +369,9 @@ function execute(env)
                         env.currentFrame.slots[slot] = env.argP[env.argI]
                     }
                     else
-                    {
-                        env.currentFrame.slots[slot] = new VariableTerm("_");
-                        bind(env.currentFrame.slots[slot], env.argP[env.argI]);
+		    {
+			env.currentFrame.slots[slot] = new VariableTerm("_X");
+			bind(env, env.currentFrame.slots[slot], env.argP[env.argI]);
                     }
                 }
                 // H_FIRSTVAR always succeeds - so move on to match the next cell, and increment PC for the next instructions
@@ -369,8 +388,8 @@ function execute(env)
                 if (arg instanceof CompoundTerm)
                 {
 		    if (arg.functor.equals(functor))
-                    {
-                        newArgFrame(env);
+		    {
+			newArgFrame(env);
                         env.argP = arg.args;
                         env.argI = 0;
                         continue;
@@ -383,8 +402,8 @@ function execute(env)
                     for (var i = 0; i < args.length; i++)
                         args[i] = new VariableTerm("_");
                     bind(env, arg, new CompoundTerm(functor, args));
-                    env.argP = args;
-                    env.argI = 0;
+		    env.argP = args;
+		    throw(0);
                     env.mode = WRITE;
                     continue;
                 }
