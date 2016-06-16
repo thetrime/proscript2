@@ -7,6 +7,7 @@ var Constants = require('./constants.js');
 var Frame = require('./frame.js');
 var Instructions = require('./opcodes.js').opcode_map;
 var Compiler = require('./compiler.js');
+var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 
 function Environment()
 {
@@ -71,6 +72,29 @@ Environment.prototype.getPredicateCode = function(functor)
 Environment.prototype.backtrack = function()
 {
     return Kernel.backtrack(this) && Kernel.execute(this);
+}
+
+Environment.prototype.consultURL = function(url, callback)
+{
+    var xhr = new XMLHttpRequest();
+    xhr.open('get', url, true);
+    var _this = this;
+    xhr.onload = function()
+    {
+	var status = xhr.status;
+	if (status == 200)
+	{
+	    _this.consultString(xhr.responseText);
+	    callback();
+	}
+	else
+	{
+	    // FIXME: Do something better here?
+	    console.log("Failed to consult " + url);
+	    console.log(status);
+	}
+    };
+    xhr.send();
 }
 
 function clauseFunctor(term)
