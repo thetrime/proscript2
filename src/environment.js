@@ -23,6 +23,11 @@ Environment.prototype.reset = function()
     this.choicepoints = [];
     this.trail = [];
     this.lTop = 0;
+    this.currentModule = Module.get("user");
+    this.argS = [];
+    this.argI = 0;
+    this.mode = 0; // READ
+
 }
 
 Environment.prototype.getModule = function()
@@ -56,6 +61,7 @@ Environment.prototype.execute = function(queryTerm)
     queryFrame.returnPC = 0;
     this.PC = 0;
     this.currentFrame = queryFrame;
+    this.argP = queryFrame.slots;
     return Kernel.execute(this);
 }
 

@@ -139,6 +139,7 @@ function backtrack(env)
     env.argP = choicepoint.argP;
     env.argI = choicepoint.argI;
     env.argS = choicepoint.argS;
+    env.nextFrame = choicepoint.nextFrame;
     return true;
 }
 
@@ -165,12 +166,6 @@ function popArgFrame(env)
 
 function execute(env)
 {
-    var currentModule = Module.get("user");
-    env.argS = [];
-    env.argI = 0;
-    env.argP = env.currentFrame.slots;
-    env.mode = READ;
-    var nextFrame = undefined;
     while(true)
     {
 	if (env.currentFrame.code.opcodes[env.PC] === undefined)
@@ -196,9 +191,9 @@ function execute(env)
             }
             case "i_enter":
             {
-                nextFrame = new Frame(env.currentFrame);
+                env.nextFrame = new Frame(env.currentFrame);
                 env.argI = 0;
-                env.argP = nextFrame.slots;
+                env.argP = env.nextFrame.slots;
                 // FIXME: assert(env.argS.length == 0)
                 env.PC++;
                 continue;
@@ -211,8 +206,8 @@ function execute(env)
 	    {
 		env.PC = env.currentFrame.returnPC;
                 env.currentFrame = env.currentFrame.parent;
-                nextFrame = new Frame(env.currentFrame);
-                env.argP = nextFrame.slots;
+                env.nextFrame = new Frame(env.currentFrame);
+                env.argP = env.nextFrame.slots;
                 env.argI = 0;
                 continue;
             }
@@ -220,23 +215,23 @@ function execute(env)
 	    {
 		env.PC = env.currentFrame.returnPC;
                 env.currentFrame = env.currentFrame.parent;
-                nextFrame = new Frame(env.currentFrame);
-                env.argP = nextFrame.slots;
+                env.nextFrame = new Frame(env.currentFrame);
+                env.argP = env.nextFrame.slots;
                 env.argI = 0;
 		continue;
             }
             case "i_depart":
 	    {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-		nextFrame.functor = functor;
-		nextFrame.code = env.getPredicateCode(functor);
-		nextFrame.PC = env.currentFrame.returnPC;
-		nextFrame.returnPC = env.currentFrame.returnPC;
-		nextFrame.parent = env.currentFrame.parent;
-		env.argP = nextFrame.slots;
+		env.nextFrame.functor = functor;
+		env.nextFrame.code = env.getPredicateCode(functor);
+		env.nextFrame.PC = env.currentFrame.returnPC;
+		env.nextFrame.returnPC = env.currentFrame.returnPC;
+		env.nextFrame.parent = env.currentFrame.parent;
+		env.argP = env.nextFrame.slots;
                 env.argI = 0;
-                env.currentFrame = nextFrame;
-                nextFrame = new Frame(env.currentFrame);
+                env.currentFrame = env.nextFrame;
+                env.nextFrame = new Frame(env.currentFrame);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
 
@@ -244,16 +239,16 @@ function execute(env)
             case "i_call":
             {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-                nextFrame.functor = functor;
-                nextFrame.code = env.getPredicateCode(functor);
-                nextFrame.returnPC = env.PC+3;
-                env.currentFrame = nextFrame;
+                env.nextFrame.functor = functor;
+                env.nextFrame.code = env.getPredicateCode(functor);
+                env.nextFrame.returnPC = env.PC+3;
+                env.currentFrame = env.nextFrame;
                 // Reset argI to be at the start of the current array. argP SHOULD already be slots for the next frame since we were
                 // just filling it in
                 // FIXME: assert(env.argS.length === 0)
                 // FIXME: assert(env.argP === env.currentFrame.slots)
                 env.argI = 0;
-                nextFrame = new Frame(env.currentFrame);
+		env.nextFrame = new Frame(env.currentFrame);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
@@ -468,10 +463,11 @@ function execute(env)
                 var backtrackFrame = new Choicepoint(env.currentFrame, address);
                 backtrackFrame.retrylTop = env.lTop;
                 backtrackFrame.PC = address;
-                backtrackFrame.argP = env.argP;
-                backtrackFrame.argI = env.argI;
+		backtrackFrame.argP = env.argP;
+		backtrackFrame.argI = env.argI;
                 backtrackFrame.argS = env.argS;
-                backtrackFrame.code = env.currentFrame.code;
+		backtrackFrame.code = env.currentFrame.code;
+		backtrackFrame.nextFrame = env.nextFrame;
                 backtrackFrame.functor = env.currentFrame.functor;
                 env.choicepoints.push(backtrackFrame);
                 env.PC+=5;
