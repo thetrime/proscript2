@@ -75,6 +75,12 @@ var opcodes =
 	{key: "trustMe",
 	 label: "trust_me",
 	 args: []},
+	{key: "cJump",
+	 label: "c_jump",
+	 args: ["address"]},
+	{key: "cOr",
+	 label: "c_or",
+	 args: ["address"]},
 
 	{key: "nop",
 	 label: "nop",

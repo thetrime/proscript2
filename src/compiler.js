@@ -278,14 +278,20 @@ function compileBody(term, variables, instructions, isTailGoal)
 	}
 	else if (term.functor.equals(Constants.disjunctionFunctor))
 	{
-	    var currentInstruction = instructions.length;
-	    // Save space for a try-me-else here
-	    instructions.push({opcode: Instructions.nop});
-	    compileBody(term.args[0], variables, instructions, isTailGoal);
-	    instructions[currentInstruction] = {opcode: Instructions.tryMeElse,
-						address: instructions.length};
-	    instructions.push({opcode: Instructions.trustMe});
+	    var orInstruction = instructions.length;
+	    instructions.push({opcode: Instructions.cOr,
+			       address: -1});
+	    compileBody(term.args[0], variables, instructions, false);
+	    var jumpInstruction = instructions.length;
+	    instructions.push({opcode: Instructions.cJump,
+			       address: -1});
+	    instructions[orInstruction].address = instructions.length;
 	    compileBody(term.args[1], variables, instructions, isTailGoal);
+	    instructions[jumpInstruction].address = instructions.length;
+	    // Finally, we need to make sure that the c_jump has somewhere to go,
+	    // so if this was otherwise the tail goal, throw in an i_exit
+	    if (isTailGoal)
+		instructions.push({opcode: Instructions.iExit});
 	}
 	else if (term.functor.equals(Constants.throwFunctor))
 	{

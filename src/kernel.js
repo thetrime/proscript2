@@ -451,8 +451,16 @@ function execute(env)
 	        continue;
             }
 	    case "h_var":
-	    env.PC+=3;
-	    continue;
+	    {
+		env.PC+=3;
+		continue;
+	    }
+	    case "c_jump":
+	    {
+		env.PC = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
+		continue;
+	    }
+	    case "c_or":
             case "try_me_else":
             case "retry_me_else":
             {
@@ -475,9 +483,8 @@ function execute(env)
                 continue;
             }
             default:
-            {
-		console.log("Unknown instruction: " +LOOKUP_Oenv.PCODE[env.currentFrame.code.opcodes[env.PC]].label);
-                throw "illegal instruction";
+	    {
+		throw new Error("illegal instruction: " + LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label);
             }
         }
     }
