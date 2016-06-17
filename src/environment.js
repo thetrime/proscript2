@@ -3,6 +3,7 @@ var Parser = require('./parser.js');
 var util = require('util');
 var Kernel = require('./kernel.js');
 var AtomTerm = require('./atom_term.js');
+var Functor = require('./functor.js');
 var Constants = require('./constants.js');
 var Stream = require('./stream.js');
 var Frame = require('./frame.js');
@@ -138,20 +139,11 @@ function xhr_read(stream, size, count, buffer)
 
 function clauseFunctor(term)
 {
-    var head;
+    if (term instanceof AtomTerm)
+	return new Functor(term, 0);
     if (term.functor.equals(Constants.clauseFunctor))
-    {
-        head = term.args[0];
-    }
-    else
-    {
-        head = term;
-    }
-    if (head instanceof AtomTerm)
-        return Functor.get(head, 0);
-    else
-        return head.functor;
-
+	return clauseFunctor(term.args[0]);
+    return term.functor;
 }
 
 module.exports = Environment;

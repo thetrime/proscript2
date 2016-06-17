@@ -161,7 +161,7 @@ function compileClause(term, instructions)
     var reserved = 0;
     var context = {isFirstGoal:true,
 		   hasGlobalCut:false};
-    if (term.functor.equals(Constants.clauseFunctor))
+    if (term instanceof CompoundTerm && term.functor.equals(Constants.clauseFunctor))
     {
 	// A clause
 	reserved += getReservedEnvironmentSlots(term.args[1], context);
