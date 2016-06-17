@@ -29,16 +29,14 @@ env.consultURL("http://localhost:8080/bin/x.pl", function()
 		       console.log("Failed");
 		   else
 		   {
-		       console.log("Result: " + arg.dereference());
+		       console.log(">>>>>>>> Result: " + arg.dereference());
 		       console.log("Trying to backtrack...");
-		       if (env.backtrack())
+		       while (env.backtrack())
 		       {
-			   console.log("Result: " + arg.dereference());
+			   console.log(">>>>>>>> Result: " + arg.dereference());
+			   console.log("Trying to backtrack...");
 		       }
-		       else
-		       {
-			   console.log("Backtrack failed");
-		       }
+		       console.log("No more solutions");
 		   }
 	       });
 /*
