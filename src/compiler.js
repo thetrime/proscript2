@@ -163,8 +163,8 @@ function compileClause(term, instructions)
 		   hasGlobalCut:false};
     if (term instanceof CompoundTerm && term.functor.equals(Constants.clauseFunctor))
     {
-	// A clause
-	reserved += getReservedEnvironmentSlots(term.args[1], context);
+        // A clause
+        reserved += getReservedEnvironmentSlots(term.args[1], context);
 	// Finally, we need a slot for each variable, since this is to be a stack-based, rather than register-based machine
 	// If it were register-based, we would need a register for each variable instead
 	// FIXME: By arranging these more carefully we might do better for LCO
@@ -172,7 +172,7 @@ function compileClause(term, instructions)
 	var variables = {};
 	var context = {nextSlot:0};
 	envSize += analyzeVariables(term.args[0], true, 0, variables, context);
-	envSize += analyzeVariables(term.args[1], false, 1, variables, context);
+        envSize += analyzeVariables(term.args[1], false, 1, variables, context);
         if (context.hasGlobalCut)
 	    instructions.push({opcode: Instructions.iSaveCut,
 			       slot: 0});
@@ -254,7 +254,9 @@ function compileBody(term, variables, instructions, isTailGoal)
     }
     else if (term.equals(Constants.cutAtom))
     {
-	instructions.push({opcode: Instructions.iCut});
+        instructions.push({opcode: Instructions.iCut});
+        if (isTailGoal)
+            instructions.push({opcode: Instructions.iExit});
     }
     else if (term.equals(Constants.trueAtom))
     {
@@ -415,11 +417,6 @@ function getReservedEnvironmentSlots(term, context)
 	    slots += 2;
 	    // FIXME: What about args 0 and 2?
 	}
-    }
-    else if (term.equals(Constants.cutAtom) && context.isFirstGoal && !context.hasGlobalCut)
-    {
-	slots++;
-	context.hasGlobalCut = true;
     }
     return slots;
 }

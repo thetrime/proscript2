@@ -20,12 +20,13 @@
 
 */
 
-function Frame(parent)
+function Frame(env)
 {
-    this.parent = parent;
+    this.parent = env.currentFrame;
     this.slots = [];
     this.code = undefined;
     this.returnPC = 0;
+    this.choicepoint = env.choicepoints.length;
 }
 
 

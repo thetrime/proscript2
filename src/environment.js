@@ -21,6 +21,7 @@ function Environment()
 Environment.prototype.reset = function()
 {
     this.currentModule = this.userModule;
+    this.currentFrame = "$top";
     this.choicepoints = [];
     this.trail = [];
     this.lTop = 0;
@@ -49,12 +50,12 @@ Environment.prototype.execute = function(queryTerm)
     var queryCode = Compiler.compileQuery(queryTerm);
 
     // make a frame with 0 args (since a query has no head)
-    var topFrame = new Frame("$top");
+    var topFrame = new Frame(this);
     topFrame.functor = "$top";
     topFrame.code = {opcodes: [Instructions.iExitQuery.opcode],
 		     constants: []};
-
-    var queryFrame = new Frame(topFrame);
+    this.currentFrame = topFrame;
+    var queryFrame = new Frame(this);
     queryFrame.functor = "$query";
     queryFrame.code = {opcodes: queryCode.bytecode,
 		       constants: queryCode.constants};
