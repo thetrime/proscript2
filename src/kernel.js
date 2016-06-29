@@ -39,9 +39,7 @@ var WRITE = 1;
   binding - the address in memory of a variable is strongly related to its cell value. However here,
   this is not the case.  When binding a value X to a variable V (X may or may not /also/ be a variable
   - more on that in a moment), we set two properties of V. First, .value is set to X. This is simple
-  enough. But also we set .limit to env.lTop. With a suitable modification to deref(), this means we
-  can unbind all variables above the current value of env.lTop, which means that to backtrack we only
-  need to decrease lTop to an earlier value.
+  enough. But also we set .limit to env.TR, which gives each variable a 'location'.
 
   There is a complication when X and V are both variables because we have to make explicit which
   way the binding is happening. bind() always binds the var to the value, so if you want to bind
@@ -52,6 +50,13 @@ var WRITE = 1;
 
 */
 
+function unwind_trail(env)
+{
+    // Unwind the trail back to env.TR
+    for (var i = env.TR; i < env.trail.length; i++)
+        env.trail[i].value = null;
+    env.trail = env.trail.slice(0, env.TR);
+}
 
 function deref(env, term)
 {
@@ -59,13 +64,7 @@ function deref(env, term)
     {
 	if (term instanceof VariableTerm)
         {
-            if (term.limit >= env.lTop)
-            {
-                // Reset the variable if the binding is above lTop
-		term.value = null;
-                return term;
-            }
-            else if (term.value == null)
+            if (term.value == null)
             {
                 // Already unbound
                 return term
@@ -82,38 +81,24 @@ function unify(env, a, b)
     a = deref(env, a);
     b = deref(env, b);
     if (a.equals(b))
-	return true;
-    if (a instanceof VariableTerm || b instanceof VariableTerm)
+        return true;
+    if (a instanceof VariableTerm)
     {
-	if (a instanceof VariableTerm && b instanceof VariableTerm)
-	{
-	    // CHECKME: Is this the right order?
-	    if (a.limit > b.limit)
-		bind(env, a, b);
-	    else
-		bind(env, b, a);
-	}
-	else
-	{
-	    if (a instanceof VariableTerm)
-		bind(env, a, b);
-	    else
-		bind(env, b, a);
-	}
-	return true;
+        bind(env, a, b);
+        return true;
+    }
+    if (b instanceof VariableTerm)
+    {
+        bind(env, b, a);
+        return true;
     }
     if (a instanceof CompoundTerm && b instanceof CompoundTerm && a.functor.equals(b.functor))
     {
-	var lTop = env.lTop;
-	for (var i = 0; i < a.args.length; i++)
+        for (var i = 0; i < a.args.length; i++)
 	{
 	    if (!unify(env, a.args[i], b.args[i]))
-	    {
-		// Undo any bindings we might have done so far
-		env.lTop = lTop;
-		return false;
-	    }
-	}
+                return false;
+        }
 	return true;
     }
     return false;
@@ -135,17 +120,20 @@ function backtrack(env)
     var choicepoint = env.choicepoints.pop();
     env.currentFrame = choicepoint.frame;
     env.PC = choicepoint.retryPC;
-    env.lTop = choicepoint.retrylTop;
+    env.TR = choicepoint.retryTR;
     env.argP = choicepoint.argP;
     env.argI = choicepoint.argI;
     env.argS = choicepoint.argS;
     env.nextFrame = choicepoint.nextFrame;
+    unwind_trail(env);
     return true;
 }
 
 function bind(env, variable, value)
 {
-    variable.limit = env.lTop++;
+    console.log("Binding " + util.inspect(variable) + " to " + util.inspect(value) + " at " + env.TR);
+    env.trail[env.TR] = variable;
+    variable.limit = env.TR++;
     variable.value = value;
 }
 
@@ -261,6 +249,31 @@ function execute(env)
                 env.PC++;
                 continue;
             }
+            case "c_cut":
+            {
+                // The task of c_cut is to pop and discard all choicepoints newer than the value in the given slot
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                env.choicepoints = env.choicepoints.slice(0, env.currentFrame.reserved_slots[slot]);
+                env.PC+=3;
+                continue;
+            }
+            case "c_ifthen":
+            {
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
+                env.PC+=3;
+                continue;
+            }
+            case "c_ifthenelse":
+            {
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var address = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
+                env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
+                env.choicepoints.push(new Choicepoint(env, address));
+                env.PC+=7;
+                continue;
+            }
+
             case "i_unify":
 	    {
 		// When we get here argI points to the next *free* space in the frame
@@ -283,18 +296,21 @@ function execute(env)
             }
             case "b_firstvar":
             {
-		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                env.argP[env.argI++] = env.currentFrame.slots[slot];
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                console.log("firstvar: setting slot " + slot + " to a new variable");
+                env.currentFrame.slots[slot] = new VariableTerm("_f");
+                env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
                 env.PC+=3;
                 continue;
             }
             case "b_argvar":
             {
-		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                console.log("argvar: getting variable from slot " + slot);
 		var arg = env.currentFrame.slots[slot];
-		arg = deref(env, arg);
-		//console.log("     " + util.inspect(arg));
-		if (arg instanceof VariableTerm)
+                arg = deref(env, arg);
+                console.log("Value of variable is: " + util.inspect(arg));
+                if (arg instanceof VariableTerm)
                 {
                     // FIXME: This MAY require trailing
 		    env.argP[env.argI] = new VariableTerm("_a");
@@ -455,24 +471,15 @@ function execute(env)
 	    }
 	    case "c_jump":
 	    {
-		env.PC = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
+                env.PC = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
 		continue;
 	    }
 	    case "c_or":
             case "try_me_else":
             case "retry_me_else":
             {
-		var address = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
-                var backtrackFrame = new Choicepoint(env.currentFrame, address);
-                backtrackFrame.retrylTop = env.lTop;
-                backtrackFrame.PC = address;
-		backtrackFrame.argP = env.argP;
-		backtrackFrame.argI = env.argI;
-                backtrackFrame.argS = env.argS;
-		backtrackFrame.code = env.currentFrame.code;
-		backtrackFrame.nextFrame = env.nextFrame;
-                backtrackFrame.functor = env.currentFrame.functor;
-                env.choicepoints.push(backtrackFrame);
+                var address = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
+                env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=5;
                 continue;
             }

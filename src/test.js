@@ -23,8 +23,8 @@ debug = function (msg)
 var env = new Environment();
 env.consultURL("http://localhost:8080/bin/x.pl", function()
 	       {
-		   var arg = new VariableTerm("A");
-		   var query = new CompoundTerm("foo", [arg]);
+                   var arg = new VariableTerm("Input");
+                   var query = new CompoundTerm("local", [arg]);
 		   if (!env.execute(query))
 		       console.log("Failed");
 		   else

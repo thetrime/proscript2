@@ -24,12 +24,12 @@ Environment.prototype.reset = function()
     this.currentFrame = "$top";
     this.choicepoints = [];
     this.trail = [];
-    this.lTop = 0;
+    this.TR = 0;
     this.currentModule = Module.get("user");
     this.argS = [];
     this.argI = 0;
     this.mode = 0; // READ
-
+    this.trail = [];
 }
 
 Environment.prototype.getModule = function()

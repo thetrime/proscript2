@@ -149,9 +149,25 @@ function assembleInstruction(instructions, iP, bytecode, ptr, constants)
 function compileQuery(term)
 {
     var instructions = [];
-    compileClause(new CompoundTerm(Constants.clauseFunctor, [Constants.trueAtom, dereference_recursive(term)]), instructions);
+    // We have to make a fake head with all the variables in the term. Otherwise, when we execute the body, we will get
+    // b_firstvar, and the variable passed in will be destroyed
+    var variables = [];
+    findVariables(term, variables);
+    compileClause(new CompoundTerm(Constants.clauseFunctor, [new CompoundTerm("$query", variables), dereference_recursive(term)]), instructions);
     var code = assemble(instructions);
     return code;
+}
+
+function findVariables(term, variables)
+{
+    if (term instanceof VariableTerm && variables.indexOf(term) == -1)
+        variables.push(term);
+    else if (term instanceof CompoundTerm)
+    {
+        for (i = 0; i < term.args.length; i++)
+            findVariables(term.args[i], variables);
+    }
+
 }
 
 
@@ -170,19 +186,16 @@ function compileClause(term, instructions)
 	// FIXME: By arranging these more carefully we might do better for LCO
 	var envSize = reserved;
 	var variables = {};
-	var context = {nextSlot:0};
+        var context = {nextSlot:0};
 	envSize += analyzeVariables(term.args[0], true, 0, variables, context);
         envSize += analyzeVariables(term.args[1], false, 1, variables, context);
-        if (context.hasGlobalCut)
-	    instructions.push({opcode: Instructions.iSaveCut,
-			       slot: 0});
-	compileHead(term.args[0], variables, instructions);
+        compileHead(term.args[0], variables, instructions);
 	instructions.push({opcode: Instructions.iEnter});
-	compileBody(term.args[1], variables, instructions, true);
+        compileBody(term.args[1], variables, instructions, true, {nextReserved:0, maxReserved:reserved});
     }
     else
     {
-        // Fact
+        // Fact. A fact obviously cannot have any cuts in it, so there is nothing to reserve space for
         var variables = {};
         var context = {nextSlot:0};
         var envSize = analyzeVariables(term, true, 0, variables, context);
@@ -244,7 +257,7 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
     }
 }
 
-function compileBody(term, variables, instructions, isTailGoal)
+function compileBody(term, variables, instructions, isTailGoal, reservedContext)
 {
     if (term instanceof VariableTerm)
     {
@@ -275,25 +288,54 @@ function compileBody(term, variables, instructions, isTailGoal)
     {
 	if (term.functor.equals(Constants.conjunctionFunctor))
 	{
-	    compileBody(term.args[0], variables, instructions, false);
-	    compileBody(term.args[1], variables, instructions, isTailGoal);
+            compileBody(term.args[0], variables, instructions, false, reservedContext);
+            compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext);
 	}
 	else if (term.functor.equals(Constants.disjunctionFunctor))
-	{
-	    var orInstruction = instructions.length;
-	    instructions.push({opcode: Instructions.cOr,
-			       address: -1});
-	    compileBody(term.args[0], variables, instructions, false);
-	    var jumpInstruction = instructions.length;
-	    instructions.push({opcode: Instructions.cJump,
-			       address: -1});
-	    instructions[orInstruction].address = instructions.length;
-	    compileBody(term.args[1], variables, instructions, isTailGoal);
-	    instructions[jumpInstruction].address = instructions.length;
-	    // Finally, we need to make sure that the c_jump has somewhere to go,
-	    // so if this was otherwise the tail goal, throw in an i_exit
-	    if (isTailGoal)
-		instructions.push({opcode: Instructions.iExit});
+        {
+            if (term.args[0] instanceof CompoundTerm && term.args[0].functor.equals(Constants.localCutFunctor))
+            {
+                // If-then-else
+                // FIXME: Check that reservedContext.nextReserved < reservedContext.maxReserved
+                var ifThenElseInstruction = instructions.length;
+                var cutPoint = reservedContext.nextReserved++;
+                instructions.push({opcode: Instructions.cIfThenElse,
+                                   slot:cutPoint,
+                                   address: -1});
+                // If
+                compileBody(term.args[0].args[0], variables, instructions, false, reservedContext);
+                // (Cut)
+                instructions.push({opcode: Instructions.cCut,
+                                   slot: cutPoint});
+                // Then
+                compileBody(term.args[0].args[1], variables, instructions, false, reservedContext);
+                // (and now jump out before the Else)
+                var jumpInstruction = instructions.length;
+                instructions.push({opcode: Instructions.cJump,
+                                   address: -1});
+                // Else - we resume from here if the 'If' doesnt work out
+                instructions[ifThenElseInstruction].address = instructions.length;
+                compileBody(term.args[1], variables, instructions, false, reservedContext);
+                instructions[jumpInstruction].address = instructions.length;
+            }
+            else
+            {
+                // Ordinary disjunction
+                var orInstruction = instructions.length;
+                instructions.push({opcode: Instructions.cOr,
+                                   address: -1});
+                compileBody(term.args[0], variables, instructions, false, reservedContext);
+                var jumpInstruction = instructions.length;
+                instructions.push({opcode: Instructions.cJump,
+                                   address: -1});
+                instructions[orInstruction].address = instructions.length;
+                compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext);
+                instructions[jumpInstruction].address = instructions.length;
+            }
+            // Finally, we need to make sure that the c_jump has somewhere to go,
+            // so if this was otherwise the tail goal, throw in an i_exit
+            if (isTailGoal)
+                instructions.push({opcode: Instructions.iExit});
 	}
 	else if (term.functor.equals(Constants.throwFunctor))
 	{
@@ -301,9 +343,16 @@ function compileBody(term, variables, instructions, isTailGoal)
 	    instructions.push({opcode: Instructions.iThrow});
 	}
 	else if (term.functor.equals(Constants.localCutFunctor))
-	{
-	    // FIXME: Implement
-	}
+        {
+            // FIXME: Check that reservedContext.nextReserved < reservedContext.maxReserved
+            var cutPoint = reservedContext.nextReserved++;
+            instructions.push({opcode: Instructions.cIfThen,
+                               slot:cutPoint});
+            compileBody(term.args[0], variables, instructions, false, reservedContext);
+            instructions.push({opcode: Instructions.cCut,
+                               slot: cutPoint});
+            compileBody(term.args[1], variables, instructions, false, reservedContext);
+        }
 	else if (term.functor.equals(Constants.catchFunctor))
 	{
 	    // FIXME: Implement

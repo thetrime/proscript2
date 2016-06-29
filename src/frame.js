@@ -24,6 +24,7 @@ function Frame(env)
 {
     this.parent = env.currentFrame;
     this.slots = [];
+    this.reserved_slots = [];
     this.code = undefined;
     this.returnPC = 0;
     this.choicepoint = env.choicepoints.length;
