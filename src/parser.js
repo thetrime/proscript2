@@ -48,7 +48,7 @@ var prefix_operators = {":-": {precedence: 1200, fixity: "fx"},
                         "multifile": {precedence: 1150, fixity: "fx"},
                         "thread_local": {precedence: 1150, fixity: "fx"},
                         "volatile": {precedence: 1150, fixity: "fx"},
-                        "\+": {precedence: 900, fixity: "fy"},
+                        "\\+": {precedence: 900, fixity: "fy"},
                         "~": {precedence: 900, fixity: "fx"},
                         "?": {precedence: 500, fixity: "fx"},
                         "+": {precedence: 200, fixity: "fy"},
@@ -71,15 +71,15 @@ var infix_operators = {":-": {precedence: 1200, fixity: "xfx"},
                        "=:=": {precedence: 700, fixity: "xfx"},
                        "=<": {precedence: 700, fixity: "xfx"},
                        "==": {precedence: 700, fixity: "xfx"},
-                       "=\=": {precedence: 700, fixity: "xfx"},
+                       "=\\=": {precedence: 700, fixity: "xfx"},
                        ">": {precedence: 700, fixity: "xfx"},
                        ">=": {precedence: 700, fixity: "xfx"},
                        "@<": {precedence: 700, fixity: "xfx"},
                        "@=<": {precedence: 700, fixity: "xfx"},
                        "@>": {precedence: 700, fixity: "xfx"},
                        "@>=": {precedence: 700, fixity: "xfx"},
-                       "\=": {precedence: 700, fixity: "xfx"},
-                       "\==": {precedence: 700, fixity: "xfx"},
+                       "\\=": {precedence: 700, fixity: "xfx"},
+                       "\\==": {precedence: 700, fixity: "xfx"},
                        "is": {precedence: 700, fixity: "xfx"},
                        ">:<": {precedence: 700, fixity: "xfx"},
                        ":<": {precedence: 700, fixity: "xfx"},
@@ -288,7 +288,7 @@ function read_expression(s, precedence, isarg, islist, vars)
         if (infix_operator == null)
         {
 	    return lhs;
-        }            
+        }
 	op = infix_operators[infix_operator];
 	if (op !== undefined)
         {
