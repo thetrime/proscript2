@@ -24,7 +24,7 @@ var env = new Environment();
 env.consultURL("http://localhost:8080/bin/x.pl", function()
 	       {
                    var arg = new VariableTerm("Input");
-                   var query = new CompoundTerm("usercall2", [arg]);
+                   var query = new CompoundTerm("error", [arg]);
 		   if (!env.execute(query))
 		       console.log("Failed");
 		   else

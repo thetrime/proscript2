@@ -280,6 +280,14 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
     {
 	instructions.push({opcode: Instructions.iTrue});
     }
+    else if (term.equals(Constants.catchAtom))
+    {
+        var slot = reservedContext.nextReserved++;
+        instructions.push({opcode: Instructions.iCatch,
+                           slot: slot});
+        instructions.push({opcode: Instructions.iExitCatch,
+                           slot: slot});
+    }
     else if (term.equals(Constants.failAtom))
     {
 	instructions.push({opcode: Instructions.iFail});
@@ -368,6 +376,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
             if (isTailGoal)
                 instructions.push({opcode: Instructions.iExit});
         }
+        /*
         else if (term.functor.equals(Constants.catchFunctor))
         {
             var cutPoint = reservedContext.nextReserved++;
@@ -393,12 +402,12 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
                                slot:cutPoint});
             if (isTailGoal)
                 instructions.push({opcode: Instructions.iExit});
-
         }
+        */
 	else if (term.functor.equals(Constants.throwFunctor))
 	{
 	    compileTermCreation(term.args[0], variables, instructions);
-	    instructions.push({opcode: Instructions.iThrow});
+            instructions.push({opcode: Instructions.bThrow});
 	}
 	else if (term.functor.equals(Constants.localCutFunctor))
         {

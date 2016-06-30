@@ -14,3 +14,7 @@ tidy
    There are at least 2 representations of every instruction(!)
 Checkings
    There are many CHECKME and FIXMEs in the code
+
+
+Bugs:
+   _ is interpreted as the same variable by the parser. Thus foo(_,_) compiles to h_void,h_var rather than h_void,h_void

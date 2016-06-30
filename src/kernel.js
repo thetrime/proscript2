@@ -195,6 +195,17 @@ function execute(env)
             {
                 return true;
             }
+            case "i_exitcatch":
+            {
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                if (env.currentFrame.reserved_slots[slot] == env.choicepoints.length)
+                {
+                    // Goal has exited deterministically, we do not need our backtrack point anymore since there is no way we could
+                    // backtrack into Goal and generate an exception.
+                    env.choicepoints.pop();
+                }
+                // Fall-through to i_exit
+            }
             case "i_exit":
 	    {
 		env.PC = env.currentFrame.returnPC;
@@ -227,7 +238,15 @@ function execute(env)
                 env.nextFrame = new Frame(env);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
-
+            }
+            case "b_throw":
+            {
+                // This is the hardest part of the exception handling process.
+                // We have to walk the stack, looking for frames that correspond to calls to catch/3, find the unifier in the frame, and try to unify it with argP[argI-1]
+                // If unsuccessful (or partially successful!) we must unwind and look further. If nothing is found and we get to the top, throw a real Javascript exception
+                // Finally, care must be taken to unwind any choicepoints we find along the way as we are go so that if the exception is caught we cannot later backtrack
+                // into a frame that should've been destroyed by the bubbling exception
+                throw new Error("throw is not yet implemented");
             }
             case "i_call":
             {
@@ -244,6 +263,23 @@ function execute(env)
                 env.nextFrame = new Frame(env);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
+            }
+            case "i_catch":
+            {
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                // i_catch must do a few things:
+                //    * Create a backtrack point at the start of the frame so we can undo anything in the guarded goal if something goes wrong
+                //    * ensure argP[argI-1] points to the goal
+                //    * Jump to i_usercall to call the goal
+                env.choicepoints.push(new Choicepoint(env, -1));
+                env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
+                console.log(env.currentFrame.slots);
+                // Currently argP points to the first slot in the next frame that we have started building since we've done i_enter already
+                // we need to set it back to the slots of the /current/ frame so that i_usercall finds the goal
+                env.argP = env.currentFrame.slots;
+                env.argI = 1;
+                env.PC+=2; // i_usercall will add the third byte in a moment
+                // Fall through to i_usercall
             }
             case "i_usercall":
             {
@@ -262,17 +298,21 @@ function execute(env)
                                       constants: compiledCode.constants};
                 env.nextFrame.returnPC = env.PC+1;
                 env.currentFrame = env.nextFrame;
+                env.argP = env.currentFrame.slots;
+                env.argI = 0;
                 // Now the arguments need to be filled in. This takes a bit of thought.
                 // What we have REALLY done is taken Goal and created a new, local predicate '$query'/N like this:
                 //     '$query'(A, B, C, ....Z):-
                 //           Goal.
                 // Where the variables of Goal are A, B, C, ...Z. This implies we must now push the arguments of $query/N
                 // onto the stack, and NOT the arguments of Goal, since we are about to 'call' $query.
+                console.log("Vars: " + compiledCode.variables);
                 for (var i = 0; i < compiledCode.variables.length; i++)
-                    env.argP[env.argI++] = compiledCode.variables[i];
-                env.argI = 0;
+                    env.currentFrame.slots[i] = compiledCode.variables[i];
                 env.nextFrame = new Frame(env);
                 env.PC = 0; // Start from the beginning of the code in the next frame
+                console.log("Executing " + goal);
+                console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
                 continue;
             }
             case "i_cut":
