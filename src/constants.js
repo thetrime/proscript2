@@ -4,7 +4,7 @@ var Functor = require('./functor.js');
 module.exports = {emptyListAtom: new AtomTerm("[]"),
 		  cutAtom: new AtomTerm("!"),
 		  failAtom: new AtomTerm("fail"),
-		  trueAtom: new AtomTerm("true"),
+                  trueAtom: new AtomTerm("true"),
                   unifyFunctor: new Functor(new AtomTerm("="), 2),
                   notFunctor: new Functor(new AtomTerm("\\+"), 1),
                   unifyFunctor: new Functor(new AtomTerm("="), 2),

@@ -1,5 +1,8 @@
+"use strict";
+
 var LOOKUP_OPCODE = require('./opcodes.js').opcodes;
 var Functor = require('./functor.js');
+var Compiler = require('./compiler.js');
 var Frame = require('./frame.js');
 var Module = require('./module.js');
 var util = require('util');
@@ -50,6 +53,8 @@ var WRITE = 1;
 
 */
 
+var nextvar = 0;
+
 function unwind_trail(env)
 {
     // Unwind the trail back to env.TR
@@ -58,7 +63,7 @@ function unwind_trail(env)
     env.trail = env.trail.slice(0, env.TR);
 }
 
-function deref(env, term)
+function deref(term)
 {
     while(true)
     {
@@ -78,8 +83,8 @@ function deref(env, term)
 
 function unify(env, a, b)
 {
-    a = deref(env, a);
-    b = deref(env, b);
+    a = deref(a);
+    b = deref(b);
     if (a.equals(b))
         return true;
     if (a instanceof VariableTerm)
@@ -240,6 +245,36 @@ function execute(env)
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
+            case "i_usercall":
+            {
+                // argP[argI-1] is a goal that we want to execute. First, we must compile it
+                env.argI--;
+                var goal = deref(env.argP[env.argI]);
+                var compiledCode = Compiler.compileQuery(goal);
+                if (goal instanceof AtomTerm)
+                    env.nextFrame.functor = new Functor(goal, 0)
+                else if (goal instanceof CompoundTerm)
+                    env.nextFrame.functor = goal.functor;
+                else
+                    throw(new Error(goal + " is not callable"));
+
+                env.nextFrame.code = {opcodes: compiledCode.bytecode,
+                                      constants: compiledCode.constants};
+                env.nextFrame.returnPC = env.PC+1;
+                env.currentFrame = env.nextFrame;
+                // Now the arguments need to be filled in. This takes a bit of thought.
+                // What we have REALLY done is taken Goal and created a new, local predicate '$query'/N like this:
+                //     '$query'(A, B, C, ....Z):-
+                //           Goal.
+                // Where the variables of Goal are A, B, C, ...Z. This implies we must now push the arguments of $query/N
+                // onto the stack, and NOT the arguments of Goal, since we are about to 'call' $query.
+                for (var i = 0; i < compiledCode.variables.length; i++)
+                    env.argP[env.argI++] = compiledCode.variables[i];
+                env.argI = 0;
+                env.nextFrame = new Frame(env);
+                env.PC = 0; // Start from the beginning of the code in the next frame
+                continue;
+            }
             case "i_cut":
             {
                 // The task of i_cut is to pop and discard all choicepoints newer than env.currentFrame.choicepoint
@@ -298,7 +333,7 @@ function execute(env)
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 console.log("firstvar: setting slot " + slot + " to a new variable");
-                env.currentFrame.slots[slot] = new VariableTerm("_f");
+                env.currentFrame.slots[slot] = new VariableTerm("_L" + nextvar++);
                 env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
                 env.PC+=3;
                 continue;
@@ -308,12 +343,12 @@ function execute(env)
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 console.log("argvar: getting variable from slot " + slot);
 		var arg = env.currentFrame.slots[slot];
-                arg = deref(env, arg);
-                console.log("Value of variable is: " + util.inspect(arg));
+                arg = deref(arg);
+                console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
                 if (arg instanceof VariableTerm)
                 {
                     // FIXME: This MAY require trailing
-		    env.argP[env.argI] = new VariableTerm("_a");
+                    env.argP[env.argI] = new VariableTerm("_A" + nextvar++);
 		    bind(env, env.argP[env.argI], arg);
 		    //console.log("argP now refers to " + util.inspect(env.argP[env.argI]));
                 }
@@ -374,7 +409,7 @@ function execute(env)
                     // a variable occurring in the head, for example the X in foo(a(X)):- ...
                     // the compiler has allocated an appropriate slot in the frame above the arity of the goal we are executing
                     // we just need to create a variable in that slot, then bind it to the variable in the current frame
-		    env.currentFrame.slots[slot] = new VariableTerm("_f");
+                    env.currentFrame.slots[slot] = new VariableTerm("_L" + nextvar++);
 		    bind(env, env.argP[env.argI], env.currentFrame.slots[slot]);
 		}
                 else
@@ -388,7 +423,7 @@ function execute(env)
                     }
                     else
 		    {
-			env.currentFrame.slots[slot] = new VariableTerm("_X");
+                        env.currentFrame.slots[slot] = new VariableTerm("_X" + nextvar++);
 			bind(env, env.currentFrame.slots[slot], env.argP[env.argI]);
                     }
                 }
@@ -400,7 +435,7 @@ function execute(env)
             case "h_functor":
             {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-		var arg = deref(env, env.argP[env.argI++]);
+		var arg = deref(env.argP[env.argI++]);
                 env.PC+=3;
                 // Try to match a functor
                 if (arg instanceof CompoundTerm)
@@ -418,7 +453,7 @@ function execute(env)
 		    newArgFrame(env);
                     var args = new Array(functor.arity);
                     for (var i = 0; i < args.length; i++)
-			args[i] = new VariableTerm("_ff");
+                        args[i] = new VariableTerm("_f" + nextvar++);
 		    bind(env, arg, new CompoundTerm(functor, args));
 		    env.argP = args;
 		    env.argI = 0;
@@ -441,7 +476,7 @@ function execute(env)
             case "h_atom":
             {
 		var atom = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-                var arg = deref(env, env.argP[env.argI++]);
+                var arg = deref(env.argP[env.argI++]);
                 env.PC+=3;
 		if (arg.equals(atom))
                     continue;

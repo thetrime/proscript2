@@ -75,7 +75,7 @@ function assemble(instructions)
     //console.log("Compiled: " + util.inspect(instructions, {showHidden: false, depth: null}) + " to " + bytes + " with constants: " + util.inspect(constants, {showHidden: false, depth: null}));
     return {bytecode: bytes,
 	    constants: constants,
-	    instructions:instructions};
+            instructions:instructions};
 }
 
 function instructionSize(i)
@@ -153,18 +153,22 @@ function compileQuery(term)
     // b_firstvar, and the variable passed in will be destroyed
     var variables = [];
     findVariables(term, variables);
+    console.log("Variables found in " + term + ":" + util.inspect(variables));
     compileClause(new CompoundTerm(Constants.clauseFunctor, [new CompoundTerm("$query", variables), dereference_recursive(term)]), instructions);
     var code = assemble(instructions);
+    code.variables = variables;
+    console.log(util.inspect(code, {showHidden: false, depth: null}));
     return code;
 }
 
 function findVariables(term, variables)
 {
+    term = term.dereference();
     if (term instanceof VariableTerm && variables.indexOf(term) == -1)
         variables.push(term);
     else if (term instanceof CompoundTerm)
     {
-        for (i = 0; i < term.args.length; i++)
+        for (var i = 0; i < term.args.length; i++)
             findVariables(term.args[i], variables);
     }
 
@@ -261,9 +265,10 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
 {
     if (term instanceof VariableTerm)
     {
-	compileTermCreation(term, variables, instructions);
-	instructions.push({opcode: isTailGoal?Instructions.iDepart:Instructions.iCall,
-			   functor: new Functor(new AtomTerm("call"), 1)});
+        compileTermCreation(term, variables, instructions);
+        instructions.push({opcode: Instructions.iUserCall})
+        if (isTailGoal)
+            instructions.push({opcode: Instructions.iExit});
     }
     else if (term.equals(Constants.cutAtom))
     {

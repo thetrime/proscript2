@@ -1,11 +1,6 @@
 Modules
 Foreign Predicates
-Missing opcodes
-   i_save_cut
-   i_cut
-   c_not
 catch/3
-->/2
 Other types:
    floats
    bigintegers
@@ -19,4 +14,3 @@ tidy
    There are at least 2 representations of every instruction(!)
 Checkings
    There are many CHECKME and FIXMEs in the code
-   Is the lTop thing right, or do I need to trail everything separately and make sure I undo it?
