@@ -336,7 +336,60 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
             // so if this was otherwise the tail goal, throw in an i_exit
             if (isTailGoal)
                 instructions.push({opcode: Instructions.iExit});
-	}
+        }
+        else if (term.functor.equals(Constants.notFunctor))
+        {
+            // \+A is the same as (A -> fail ; true)
+            // It is compiled to a much simpler representation though:
+            //    c_if_then_else N
+            //    <code for A>
+            //    c_cut
+            //    i_fail
+            // N: (rest of the clause)
+            var ifThenElseInstruction = instructions.length;
+            var cutPoint = reservedContext.nextReserved++;
+            instructions.push({opcode: Instructions.cIfThenElse,
+                               slot:cutPoint,
+                               address: -1});
+            // If
+            compileBody(term.args[0], variables, instructions, false, reservedContext);
+            // (Cut)
+            instructions.push({opcode: Instructions.cCut,
+                               slot: cutPoint});
+            // Then
+            instructions.push({opcode: Instructions.iFail});
+            // Else - we resume from here if the 'If' doesnt work out
+            instructions[ifThenElseInstruction].address = instructions.length;
+            if (isTailGoal)
+                instructions.push({opcode: Instructions.iExit});
+        }
+        else if (term.functor.equals(Constants.catchFunctor))
+        {
+            var cutPoint = reservedContext.nextReserved++;
+            var iCatch = instructions.length;
+            instructions.push({opcode: Instructions.iCatch,
+                               slot: cutPoint,
+                               address: -1});
+            // Compile the goal
+            compileBody(term.args[0], variables, instructions, false, reservedContext);
+            var jump = instructions.length;
+            instructions.push({opcode: Instructions.cJump,
+                               address: -1});
+            instructions[iCatch].address = instructions.length;
+            // Compile the unifier
+            instructions.push({opcode: Instructions.bCurrentException});
+            compileTermCreation(term.args[1], variables, instructions);
+            instructions.push({opcode: Instructions.iUnify});
+            instructions.push({opcode: Instructions.iCut});
+            // Compile the handler
+            compileBody(term.args[2], variables, instructions, false, reservedContext);
+            instructions[jump].address = instructions.length;
+            instructions.push({opcode: Instructions.iExitCatch,
+                               slot:cutPoint});
+            if (isTailGoal)
+                instructions.push({opcode: Instructions.iExit});
+
+        }
 	else if (term.functor.equals(Constants.throwFunctor))
 	{
 	    compileTermCreation(term.args[0], variables, instructions);
