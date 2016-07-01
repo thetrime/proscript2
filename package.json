@@ -1,0 +1,27 @@
+{
+  "name": "proscript",
+  "version": "2.0.0",
+  "description": "A Prolog Engine for Javascript",
+  "main": "bundle.js",
+  "dependencies": {
+      "xmlhttprequest": "^1.8.0",
+      "browserify": "^13.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+      "start": "STATIC_ROOT=./static watchify src/core.js -v -o build/proscript.js",
+      "install": "STATIC_ROOT=./static browserify --standalone Prolog src/core.js | uglifyjs -cm > build/proscript.js",
+      "build-debug": "STATIC_ROOT=./static browserify src/core.js -v -o build/proscript.js",
+      "test": "echo \"Error: no tests exist\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thetrime/proscript2.git"
+  },
+  "author": "",
+  "license": "LGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/thetrime/proscript2/issues"
+  },
+  "homepage": "https://github.com/thetrime/proscript2#readme"
+}
