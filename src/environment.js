@@ -30,6 +30,15 @@ Environment.prototype.reset = function()
     this.argI = 0;
     this.mode = 0; // READ
     this.trail = [];
+    var stdout = Stream.new_stream(null,
+                                   console_write,
+                                   null,
+                                   null,
+                                   null,
+                                   []);
+    this.streams = {stdin: undefined,
+                    stdout: stdout,
+                    stderr: stdout};
 }
 
 Environment.prototype.getModule = function()
@@ -136,6 +145,47 @@ function xhr_read(stream, size, count, buffer)
         }
     }
     return records_read;
+}
+
+function fromByteArray(byteArray)
+{
+    var str = '';
+    for (i = 0; i < byteArray.length; i++)
+    {
+        if (byteArray[i] <= 0x7F)
+        {
+            str += String.fromCharCode(byteArray[i]);
+        }
+        else
+        {
+            // Have to decode manually
+            var ch = 0;
+            var mask = 0x20;
+            var j = 0;
+            for (var mask = 0x20; mask != 0; mask >>=1 )
+            {        
+                var next = byteArray[j+1];
+                if (next == undefined)
+                {
+                    abort("Unicode break in fromByteArray. The input is garbage");
+                }
+                ch = (ch << 6) ^ (next & 0x3f);
+                if ((byteArray[i] & mask) == 0)
+                    break;
+                j++;
+            }
+            ch ^= (b & (0xff >> (i+3))) << (6*(i+1));
+            str += String.fromCharCode(ch);
+        }
+    }
+    return str;
+}
+
+function console_write(stream, size, count, buffer)
+{
+    var str = fromByteArray(buffer);
+    console.log(str);
+    return size*count;
 }
 
 function clauseFunctor(term)

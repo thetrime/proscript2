@@ -18,14 +18,35 @@ debug = function (msg)
     console.log(msg);
 }
 
+function toByteArray(str)
+{
+    var byteArray = [];
+    for (var i = 0; i < str.length; i++)
+    {
+        if (str.charCodeAt(i) <= 0x7F)
+        {
+            byteArray.push(str.charCodeAt(i));
+        }
+        else 
+        {
+            var h = encodeURIComponent(str.charAt(i)).substr(1).split('%');
+            for (var j = 0; j < h.length; j++)
+            {
+                byteArray.push(parseInt(h[j], 16));
+            }
+        }
+    }
+    return byteArray;
+}
 
 
 var env = new Environment();
 
 function writeln(env, arg)
 {
-    console.log("stdout: " + arg);
-    return true;
+    var bytes = toByteArray(arg.toString());
+    console.log(bytes);
+    return env.streams.stdout.write(env.streams.stdout, 1, bytes.length, bytes) >= 0;
 }
 
 env.getModule().defineForeignPredicate("writeln", 1, writeln);
