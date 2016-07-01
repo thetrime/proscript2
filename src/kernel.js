@@ -259,7 +259,20 @@ function execute(env)
                     // backtrack into Goal and generate an exception.
                     env.choicepoints.pop();
                 }
-                // Fall-through to i_exit
+                next_opcode = "i_exit";
+                continue next_instruction;
+            }
+            case "i_foreign":
+            {
+                var rc = env.currentFrame.code.constants[0].apply(null, [env].concat(env.currentFrame.slots));
+                if (rc == 0)
+                {
+                    if (backtrack(env))
+                        continue;
+                    return false;
+                }
+                next_opcode = "i_exit";
+                continue next_instruction;
             }
             case "i_exit":
 	    {
