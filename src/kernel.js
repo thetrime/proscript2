@@ -161,7 +161,7 @@ function execute(env)
 {
     while(true)
     {
-	if (env.currentFrame.code.opcodes[env.PC] === undefined)
+        if (env.currentFrame.code.opcodes[env.PC] === undefined)
         {
             console.log(util.inspect(env.currentFrame));
             console.log("Illegal fetch at " + env.PC);
@@ -194,6 +194,18 @@ function execute(env)
             case "i_exitquery":
             {
                 return true;
+            }
+            case "i_foreign":
+            {
+                var rc = env.currentFrame.code.constants[0].apply(null, [env].concat(env.currentFrame.slots));
+                if (rc == 0)
+                {
+                    if (backtrack(env))
+                        continue;
+                    return false;
+                }
+                // Otherwise just continue through to  i_exit
+                // FALL-THROUGH
             }
             case "i_exit":
 	    {

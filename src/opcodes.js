@@ -90,6 +90,9 @@ var opcodes =
 	{key: "cOr",
 	 label: "c_or",
 	 args: ["address"]},
+        {key: "iForeign",
+         label: "i_foreign",
+         args: []},
 
 	{key: "nop",
 	 label: "nop",

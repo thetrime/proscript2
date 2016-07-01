@@ -1,11 +1,23 @@
 var module_map = [];
 var Compiler = require('./compiler.js');
+var Functor = require('./functor.js');
+var AtomTerm = require('./atom_term.js');
 var util = require('util');
 
 function Module(name)
 {
     this.name = name;
     this.predicates = {};
+}
+
+Module.prototype.defineForeignPredicate = function(name, arity, fn)
+{
+    var functor = new Functor(new AtomTerm(name), arity);
+    var compiled = Compiler.foreignShim(fn);
+    this.predicates[functor.toString()] = {code: {opcodes: compiled.bytecode,
+                                                  constants: compiled.constants},
+                                           instructions: compiled.instructions};
+    console.log(">>> Defined (foreign) " + this.name + ":" + functor);
 }
 
 Module.prototype.definePredicate = function(functor)
@@ -38,6 +50,7 @@ Module.prototype.getPredicateCode = function(functor)
         console.log("No such predicate in module " + this.name);
         return undefined;
     }
+    console.log("Found: " + util.inspect(this.predicates[functor.toString()]));
     if (this.predicates[functor.toString()].code === undefined)
         this.compilePredicate(functor);
     //console.log(util.inspect(this.predicates[functor.toString()], {showHidden: false, depth: null}));

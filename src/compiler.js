@@ -581,5 +581,15 @@ function analyzeVariables(term, isHead, depth, map, context)
     return rc;
 }
 
+function foreignShim(fn)
+{
+    var bytes = new Uint8Array(1);
+    assembleInstruction([{opcode: Instructions.iForeign}], 0, bytes, 0, []);
+    return {bytecode: bytes,
+            constants: [fn],
+            instructions:[{opcode: Instructions.iForeign}]};
+}
+
 module.exports = {compilePredicate:compilePredicate,
-		  compileQuery:compileQuery};
+                  compileQuery:compileQuery,
+                  foreignShim: foreignShim};

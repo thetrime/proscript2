@@ -21,10 +21,18 @@ debug = function (msg)
 
 
 var env = new Environment();
+
+function writeln(env, arg)
+{
+    console.log("stdout: " + arg);
+    return 0;
+}
+
+env.getModule().defineForeignPredicate("writeln", 1, writeln);
 env.consultURL("http://localhost:8080/bin/x.pl", function()
 	       {
                    var arg = new VariableTerm("Input");
-                   var query = new CompoundTerm("usercall2", [arg]);
+                   var query = new CompoundTerm("foreign", [arg]);
 		   if (!env.execute(query))
 		       console.log("Failed");
 		   else
