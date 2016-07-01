@@ -1,8 +1,13 @@
 util = require("util");
 
+var nextvar = 0;
+
 function VariableTerm(name)
 {
-    this.name = name;
+    if (name === undefined)
+        this.name = "G" + nextvar++;
+    else
+        this.name = name;
     this.value = null;
 }
 

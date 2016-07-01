@@ -376,34 +376,6 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
             if (isTailGoal)
                 instructions.push({opcode: Instructions.iExit});
         }
-        /*
-        else if (term.functor.equals(Constants.catchFunctor))
-        {
-            var cutPoint = reservedContext.nextReserved++;
-            var iCatch = instructions.length;
-            instructions.push({opcode: Instructions.iCatch,
-                               slot: cutPoint,
-                               address: -1});
-            // Compile the goal
-            compileBody(term.args[0], variables, instructions, false, reservedContext);
-            var jump = instructions.length;
-            instructions.push({opcode: Instructions.cJump,
-                               address: -1});
-            instructions[iCatch].address = instructions.length;
-            // Compile the unifier
-            instructions.push({opcode: Instructions.bCurrentException});
-            compileTermCreation(term.args[1], variables, instructions);
-            instructions.push({opcode: Instructions.iUnify});
-            instructions.push({opcode: Instructions.iCut});
-            // Compile the handler
-            compileBody(term.args[2], variables, instructions, false, reservedContext);
-            instructions[jump].address = instructions.length;
-            instructions.push({opcode: Instructions.iExitCatch,
-                               slot:cutPoint});
-            if (isTailGoal)
-                instructions.push({opcode: Instructions.iExit});
-        }
-        */
 	else if (term.functor.equals(Constants.throwFunctor))
 	{
 	    compileTermCreation(term.args[0], variables, instructions);
@@ -420,10 +392,6 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
                                slot: cutPoint});
             compileBody(term.args[1], variables, instructions, false, reservedContext);
         }
-	else if (term.functor.equals(Constants.catchFunctor))
-	{
-	    // FIXME: Implement
-	}
 	else if (term.functor.equals(Constants.unifyFunctor))
 	{
 	    compileTermCreation(term.args[0], variables, instructions);
@@ -531,7 +499,7 @@ function getReservedEnvironmentSlots(term, context)
 	{
 	    context.isFirstGoal = false;
 	    slots += 2;
-	    // FIXME: What about args 0 and 2?
+            // FIXME: Is this really needed though?
 	}
     }
     return slots;
@@ -591,4 +559,5 @@ function analyzeVariables(term, isHead, depth, map, context)
 }
 
 module.exports = {compilePredicate:compilePredicate,
-		  compileQuery:compileQuery};
+                  compileQuery:compileQuery,
+                  findVariables:findVariables};

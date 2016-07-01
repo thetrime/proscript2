@@ -21,7 +21,7 @@ function Environment()
 Environment.prototype.reset = function()
 {
     this.currentModule = this.userModule;
-    this.currentFrame = "$top";
+    this.currentFrame = undefined;
     this.choicepoints = [];
     this.trail = [];
     this.TR = 0;
@@ -51,7 +51,7 @@ Environment.prototype.execute = function(queryTerm)
 
     // make a frame with 0 args (since a query has no head)
     var topFrame = new Frame(this);
-    topFrame.functor = "$top";
+    topFrame.functor = new Functor(new AtomTerm("$top"), 0);
     topFrame.code = {opcodes: [Instructions.iExitQuery.opcode],
 		     constants: []};
     this.currentFrame = topFrame;

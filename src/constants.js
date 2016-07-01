@@ -7,6 +7,7 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
                   trueAtom: new AtomTerm("true"),
                   catchAtom: new AtomTerm("$catch"),
 
+                  catchFunctor: new Functor(new AtomTerm("catch"), 3),
                   throwFunctor: new Functor(new AtomTerm("throw"), 1),
                   unifyFunctor: new Functor(new AtomTerm("="), 2),
                   notFunctor: new Functor(new AtomTerm("\\+"), 1),

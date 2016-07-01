@@ -1,5 +1,6 @@
 "use strict";
 
+var Constants = require('./constants.js');
 var LOOKUP_OPCODE = require('./opcodes.js').opcodes;
 var Functor = require('./functor.js');
 var Compiler = require('./compiler.js');
@@ -118,11 +119,36 @@ function link(env, value)
     return v;
 }
 
-function backtrack(env)
+function copyTerm(t)
 {
-    if (env.choicepoints.length == 0)
-        return false;
-    var choicepoint = env.choicepoints.pop();
+    t = t.dereference();
+    var variables = [];
+    Compiler.findVariables(t, variables);
+    var newVars = new Array(variables.length);
+    for (var i = 0; i < variables.length; i++)
+        newVars[i] = new VariableTerm();
+    return _copyTerm(t, variables, newVars);
+}
+
+function _copyTerm(t, vars, newVars)
+{
+    if (t instanceof VariableTerm)
+    {
+        return newVars[vars.indexOf(t)];
+    }
+    else if (t instanceof CompoundTerm)
+    {
+        var newArgs = new Array(t.args.length);
+        for (var i = 0; i < t.args.length; i++)
+            newArgs[i] = _copyTerm(t.args[i], vars, newVars);
+        return new CompoundTerm(t.functor, newArgs);
+    }
+    // For everything else, just return the term itself
+    return t;
+}
+
+function unwind_stack(env, choicepoint)
+{
     env.currentFrame = choicepoint.frame;
     env.PC = choicepoint.retryPC;
     env.TR = choicepoint.retryTR;
@@ -131,6 +157,30 @@ function backtrack(env)
     env.argS = choicepoint.argS;
     env.nextFrame = choicepoint.nextFrame;
     unwind_trail(env);
+}
+
+function backtrack_to(env, choicepoint_index)
+{
+    // Backtracks to the given choicepoint, undoing everything else in between
+    for (var i = env.choicepoints.length-1; i >= choicepoint_index-1; i--)
+    {
+        console.log("Unwinding a choicepoint");
+        unwind_stack(env, env.choicepoints[i]);
+    }
+    env.choicepoints = env.choicepoints.slice(0, choicepoint_index);
+}
+
+function backtrack(env)
+{
+    if (env.choicepoints.length == 0)
+        return false;
+    var choicepoint = env.choicepoints.pop();
+    unwind_stack(env, choicepoint);
+    if (choicepoint.retryPC == -1)
+    {
+        // This is a fake choicepoint set up for something like exception handling. We have to keep going
+        return backtrack(env);
+    }
     return true;
 }
 
@@ -157,18 +207,23 @@ function popArgFrame(env)
     env.mode = argFrame.m;
 }
 
+var next_opcode = undefined;
 function execute(env)
 {
+    var current_opcode;
+    next_instruction:
     while(true)
     {
-	if (env.currentFrame.code.opcodes[env.PC] === undefined)
+        if (next_opcode === undefined && env.currentFrame.code.opcodes[env.PC] === undefined)
         {
             console.log(util.inspect(env.currentFrame));
             console.log("Illegal fetch at " + env.PC);
-            throw("Illegal fetch");
+            throw new Error("Illegal fetch");
         }
-	console.log(env.currentFrame.functor + " " + env.PC + ": " + LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label);
-	switch(LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label)
+        current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label));
+        next_opcode = undefined;
+        console.log(env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
+        switch(current_opcode)
 	{
             case "i_fail":
             {
@@ -246,7 +301,34 @@ function execute(env)
                 // If unsuccessful (or partially successful!) we must unwind and look further. If nothing is found and we get to the top, throw a real Javascript exception
                 // Finally, care must be taken to unwind any choicepoints we find along the way as we are go so that if the exception is caught we cannot later backtrack
                 // into a frame that should've been destroyed by the bubbling exception
-                throw new Error("throw is not yet implemented");
+
+                // First, make a copy of the ball, since we are about to start unwinding things and we dont want to undo its binding
+                var exception = copyTerm(env.argP[env.argI-1]);
+                var frame = env.currentFrame;
+                console.log(util.inspect(env.choicepoints));
+                while (frame != undefined)
+                {
+                    // Unwind to the frames choicepoint. Note that this will be set to the fake choicepoint we created in i_catch
+                    console.log("Frame " + frame.functor + " has choicepoint of " + frame.choicepoint);
+                    console.log("Env has " + env.choicepoints.length + " choicepoints");
+                    backtrack_to(env, frame.choicepoint);
+                    if (frame.functor.equals(Constants.catchFunctor))
+                    {
+                        // Try to unify (a copy of) the exception with the unifier
+                        if (unify(env, copyTerm(exception), frame.slots[1]))
+                        {
+                            // Success! Exception is successfully handled. Now we just have to do i_usercall after adjusting the registers to point to the handler
+                            env.argP = env.currentFrame.slots;
+                            env.argI = 3;
+                            // Javascript doesnt have a goto statement, so this is a bit tricky
+                            next_opcode = "i_usercall";
+                            console.log("goto i_usercall");
+                            continue next_instruction;
+                        }
+                    }
+                    frame = frame.parent;
+                }
+                throw new Error("unhandled exception:" + exception);
             }
             case "i_call":
             {
@@ -272,6 +354,9 @@ function execute(env)
                 //    * ensure argP[argI-1] points to the goal
                 //    * Jump to i_usercall to call the goal
                 env.choicepoints.push(new Choicepoint(env, -1));
+                // Since catch/3 can never itself contain a cut (the bytecode is fixed at i_catch, i_exitcatch), we can afford to tweak the frame a bit
+                // by moving the frames cut choicepoint to the fake choicepoint we have just created, we can simplify b_throw
+                env.currentFrame.choicepoint = env.choicepoints.length;
                 env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
                 console.log(env.currentFrame.slots);
                 // Currently argP points to the first slot in the next frame that we have started building since we've done i_enter already
@@ -285,7 +370,9 @@ function execute(env)
             {
                 // argP[argI-1] is a goal that we want to execute. First, we must compile it
                 env.argI--;
+                console.log("argP:" + env.argP);
                 var goal = deref(env.argP[env.argI]);
+                console.log("Goal: " + goal);
                 var compiledCode = Compiler.compileQuery(goal);
                 if (goal instanceof AtomTerm)
                     env.nextFrame.functor = new Functor(goal, 0)
