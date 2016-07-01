@@ -207,6 +207,7 @@ function popArgFrame(env)
     env.mode = argFrame.m;
 }
 
+var debugger_steps = 0;
 var next_opcode = undefined;
 function execute(env)
 {
@@ -222,7 +223,9 @@ function execute(env)
         }
         current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label));
         next_opcode = undefined;
-        console.log(env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
+        debugger_steps ++;
+        //if (debugger_steps == 50) throw(0);
+        console.log("@" + env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
         switch(current_opcode)
 	{
             case "i_fail":
@@ -257,6 +260,7 @@ function execute(env)
                 {
                     // Goal has exited deterministically, we do not need our backtrack point anymore since there is no way we could
                     // backtrack into Goal and generate an exception.
+                    // Note that it is possible, if we executed the handler, that the fake choicepoint has already been deleted
                     env.choicepoints.pop();
                 }
                 next_opcode = "i_exit";
@@ -321,18 +325,21 @@ function execute(env)
                 console.log(util.inspect(env.choicepoints));
                 while (frame != undefined)
                 {
-                    // Unwind to the frames choicepoint. Note that this will be set to the fake choicepoint we created in i_catch
-                    console.log("Frame " + frame.functor + " has choicepoint of " + frame.choicepoint);
-                    console.log("Env has " + env.choicepoints.length + " choicepoints");
-                    backtrack_to(env, frame.choicepoint);
                     if (frame.functor.equals(Constants.catchFunctor))
                     {
+                        // Unwind to the frames choicepoint. Note that this will be set to the fake choicepoint we created in i_catch
+                        console.log("Frame " + frame.functor + " has choicepoint of " + frame.choicepoint);
+                        console.log("Env has " + env.choicepoints.length + " choicepoints");
+                        backtrack_to(env, frame.choicepoint);
                         // Try to unify (a copy of) the exception with the unifier
                         if (unify(env, copyTerm(exception), frame.slots[1]))
                         {
                             // Success! Exception is successfully handled. Now we just have to do i_usercall after adjusting the registers to point to the handler
+                            // Things get a bit weird here because we are breaking the usual logic flow by ripping the VM out of whatever state it was in and starting
+                            // it off in a totally different place. We have to reset argP, argI and PC then pretend the next instruction was i_usercall
                             env.argP = env.currentFrame.slots;
                             env.argI = 3;
+                            env.PC = 6; // After we have executed the handler we need to go to the i_exitcatch which chould be at PC=6+1
                             // Javascript doesnt have a goto statement, so this is a bit tricky
                             next_opcode = "i_usercall";
                             console.log("goto i_usercall");
@@ -387,13 +394,7 @@ function execute(env)
                 var goal = deref(env.argP[env.argI]);
                 console.log("Goal: " + goal);
                 var compiledCode = Compiler.compileQuery(goal);
-                if (goal instanceof AtomTerm)
-                    env.nextFrame.functor = new Functor(goal, 0)
-                else if (goal instanceof CompoundTerm)
-                    env.nextFrame.functor = goal.functor;
-                else
-                    throw(new Error(goal + " is not callable"));
-
+                env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
                 env.nextFrame.code = {opcodes: compiledCode.bytecode,
                                       constants: compiledCode.constants};
                 env.nextFrame.returnPC = env.PC+1;

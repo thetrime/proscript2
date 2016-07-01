@@ -25,7 +25,7 @@ var env = new Environment();
 function writeln(env, arg)
 {
     console.log("stdout: " + arg);
-    return 0;
+    return true;
 }
 
 env.getModule().defineForeignPredicate("writeln", 1, writeln);
