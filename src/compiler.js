@@ -392,6 +392,11 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
                                slot: cutPoint});
             compileBody(term.args[1], variables, instructions, false, reservedContext);
         }
+        else if (term.functor.equals(Constants.notUnifiableFunctor))
+        {
+            // This is just \+(A=B)
+            compileBody(new CompoundTerm(Constants.notFunctor, [new CompoundTerm(Constants.unifyFunctor, [term.args[0], term.args[1]])]), variables, instructions, isTailGoal, reservedContext);
+        }
 	else if (term.functor.equals(Constants.unifyFunctor))
 	{
 	    compileTermCreation(term.args[0], variables, instructions);

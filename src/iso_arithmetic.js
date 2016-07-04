@@ -45,7 +45,7 @@ module.exports.is = function(result, expr)
 }
 
 // 8.7.1 (Not complete)
-module.exports["=\="] = function(a, b)
+module.exports["=\\="] = function(a, b)
 {
     var ae = evaluate_expression(a);
     var be = evaluate_expression(b);

@@ -4,8 +4,9 @@ var nextvar = 0;
 
 function VariableTerm(name)
 {
+    this.index = nextvar++;
     if (name === undefined)
-        this.name = "_G" + nextvar++;
+        this.name = "_G" + this.index;
     else
         this.name = name;
     this.value = null;

@@ -12,7 +12,6 @@ function term_from_list(list, tail)
     var result = tail || Constants.emptyListAtom;
     for (var i = list.length-1; i >= 0; i--)
         result = new CompoundTerm(Constants.listFunctor, [list[i], result]);
-    console.log("term_from_list-> " + result);
     return result;
 }
 
@@ -26,46 +25,137 @@ function list_from_term(term)
         term = term.args[1];
     }
     if (!term.equals(Constants.emptyListAtom))
-        throw new Error("Not a proper list");
+        throw new Error("Not a proper list"); // FIXME: Should throw a prolog error really
 }
 
+function acyclic_term(t)
+{
+    var visited = [];
+    var stack = [t.dereference()];
+    console.log("Checking whether term is cyclic...");
+    while (stack.length != 0)
+    {
+        var arg = stack.pop();
+        if (arg instanceof VariableTerm)
+        {
+            var needle = arg.dereference();
+            for (var i = 0; i < visited.length; i++)
+            {
+                if (visited[i] === needle)
+                {
+                    return false;
+                }
+            }
+        }
+        else if (arg instanceof CompoundTerm)
+        {
+            visited.push(arg);
+            for (var i = 0; i < arg.args.length; i++)
+                stack.push(arg.args[i]);
+        }
+    }
+    return true;
+}
+
+// Computes a-b, so that if a is bigger than b, the result is positive
+function term_difference(a, b)
+{
+    if (a.equals(b))
+        return 0;
+    if (a instanceof VariableTerm)
+    {
+        if (b instanceof VariableTerm)
+            return a.index - b.index;
+        return 1;
+    }
+    if (a instanceof FloatTerm)
+    {
+        if (b instanceof VariableTerm)
+            return -1;
+        else if (b instanceof FloatTerm)
+            return a.value - b.value;
+        return 1;
+    }
+    if (a instanceof IntegerTerm)
+    {
+        if ((b instanceof VariableTerm) || (b instanceof FloatTerm))
+            return -1;
+        else if (b instanceof IntegerTerm)
+            return a.value - b.value;
+        return 1;
+    }
+    if (a instanceof AtomTerm)
+    {
+        if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm))
+            return -1;
+        else if (b instanceof AtomTerm)
+            return (a.value > b.value)?1:-1;
+        return 1;
+    }
+    if (a instanceof CompoundTerm)
+    {
+        if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm) || (b instanceof AtomTerm))
+            return -1;
+        if (b instanceof CompoundTerm)
+        {
+            if (a.functor.arity != b.functor.arity)
+                return a.functor.arity - b.functor.arity;
+            if (a.functor.name.value != b.functor.name.value)
+                return a.functor.name.value>b.functor.name.value?1:-1;
+            for (var i = 0; i < a.functor.arity; i++)
+            {
+                var d = term_difference(a.args[i], b.args[i]);
+                if (d != 0)
+                    return d;
+            }
+            return 0;
+        }
+        return 1;
+    }
+    // FIXME: Other types here
+}
+
+
 // ISO built-in predicates
-// 8.2.1
+// 8.2.1 (=)/2 (this is always compiled though)
 module.exports["="] = function(a, b)
 {
     return this.unify(a,b);
 }
-// 8.2.2
+// 8.2.2 unify_with_occurs_check/2
 module.exports.unify_with_occurs_check = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    return this.unify(a, b) && acyclic_term(a);
 }
-// 8.2.4
+// 8.2.4 (\=)/2 is compiled directly into VM opcodes, but this is roughly what the could SHOULD do
 module.exports["\\="] = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    var b = this.new_choicepoint();
+    var result = !unify(a, b);
+    this.backtrack(b);
+    return result
 }
-// 8.3.1
+// 8.3.1 var/1
 module.exports["var"] = function(a)
 {
     return (a instanceof VariableTerm);
 }
-// 8.3.2
+// 8.3.2 atom/1
 module.exports["atom"] = function(a)
 {
     return (a instanceof AtomTerm);
 }
-// 8.3.3
+// 8.3.3 integer/1
 module.exports["integer"] = function(a)
 {
     return (a instanceof IntegerTerm);
 }
-// 8.3.4
+// 8.3.4 float/1
 module.exports["float"] = function(a)
 {
     return (a instanceof FloatTerm);
 }
-// 8.3.5
+// 8.3.5 atomic/1
 module.exports.atomic = function(a)
 {
     return ((a instanceof AtomTerm) ||
@@ -73,17 +163,17 @@ module.exports.atomic = function(a)
             (a instanceof FloatTerm));
     // FIXME: Bignum support
 }
-// 8.3.6
+// 8.3.6 compound/1
 module.exports.compound = function(a)
 {
     return (a instanceof CompoundTerm);
 }
-// 8.3.7
+// 8.3.7 nonvar/1
 module.exports.nonvar = function(a)
 {
     return !(a instanceof VariableTerm);
 }
-// 8.3.8
+// 8.3.8 number/1
 module.exports.number = function(a)
 {
     return ((a instanceof IntegerTerm) ||
@@ -93,27 +183,27 @@ module.exports.number = function(a)
 // 8.4.1
 module.exports["@=<"] = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    return term_difference(a, b) <= 0;
 }
 module.exports["=="] = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    return term_difference(a, b) == 0;
 }
-module.exports["\=="] = function(a, b)
+module.exports["\\=="] = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    return term_difference(a, b) != 0;
 }
 module.exports["@<"] = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    return term_difference(a, b) < 0;
 }
 module.exports["@>"] = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    return term_difference(a, b) > 0;
 }
 module.exports["@>="] = function(a, b)
 {
-    throw new Error("FIXME: Not implemented");
+    return term_difference(a, b) >= 0;
 }
 // 8.5.1
 module.exports.functor = function(term, name, arity)
@@ -217,10 +307,10 @@ module.exports.setof = function(template, goal, instances)
 {
     throw new Error("FIXME: Not implemented");
 }
-// 8.11 in iso_stream.js
-// 8.12 in iso_stream.js
-// 8.13 in iso_stream.js
-// 8.14 in iso_stream.js
+// 8.11 is in iso_stream.js
+// 8.12 is in iso_stream.js
+// 8.13 is in iso_stream.js
+// 8.14 is in iso_stream.js
 
 // 8.15.1: \+ is compiled directly to opcodes
 // 8.15.2
