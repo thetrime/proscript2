@@ -1,5 +1,5 @@
 Modules
-Other types:
+Other types: (parsing, passing them in to predicates and handling where appropriate)
    floats
    bigintegers
    rationals
