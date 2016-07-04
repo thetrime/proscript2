@@ -268,7 +268,7 @@ function execute(env)
             }
             case "i_foreign":
             {
-                var rc = env.currentFrame.code.constants[0].apply(null, [env].concat(env.currentFrame.slots));
+                var rc = env.currentFrame.code.constants[0].apply(env, env.currentFrame.slots);
                 if (rc == 0)
                 {
                     if (backtrack(env))

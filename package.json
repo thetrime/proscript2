@@ -9,7 +9,7 @@
   },
   "devDependencies": {},
   "scripts": {
-      "start": "STATIC_ROOT=./static watchify src/core.js -v -o build/proscript.js",
+      "start": "STATIC_ROOT=./static watchify src/core.js --standalone Prolog -v -o build/proscript.js",
       "install": "STATIC_ROOT=./static browserify --standalone Prolog src/core.js | uglifyjs -cm > build/proscript.js",
       "build-debug": "STATIC_ROOT=./static browserify src/core.js -v -o build/proscript.js",
       "test": "echo \"Error: no tests exist\" && exit 1"
