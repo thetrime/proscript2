@@ -214,10 +214,14 @@ function execute(env)
             }
             case "i_foreign":
             {
-                var rc = env.currentFrame.code.constants[0].apply(env, env.currentFrame.slots);
+                var args = env.currentFrame.slots.slice(0);
+                for (var i = 0; i < args.length; i++)
+                    args[i] = args[i].dereference();
+                var rc = env.currentFrame.code.constants[0].apply(env, args);
                 console.log("Foreign result: " + rc);
                 if (rc == 0)
                 {
+                    // CHECKME: Does this undo any partial bindings that happen in a failed foreign frame?
                     if (backtrack(env))
                         continue;
                     return false;

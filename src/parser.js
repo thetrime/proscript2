@@ -36,6 +36,17 @@ function syntax_error(msg)
     throw msg;
 }
 
+function atomic(token)
+{
+    if (!isNaN(token) && parseInt(Number(token)) == token)
+    {
+        console.log("#############Integer: " + token);
+        return new IntegerTerm(token);
+    }
+    // FIXME: Floats, bigintegers, rationals
+    return new AtomTerm(token);
+}
+
 // A reminder: yfx means an infix operator f, with precedence p, where the lhs has a precendece <= p and the rhs has a precedence < p.
 
 var prefix_operators = {":-": {precedence: 1200, fixity: "fx"},
@@ -221,8 +232,8 @@ function read_expression(s, precedence, isarg, islist, vars)
 	}
         else
         {
-	    // It is an atom
-	    lhs = new AtomTerm(token);
+            // It is an atomic term
+            lhs = atomic(token);
 	}
     }
     else if (op.fixity == "fx")

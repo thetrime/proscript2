@@ -28,6 +28,7 @@ var builtins = [builtin(ForeignLib, "writeln"),
                 builtin(ForeignLib, "fail"),
                 builtin(ForeignLib, "true"),
                 builtin(ForeignLib, "=.."),
+                builtin(ForeignLib, "functor"),
                 builtin(ArithmeticLib, "is")];
 
 

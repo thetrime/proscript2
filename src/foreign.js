@@ -3,6 +3,7 @@ var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var AtomTerm = require('./atom_term.js');
 var VariableTerm = require('./variable_term.js');
+var IntegerTerm = require('./integer_term.js');
 
 // Convenience function that returns a Prolog term corresponding to the given list of prolog terms.
 function term_from_list(list, tail)
@@ -27,10 +28,11 @@ function list_from_term(term)
         throw new Error("Not a proper list");
 }
 
+//
+
 module.exports.writeln = function(arg)
 {
     var bytes = ArrayUtils.toByteArray(arg.toString());
-    console.log(bytes);
     return this.streams.stdout.write(this.streams.stdout, 1, bytes.length, bytes) >= 0;
 }
 
@@ -68,6 +70,39 @@ module.exports["=.."] = function(term, univ)
         var fname = list.unshift();
         return this.unify(term, new CompoundTerm(fname, list));
     }
-    // FIXME: Else, type error?
+    else
+        Errors.typeError(Constants.termAtom, term);
+}
 
+module.exports.functor = function(term, name, arity)
+{
+    if (term instanceof VariableTerm)
+    {
+        // Construct a term
+        if (arity instanceof VariableTerm)
+            Errors.instantiationError(arity);
+        if (arity instanceof VariableTerm)
+            Errors.instantiationError(arity);
+        if (!(arity instanceof IntegerTerm))
+            Errors.typeError(Constants.integerAtom, arity);
+        var args = new Array(arity.value);
+        for (var i = 0; i < args.length; i++)
+            args[i] = new VariableTerm();
+        console.log(name + ", " + args);
+        return this.unify(term, new CompoundTerm(name, args));
+    }
+    if (term instanceof AtomTerm)
+    {
+        return this.unify(name, term) && this.unify(arity, new IntegerTerm(0));
+    }
+    if (term instanceof IntegerTerm)
+    {
+        return this.unify(name, term) && this.unify(arity, new IntegerTerm(0));
+    }
+    if (term instanceof CompoundTerm)
+    {
+        return this.unify(name, term.functor.name) && this.unify(arity, new IntegerTerm(term.functor.arity));
+    }
+    else
+        Errors.typeError(Constants.termAtom, term);
 }

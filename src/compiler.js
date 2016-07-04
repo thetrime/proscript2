@@ -248,8 +248,8 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
     }
     else if (arg instanceof IntegerTerm)
     {
-	instructions.push({opcode: Instructions.hInteger,
-			   integer: arg});
+        instructions.push({opcode: Instructions.hAtom,
+                           atom: arg});
     }
     else if (arg instanceof CompoundTerm)
     {
@@ -454,8 +454,8 @@ function compileTermCreation(term, variables, instructions)
     }
     else if (term instanceof IntegerTerm)
     {
-	instructions.push({opcode: Instructions.bInteger,
-			   integer:term});
+        instructions.push({opcode: Instructions.bAtom,
+                           atom:term});
 
     }
     else
