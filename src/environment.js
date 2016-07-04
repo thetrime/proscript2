@@ -12,9 +12,28 @@ var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
 
+var ForeignLib = require('./foreign.js');
+
+function builtin(module, name)
+{
+    fn = module[name];
+    if (fn === undefined)
+        throw new Error("Could not find builtin " + name);
+    return {name:name, arity:fn.length, fn:fn};
+}
+
+var builtins = [builtin(ForeignLib, "writeln"),
+                builtin(ForeignLib, "fail"),
+                builtin(ForeignLib, "true")];
+
+
 function Environment()
 {
     this.userModule = Module.get("user");
+    for (var i = 0; i < builtins.length; i++)
+    {
+        this.userModule.defineForeignPredicate(builtins[i].name, builtins[i].arity, builtins[i].fn);
+    }
     this.reset();
 }
 

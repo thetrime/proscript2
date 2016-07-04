@@ -1,5 +1,7 @@
+var Prolog = require('./core');
+
 var env = new Prolog.Environment();
-env.getModule().defineForeignPredicate("writeln", 1, writeln);
+//env.getModule().defineForeignPredicate("writeln", 1, writeln);
 env.consultURL("http://localhost:8080/bin/x.pl", function()
 	       {
                    var arg = new Prolog.VariableTerm("Input");
