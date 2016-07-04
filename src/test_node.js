@@ -1,11 +1,12 @@
 var Prolog = require('./core');
 
 var env = new Prolog.Environment();
+
 //env.getModule().defineForeignPredicate("writeln", 1, writeln);
 env.consultURL("http://localhost:8080/bin/x.pl", function()
 	       {
                    var arg = new Prolog.VariableTerm("Input");
-                   var query = new Prolog.CompoundTerm("foreign", [arg]);
+                   var query = new Prolog.CompoundTerm("parser_test", [arg]);
                    if (!env.execute(query))
 		       console.log("Failed");
 		   else

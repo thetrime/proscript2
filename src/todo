@@ -5,10 +5,10 @@ Other types:
    rationals
 inria-suite
 tail recursion
+setup-call-cleanup
 LRU cache for atoms/integers/floats
 documenting the design
 ISO predicates (and others)
-Streams - or rather, gluing stdout onto one
 Nondeterministic foreign predicates
 tidy
    There are at least 2 representations of every instruction(!)
@@ -17,4 +17,4 @@ Checkings
 
 
 Bugs:
-   _ is interpreted as the same variable by the parser. Thus foo(_,_) compiles to h_void,h_var rather than h_void,h_void
+   It seems suspicious that hVar doesn't do anything (?!)

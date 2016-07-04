@@ -209,10 +209,15 @@ function read_expression(s, precedence, isarg, islist, vars)
 	}
 	else if (token.variable_name != undefined)
 	{
-	    // It is a variable
-	    if (vars[token.variable_name] === undefined)
-		vars[token.variable_name] = new VariableTerm(token.variable_name);
-	    lhs = vars[token.variable_name];
+            // It is a variable
+            if (token.variable_name.startsWith("_"))
+                lhs = new VariableTerm();
+            else
+            {
+                if (vars[token.variable_name] === undefined)
+                    vars[token.variable_name] = new VariableTerm(token.variable_name);
+                lhs = vars[token.variable_name];
+            }
 	}
         else
         {
