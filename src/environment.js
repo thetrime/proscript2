@@ -22,7 +22,9 @@ function builtin(module, name)
 }
 
 var foreignModules = [require('./iso_foreign.js'),
-                      require('./iso_arithmetic.js')];
+                      require('./iso_arithmetic.js'),
+                      require('./iso_record.js'),
+                      require('./foreign.js')];
 
 
 function Environment()
@@ -32,7 +34,20 @@ function Environment()
     {
         var predicate_names = Object.keys(foreignModules[i]);
         for (var p = 0; p < predicate_names.length; p++)
-            this.userModule.defineForeignPredicate(predicate_names[p], foreignModules[i][predicate_names[p]]);
+        {
+            // Each export may either a be a function OR a list of functions
+            // This is to accommodate things like halt(0) and halt(1), which would otherwise both be in the .halt slot
+            var pred = foreignModules[i][predicate_names[p]];
+            if (pred.constructor === Array)
+            {
+                for (var q = 0; q < pred.length; q++)
+                {
+                    this.userModule.defineForeignPredicate(predicate_names[p], pred[q]);
+                }
+            }
+            else
+                this.userModule.defineForeignPredicate(predicate_names[p], pred);
+        }
     }
     this.reset();
 }

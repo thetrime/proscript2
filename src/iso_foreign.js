@@ -190,33 +190,117 @@ module.exports.copy_term = function(term, copy)
 {
     throw new Error("FIXME: Not implemented");
 }
-
-
-module.exports.writeln = function(arg)
+// 8.8.1
+module.exports.clause = function(head, body)
 {
-    var bytes = ArrayUtils.toByteArray(arg.toString());
-    return this.streams.stdout.write(this.streams.stdout, 1, bytes.length, bytes) >= 0;
+    throw new Error("FIXME: Not implemented");
 }
-
-module.exports.fail = function()
+// 8.8.2
+module.exports.current_predicate = function(head, body)
 {
-    return false;
+    throw new Error("FIXME: Not implemented");
 }
+// 8.9 in iso_record.js
 
-module.exports.true = function()
+// 8.10.1
+module.exports.findall = function(template, goal, instances)
 {
-    return true;
+    throw new Error("FIXME: Not implemented");
 }
-
-module.exports.term_variables = function(t, vt)
+// 8.10.2
+module.exports.bagof = function(template, goal, instances)
 {
-    return this.unify(term_from_list(term_variables(t), Constants.emptyListAtom), vt);
+    throw new Error("FIXME: Not implemented");
 }
-
-module.exports.halt = function()
+// 8.10.3
+module.exports.setof = function(template, goal, instances)
 {
-    throw new Error("Not implemented");
+    throw new Error("FIXME: Not implemented");
 }
+// 8.11 in iso_stream.js
+// 8.12 in iso_stream.js
+// 8.13 in iso_stream.js
+// 8.14 in iso_stream.js
 
-
+// 8.15.1: \+ is compiled directly to opcodes
+// 8.15.2
+module.exports.once = function(goal)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.15.3
+module.exports.repeat = function()
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.16.1
+module.exports.atom_length = function(atom, length)
+{
+    if (atom instanceof VariableTerm)
+        Errors.instantiationError(atom)
+    if (!(atom instanceof AtomTerm))
+        Errors.typeError(Constants.atomAtom, atom)
+    if (!((length instanceof IntegerTerm) || length instanceof VariableTerm))
+        Errors.typeError(Constants.integerAtom, length)
+    if ((length instanceof IntegerTerm) && length.value < 0)
+        Errors.domainError(Constants.notLessThanZeroAtom, length)
+    return this.unify(new IntegerTerm(atom.value.length), length);
+}
+// 8.16.2
+module.exports.atom_concat = function(a, b, c)
+{
+    // ??+ or ++-
+    throw new Error("FIXME: Not implemented");
+}
+// 8.16.3
+module.exports.sub_atom = function(atom, before, length, after, subatom)
+{
+    // This is really hard to get right
+    throw new Error("FIXME: Not implemented");
+}
+// 8.16.4
+module.exports.atom_chars = function(atom, chars)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.16.5
+module.exports.atom_codes = function(atom, codes)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.16.6
+module.exports.char_code = function(c, code)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.16.7
+module.exports.number_chars = function(number, chars)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.16.8
+module.exports.number_codes = function(number, codes)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.17.1
+module.exports.set_prolog_flag = function(flag, value)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.17.2
+module.exports.current_prolog_flag = function(flag, value)
+{
+    throw new Error("FIXME: Not implemented");
+}
+// 8.17.3
+module.exports.halt = [function()
+                       {
+                           throw new Error("Not implemented");
+                       },
+// 8.17.4
+                       function(a)
+                       {
+                           throw new Error("Not implemented");
+                       }];
 
