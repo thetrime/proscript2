@@ -64,58 +64,12 @@ function unwind_trail(env)
     env.trail = env.trail.slice(0, env.TR);
 }
 
-function deref(term)
-{
-    while(true)
-    {
-	if (term instanceof VariableTerm)
-        {
-            if (term.value == null)
-            {
-                // Already unbound
-                return term
-            }
-            term = term.value;
-            continue;
-        }
-        return term;
-    }
-}
-
-function unify(env, a, b)
-{
-    a = deref(a);
-    b = deref(b);
-    if (a.equals(b))
-        return true;
-    if (a instanceof VariableTerm)
-    {
-        bind(env, a, b);
-        return true;
-    }
-    if (b instanceof VariableTerm)
-    {
-        bind(env, b, a);
-        return true;
-    }
-    if (a instanceof CompoundTerm && b instanceof CompoundTerm && a.functor.equals(b.functor))
-    {
-        for (var i = 0; i < a.args.length; i++)
-	{
-	    if (!unify(env, a.args[i], b.args[i]))
-                return false;
-        }
-	return true;
-    }
-    return false;
-}
-
 function link(env, value)
 {
     if (value === undefined)
         throw "Illegal link";
     var v = new VariableTerm("_l");
-    bind(env, v, value);
+    env.bind(v, value);
     return v;
 }
 
@@ -182,14 +136,6 @@ function backtrack(env)
         return backtrack(env);
     }
     return true;
-}
-
-function bind(env, variable, value)
-{
-    console.log("Binding " + util.inspect(variable) + " to " + util.inspect(value) + " at " + env.TR);
-    env.trail[env.TR] = variable;
-    variable.limit = env.TR++;
-    variable.value = value;
 }
 
 function newArgFrame(env)
@@ -269,6 +215,7 @@ function execute(env)
             case "i_foreign":
             {
                 var rc = env.currentFrame.code.constants[0].apply(env, env.currentFrame.slots);
+                console.log("Foreign result: " + rc);
                 if (rc == 0)
                 {
                     if (backtrack(env))
@@ -332,7 +279,7 @@ function execute(env)
                         console.log("Env has " + env.choicepoints.length + " choicepoints");
                         backtrack_to(env, frame.choicepoint);
                         // Try to unify (a copy of) the exception with the unifier
-                        if (unify(env, copyTerm(exception), frame.slots[1]))
+                        if (env.unify(copyTerm(exception), frame.slots[1]))
                         {
                             // Success! Exception is successfully handled. Now we just have to do i_usercall after adjusting the registers to point to the handler
                             // Things get a bit weird here because we are breaking the usual logic flow by ripping the VM out of whatever state it was in and starting
@@ -391,7 +338,7 @@ function execute(env)
                 // argP[argI-1] is a goal that we want to execute. First, we must compile it
                 env.argI--;
                 console.log("argP:" + env.argP);
-                var goal = deref(env.argP[env.argI]);
+                var goal = env.argP[env.argI].dereference();
                 console.log("Goal: " + goal);
                 var compiledCode = Compiler.compileQuery(goal);
                 env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
@@ -458,7 +405,7 @@ function execute(env)
 		var arg1 = env.argP[env.argI--];
 		var arg2 = env.argP[env.argI];
 		// The space formerly held by arg2 will now be free again by virtue of env.argI pointing to it
-		if (unify(env, arg1, arg2))
+                if (env.unify(arg1, arg2))
 		{
 		    //console.log("iUnify: Unified " + util.inspect(arg1) + " and " + util.inspect(arg2));
 		    env.PC++;
@@ -484,13 +431,13 @@ function execute(env)
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 console.log("argvar: getting variable from slot " + slot);
 		var arg = env.currentFrame.slots[slot];
-                arg = deref(arg);
+                arg = arg.dereference();
                 console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
                 if (arg instanceof VariableTerm)
                 {
                     // FIXME: This MAY require trailing
                     env.argP[env.argI] = new VariableTerm("_A" + nextvar++);
-		    bind(env, env.argP[env.argI], arg);
+		    env.bind(env.argP[env.argI], arg);
 		    //console.log("argP now refers to " + util.inspect(env.argP[env.argI]));
                 }
                 else
@@ -551,7 +498,7 @@ function execute(env)
                     // the compiler has allocated an appropriate slot in the frame above the arity of the goal we are executing
                     // we just need to create a variable in that slot, then bind it to the variable in the current frame
                     env.currentFrame.slots[slot] = new VariableTerm("_L" + nextvar++);
-		    bind(env, env.argP[env.argI], env.currentFrame.slots[slot]);
+                    env.bind(env.argP[env.argI], env.currentFrame.slots[slot]);
 		}
                 else
                 {
@@ -565,7 +512,7 @@ function execute(env)
                     else
 		    {
                         env.currentFrame.slots[slot] = new VariableTerm("_X" + nextvar++);
-			bind(env, env.currentFrame.slots[slot], env.argP[env.argI]);
+			env.bind(env.currentFrame.slots[slot], env.argP[env.argI]);
                     }
                 }
                 // H_FIRSTVAR always succeeds - so move on to match the next cell, and increment PC for the next instructions
@@ -576,7 +523,7 @@ function execute(env)
             case "h_functor":
             {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-		var arg = deref(env.argP[env.argI++]);
+                var arg = env.argP[env.argI++].dereference();
                 env.PC+=3;
                 // Try to match a functor
                 if (arg instanceof CompoundTerm)
@@ -595,7 +542,7 @@ function execute(env)
                     var args = new Array(functor.arity);
                     for (var i = 0; i < args.length; i++)
                         args[i] = new VariableTerm("_f" + nextvar++);
-		    bind(env, arg, new CompoundTerm(functor, args));
+		    env.bind(arg, new CompoundTerm(functor, args));
 		    env.argP = args;
 		    env.argI = 0;
 		    env.mode = WRITE;
@@ -617,13 +564,13 @@ function execute(env)
             case "h_atom":
             {
 		var atom = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-                var arg = deref(env.argP[env.argI++]);
+                var arg = env.argP[env.argI++].dereference();
                 env.PC+=3;
 		if (arg.equals(atom))
                     continue;
                 if (arg instanceof VariableTerm)
                 {
-                    bind(env, arg, atom);
+                    env.bind(arg, atom);
                 }
                 else
                 {
@@ -673,4 +620,4 @@ function execute(env)
 }
 
 module.exports = {execute: execute,
-		  backtrack: backtrack};
+                  backtrack: backtrack};

@@ -6,6 +6,7 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
 		  failAtom: new AtomTerm("fail"),
                   trueAtom: new AtomTerm("true"),
                   catchAtom: new AtomTerm("$catch"),
+                  emptyListAtom: new AtomTerm("[]"),
 
                   catchFunctor: new Functor(new AtomTerm("catch"), 3),
                   throwFunctor: new Functor(new AtomTerm("throw"), 1),

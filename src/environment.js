@@ -3,6 +3,7 @@ var Parser = require('./parser.js');
 var util = require('util');
 var Kernel = require('./kernel.js');
 var AtomTerm = require('./atom_term.js');
+var VariableTerm = require('./variable_term.js');
 var Functor = require('./functor.js');
 var Constants = require('./constants.js');
 var Stream = require('./stream.js');
@@ -13,6 +14,7 @@ var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
 
 var ForeignLib = require('./foreign.js');
+var ArithmeticLib = require('./arithmetic.js');
 
 function builtin(module, name)
 {
@@ -24,7 +26,9 @@ function builtin(module, name)
 
 var builtins = [builtin(ForeignLib, "writeln"),
                 builtin(ForeignLib, "fail"),
-                builtin(ForeignLib, "true")];
+                builtin(ForeignLib, "true"),
+                builtin(ForeignLib, "=.."),
+                builtin(ArithmeticLib, "is")];
 
 
 function Environment()
@@ -36,6 +40,44 @@ function Environment()
     }
     this.reset();
 }
+
+Environment.prototype.unify = function(a, b)
+{
+    a = a.dereference();
+    b = b.dereference();
+    console.log("Unify: " + a + " vs " + b);
+    if (a.equals(b))
+        return true;
+    if (a instanceof VariableTerm)
+    {
+        this.bind(a, b);
+        return true;
+    }
+    if (b instanceof VariableTerm)
+    {
+        this.bind(b, a);
+        return true;
+    }
+    if (a instanceof CompoundTerm && b instanceof CompoundTerm && a.functor.equals(b.functor))
+    {
+        for (var i = 0; i < a.args.length; i++)
+	{
+            if (!this.unify(a.args[i], b.args[i]))
+                return false;
+        }
+	return true;
+    }
+    return false;
+}
+
+Environment.prototype.bind = function(variable, value)
+{
+    console.log("Binding " + util.inspect(variable) + " to " + util.inspect(value) + " at " + this.TR);
+    this.trail[this.TR] = variable;
+    variable.limit = this.TR++;
+    variable.value = value;
+}
+
 
 Environment.prototype.reset = function()
 {
