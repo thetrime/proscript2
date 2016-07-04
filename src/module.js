@@ -10,9 +10,9 @@ function Module(name)
     this.predicates = {};
 }
 
-Module.prototype.defineForeignPredicate = function(name, arity, fn)
+Module.prototype.defineForeignPredicate = function(name, fn)
 {
-    var functor = new Functor(new AtomTerm(name), arity);
+    var functor = new Functor(new AtomTerm(name), fn.length);
     var compiled = Compiler.foreignShim(fn);
     this.predicates[functor.toString()] = {code: {opcodes: compiled.bytecode,
                                                   constants: compiled.constants},

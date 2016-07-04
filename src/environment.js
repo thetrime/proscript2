@@ -13,9 +13,6 @@ var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
 
-var ForeignLib = require('./foreign.js');
-var ArithmeticLib = require('./arithmetic.js');
-
 function builtin(module, name)
 {
     fn = module[name];
@@ -24,20 +21,18 @@ function builtin(module, name)
     return {name:name, arity:fn.length, fn:fn};
 }
 
-var builtins = [builtin(ForeignLib, "writeln"),
-                builtin(ForeignLib, "fail"),
-                builtin(ForeignLib, "true"),
-                builtin(ForeignLib, "=.."),
-                builtin(ForeignLib, "functor"),
-                builtin(ArithmeticLib, "is")];
+var foreignModules = [require('./iso_foreign.js'),
+                      require('./iso_arithmetic.js')];
 
 
 function Environment()
 {
     this.userModule = Module.get("user");
-    for (var i = 0; i < builtins.length; i++)
+    for (var i = 0; i < foreignModules.length; i++)
     {
-        this.userModule.defineForeignPredicate(builtins[i].name, builtins[i].arity, builtins[i].fn);
+        var predicate_names = Object.keys(foreignModules[i]);
+        for (var p = 0; p < predicate_names.length; p++)
+            this.userModule.defineForeignPredicate(predicate_names[p], foreignModules[i][predicate_names[p]]);
     }
     this.reset();
 }
