@@ -624,4 +624,5 @@ function execute(env)
 }
 
 module.exports = {execute: execute,
-                  backtrack: backtrack};
+                  backtrack: backtrack,
+                  copyTerm: copyTerm};

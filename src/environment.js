@@ -54,6 +54,11 @@ function Environment()
     this.reset();
 }
 
+Environment.prototype.create_choicepoint = function()
+{
+    // FIXME: Implement. This is not that trivial :(
+}
+
 Environment.prototype.unify = function(a, b)
 {
     a = a.dereference();

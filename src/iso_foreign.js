@@ -278,7 +278,7 @@ module.exports["=.."] = function(term, univ)
 // 8.5.4
 module.exports.copy_term = function(term, copy)
 {
-    throw new Error("FIXME: Not implemented");
+    return this.unify(Kernel.copyTerm(term), copy);
 }
 // 8.8.1
 module.exports.clause = function(head, body)
@@ -339,29 +339,106 @@ module.exports.atom_length = function(atom, length)
 // 8.16.2
 module.exports.atom_concat = function(a, b, c)
 {
-    // ??+ or ++-
+    // ??+ or ++-. Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
 // 8.16.3
 module.exports.sub_atom = function(atom, before, length, after, subatom)
 {
-    // This is really hard to get right
+    // This is really hard to get right. Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
 // 8.16.4
 module.exports.atom_chars = function(atom, chars)
 {
-    throw new Error("FIXME: Not implemented");
+    if (atom instanceof VariableTerm)
+    {
+        // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
+        var head = chars;
+        var buffer = '';
+        while(true)
+        {
+            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            {
+                if (head.args[0] instanceof AtomTerm && head.args[0].value.length == 1)
+                    buffer += head.args[0].value;
+                else
+                    Errors.typeError(Constants.characterAtom, head.args[0]);
+                head = head.args[1];
+            }
+            else if (head.equals(Constants.emptyListAtom))
+            {
+                break;
+            }
+            else
+                Errors.typeError(Constants.listAtom, chars);
+        }
+        return this.unify(atom, new AtomTerm(buffer));
+    }
+    else if (atom instanceof AtomTerm)
+    {
+        var list = [];
+        for (var i = 0; i < atom.value.length; i++)
+            list.push(new AtomTerm(atom.value[i]));
+        return this.unify(list_from_term(list), chars);
+    }
+    Errors.typeError(Constants.atomAtom, atom);
 }
 // 8.16.5
 module.exports.atom_codes = function(atom, codes)
 {
-    throw new Error("FIXME: Not implemented");
+    if (atom instanceof VariableTerm)
+    {
+        var head = codes;
+        var buffer = '';
+        while(true)
+        {
+            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            {
+                if (head.args[0] instanceof IntegerTerm)
+                    buffer += String.fromCharCode(head.args[0].value);
+                else
+                    Errors.representationError(Constants.characterCodeAtom, head.args[0]);
+                head = head.args[1];
+            }
+            else if (head.equals(Constants.emptyListAtom))
+            {
+                break;
+            }
+            else
+                Errors.typeError(Constants.listAtom, codes);
+        }
+        return this.unify(atom, new AtomTerm(buffer));
+    }
+    else if (atom instanceof AtomTerm)
+    {
+        var list = [];
+        for (var i = 0; i < atom.value.length; i++)
+            list.push(new IntegerTerm(atom.value.charCodeAt(i)));
+        return this.unify(term_from_list(list), codes);
+    }
+    Errors.typeError(Constants.atomAtom, atom);
 }
 // 8.16.6
 module.exports.char_code = function(c, code)
 {
-    throw new Error("FIXME: Not implemented");
+    if (c instanceof AtomTerm)
+    {
+        if (c.value.length != 1)
+            Errors.typeError(Constants.characterAtom, c);
+        if ((code instanceof VariableTerm) || (code instanceof IntegerTerm))
+            return this.unify(new IntegerTerm(c.value.charCodeAt(0)), code);
+        Errors.representationError(Constants.characterCodeAtom, code);
+    }
+    else if (code instanceof IntegerTerm)
+    {
+        return this.unify(new AtomTerm(String.fromCharCode(code.value)), c);
+    }
+    else if ((code instanceof VariableTerm) && (c instanceof VariableTerm))
+    {
+        Errors.instantiationError(code);
+    }
+    Errors.typeError(Constants.characterAtom, c);
 }
 // 8.16.7
 module.exports.number_chars = function(number, chars)
