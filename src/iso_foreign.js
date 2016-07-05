@@ -7,6 +7,7 @@ var IntegerTerm = require('./integer_term.js');
 var FloatTerm = require('./float_term.js');
 var Parser = require('./parser.js');
 var PrologFlag = require('./prolog_flag.js');
+var Term = require('./term.js');
 
 // Convenience function that returns a Prolog term corresponding to the given list of prolog terms.
 function term_from_list(list, tail)
@@ -30,23 +31,8 @@ function list_from_term(term)
         throw new Error("Not a proper list"); // FIXME: Should throw a prolog error really
 }
 
-function must_be_bound(t)
-{
-    if (t instanceof VariableTerm)
-        Errors.instantiationError(t);
-}
 
-function must_be_atom(t)
-{
-    if (!(t instanceof AtomTerm))
-        Errors.typeError(Constants.atomAtom, t);
-}
 
-function must_be_integer(t)
-{
-    if (!(t instanceof IntegerTerm))
-        Errors.typeError(Constants.atomAtom, t);
-}
 
 function acyclic_term(t)
 {
@@ -352,11 +338,11 @@ module.exports.atom_concat = function(atom1, atom2, atom12)
         if (atom2 instanceof VariableTerm && atom12 instanceof VariableTerm)
             Errors.instantiationError(atom2);
         if (!(atom1 instanceof VariableTerm))
-            must_be_atom(atom1);
+            Term.must_be_atom(atom1);
         if (!(atom2 instanceof VariableTerm))
-            must_be_atom(atom2);
+            Term.must_be_atom(atom2);
         if (!(atom12 instanceof VariableTerm))
-            must_be_atom(atom12);
+            Term.must_be_atom(atom12);
         if (atom1 instanceof AtomTerm && atom2 instanceof AtomTerm)
         {
             // Deterministic case
@@ -378,10 +364,10 @@ module.exports.atom_concat = function(atom1, atom2, atom12)
 module.exports.sub_atom = function(atom, before, length, after, subatom)
 {
     var index;
-    must_be_bound(atom);
-    must_be_atom(atom);
+    Term.must_be_bound(atom);
+    Term.must_be_atom(atom);
     if (!(subatom instanceof VariableTerm))
-        must_be_atom(subatom);
+        Term.must_be_atom(subatom);
     var input = atom.value;
     if (this.foreign === undefined)
     {
@@ -642,9 +628,9 @@ module.exports.number_codes = function(number, codes)
 // 8.17.1
 module.exports.set_prolog_flag = function(flag, value)
 {
-    must_be_bound(flag);
-    must_be_bound(value);
-    must_be_atom(flag);
+    Term.must_be_bound(flag);
+    Term.must_be_bound(value);
+    Term.must_be_atom(flag);
     for (var i = 0; i < PrologFlag.flags.length; i++)
     {
         if (PrologFlag.flags[i].name == flag.value)
@@ -694,8 +680,8 @@ module.exports.halt = [function()
 // 8.17.4
                        function(a)
                        {
-                           must_be_bound(a);
-                           must_be_integer(a);
+                           Term.must_be_bound(a);
+                           Term.must_be_integer(a);
                            this.halt(a.value);
                        }];
 
