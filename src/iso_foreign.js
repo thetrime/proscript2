@@ -6,6 +6,7 @@ var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var FloatTerm = require('./float_term.js');
 var Parser = require('./parser.js');
+var PrologFlag = require('./prolog_flag.js');
 
 // Convenience function that returns a Prolog term corresponding to the given list of prolog terms.
 function term_from_list(list, tail)
@@ -27,6 +28,24 @@ function list_from_term(term)
     }
     if (!term.equals(Constants.emptyListAtom))
         throw new Error("Not a proper list"); // FIXME: Should throw a prolog error really
+}
+
+function must_be_bound(t)
+{
+    if (t instanceof VariableTerm)
+        Errors.instantiationError(t);
+}
+
+function must_be_atom(t)
+{
+    if (!(t instanceof AtomTerm))
+        Errors.typeError(Constants.atomAtom, t);
+}
+
+function must_be_integer(t)
+{
+    if (!(t instanceof IntegerTerm))
+        Errors.typeError(Constants.atomAtom, t);
 }
 
 function acyclic_term(t)
@@ -284,11 +303,13 @@ module.exports.copy_term = function(term, copy)
 // 8.8.1
 module.exports.clause = function(head, body)
 {
+    // Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
 // 8.8.2
 module.exports.current_predicate = function(head, body)
 {
+    // Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
 // 8.9 in iso_record.js
@@ -322,6 +343,7 @@ module.exports.once = function(goal)
 // 8.15.3
 module.exports.repeat = function()
 {
+    // Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
 // 8.16.1
@@ -524,21 +546,35 @@ module.exports.number_codes = function(number, codes)
 // 8.17.1
 module.exports.set_prolog_flag = function(flag, value)
 {
-    throw new Error("FIXME: Not implemented");
+    must_be_bound(flag);
+    must_be_bound(value);
+    must_be_atom(flag);
+    for (var i = 0; i < PrologFlag.flags.length; i++)
+    {
+        if (PrologFlag.flags[i].name == flag.value)
+        {
+            PrologFlag.flags[i].fn(true, value);
+            return true;
+        }
+    }
+    Errors.domainError(Constants.prologFlagAtom, flag);
 }
 // 8.17.2
 module.exports.current_prolog_flag = function(flag, value)
 {
+    // Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
 // 8.17.3
 module.exports.halt = [function()
                        {
-                           throw new Error("Not implemented");
+                           this.halt(0);
                        },
 // 8.17.4
                        function(a)
                        {
-                           throw new Error("Not implemented");
+                           must_be_bound(a);
+                           must_be_integer(a);
+                           this.halt(a.value);
                        }];
 

@@ -159,7 +159,7 @@ function execute(env)
 {
     var current_opcode;
     next_instruction:
-    while(true)
+    while (!env.halted)
     {
         if (next_opcode === undefined && env.currentFrame.code.opcodes[env.PC] === undefined)
         {

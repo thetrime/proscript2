@@ -96,6 +96,11 @@ Environment.prototype.bind = function(variable, value)
     variable.value = value;
 }
 
+Environment.prototype.halt = function(exitcode)
+{
+    this.halted = true;
+    this.exitcode = exitcode;
+}
 
 Environment.prototype.reset = function()
 {
@@ -109,6 +114,8 @@ Environment.prototype.reset = function()
     this.argI = 0;
     this.mode = 0; // READ
     this.trail = [];
+    this.halted = false;
+    this.exitcode = -1;
     var stdout = Stream.new_stream(null,
                                    console_write,
                                    null,
