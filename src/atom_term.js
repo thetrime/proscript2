@@ -18,4 +18,10 @@ AtomTerm.prototype.equals = function(o)
     return (o === this) || ((o || {}).value === this.value);
 }
 
+AtomTerm.prototype.getClass = function()
+{
+    return "AtomTerm";
+}
+
+
 module.exports = AtomTerm;

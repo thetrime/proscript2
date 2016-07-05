@@ -13,6 +13,11 @@ IntegerTerm.prototype.equals = function(o)
     return (o === this) || ((o || {}).value === this.value);
 }
 
+IntegerTerm.prototype.getClass = function()
+{
+    return "IntegerTerm";
+}
+
 IntegerTerm.prototype.toString = function()
 {
     return this.value;

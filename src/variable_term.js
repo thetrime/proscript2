@@ -27,6 +27,11 @@ VariableTerm.prototype.dereference = function()
     }
 }
 
+VariableTerm.prototype.getClass = function()
+{
+    return "VariableTerm";
+}
+
 VariableTerm.prototype.toString = function()
 {
     return this.name;

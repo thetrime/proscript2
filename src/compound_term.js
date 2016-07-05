@@ -40,4 +40,10 @@ CompoundTerm.prototype.equals = function(o)
     return false;
 }
 
+CompoundTerm.prototype.getClass = function()
+{
+    return "CompoundTerm";
+}
+
+
 module.exports = CompoundTerm;

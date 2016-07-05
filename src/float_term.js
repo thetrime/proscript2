@@ -18,4 +18,11 @@ FloatTerm.prototype.toString = function()
     return this.value;
 }
 
+FloatTerm.prototype.getClass = function()
+{
+    return "FloatTerm";
+}
+
+
 module.exports = FloatTerm;
+

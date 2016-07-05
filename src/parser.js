@@ -15,6 +15,7 @@ var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
+var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
 
 function parse_infix(s, lhs, precedence, vars)
@@ -36,14 +37,32 @@ function syntax_error(msg)
     throw msg;
 }
 
-function atomic(token)
+// this should be called with token assigned either an integer or a float
+function numberToken(token)
 {
-    if (!isNaN(token) && parseInt(Number(token)) == token)
+    if (!isNaN(token) && parseInt(token) == token)
     {
-        console.log("#############Integer: " + token);
-        return new IntegerTerm(token);
+        return new IntegerTerm(parseInt(token));
     }
-    // FIXME: Floats, bigintegers, rationals
+    if (!isNaN(token) && parseFloat(Number(token)) == token)
+    {
+        return new FloatTerm(parseFloat(token));
+    }
+    // FIXME: bigintegers, rationals
+}
+
+function atomicToken(token)
+{
+    console.log("Token: " + token);
+    if (typeof(token) === 'number')
+    {
+        var number = numberToken(token);
+        if (number != null)
+        {
+            console.log("Is number");
+            return number;
+        }
+    }
     return new AtomTerm(token);
 }
 
@@ -233,7 +252,7 @@ function read_expression(s, precedence, isarg, islist, vars)
         else
         {
             // It is an atomic term
-            lhs = atomic(token);
+            lhs = atomicToken(token);
 	}
     }
     else if (op.fixity == "fx")
@@ -612,4 +631,6 @@ function doTest(atom)
 }
 
 module.exports = {readTerm: readTerm,
+                  numberToken: numberToken,
+                  atomicToken: atomicToken,
 		  test: doTest};

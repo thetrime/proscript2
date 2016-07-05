@@ -5,6 +5,7 @@ var AtomTerm = require('./atom_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var FloatTerm = require('./float_term.js');
+var Parser = require('./parser.js');
 
 // Convenience function that returns a Prolog term corresponding to the given list of prolog terms.
 function term_from_list(list, tail)
@@ -443,12 +444,82 @@ module.exports.char_code = function(c, code)
 // 8.16.7
 module.exports.number_chars = function(number, chars)
 {
-    throw new Error("FIXME: Not implemented");
+    if (number instanceof VariableTerm)
+    {
+        // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
+        var head = chars;
+        var buffer = '';
+        while(true)
+        {
+            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            {
+                console.log(head.args[0].getClass());
+                if (head.args[0] instanceof AtomTerm && head.args[0].value.length == 1)
+                    buffer += head.args[0].value;
+                else
+                    Errors.typeError(Constants.characterAtom, head.args[0]);
+                head = head.args[1];
+            }
+            else if (head.equals(Constants.emptyListAtom))
+            {
+                break;
+            }
+            else
+                Errors.typeError(Constants.listAtom, chars);
+        }
+        var token = Parser.numberToken(buffer);
+        if (token == null)
+            Errors.syntaxError(Constants.illegalNumber);
+        return this.unify(number, Parser.numberToken(buffer));
+    }
+    else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
+    {
+        var string = String(number.value);
+        var list = [];
+        for (var i = 0; i < string.length; i++)
+            list.push(new AtomTerm(string.value[i]));
+        return this.unify(list_from_term(list), chars);
+    }
+    Errors.typeError(Constants.numberAtom, number);
 }
 // 8.16.8
 module.exports.number_codes = function(number, codes)
 {
-    throw new Error("FIXME: Not implemented");
+    if (number instanceof VariableTerm)
+    {
+        var head = codes;
+        var buffer = '';
+        while(true)
+        {
+            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            {
+                if (head.args[0] instanceof IntegerTerm)
+                    buffer += String.fromCharCode(head.args[0].value);
+                else
+                    Errors.representationError(Constants.characterCodeAtom, head.args[0]);
+                head = head.args[1];
+            }
+            else if (head.equals(Constants.emptyListAtom))
+            {
+                break;
+            }
+            else
+                Errors.typeError(Constants.listAtom, codes);
+        }
+        var token = Parser.numberToken(buffer);
+        if (token == null)
+            Errors.syntaxError(Constants.illegalNumber);
+        return this.unify(number, Parser.numberToken(buffer));
+    }
+    else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
+    {
+        var string = String(number.value);
+        var list = [];
+        for (var i = 0; i < string.length; i++)
+            list.push(new IntegerTerm(string.charCodeAt(i)));
+        return this.unify(term_from_list(list), codes);
+    }
+    Errors.typeError(Constants.numberAtom, number);
 }
 // 8.17.1
 module.exports.set_prolog_flag = function(flag, value)
