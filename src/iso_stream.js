@@ -1,30 +1,41 @@
+var BlobTerm = require('./blob_term');
+var AtomTerm = require('./atom_term');
+
 // 8.11.1
 module.exports.current_input = function(stream)
 {
-    throw new Error("FIXME: Not implemented");
+    return this.unify(stream, this.streams.current_input);
 }
 // 8.11.2
 module.exports.current_output = function(stream)
 {
-    throw new Error("FIXME: Not implemented");
+    return this.unify(stream, this.streams.current_output);
 }
 // 8.11.3
 module.exports.set_input = function(stream)
 {
-    throw new Error("FIXME: Not implemented");
+    if (stream instanceof VariableTerm)
+        Errors.instantiationError(stream);
+    if ((stream instanceof BlobTerm) && stream.type == "stream")
+        this.streams.current_input = stream;
+    Errors.typeError(Constants.streamAtom, stream);
 }
 // 8.11.4
 module.exports.set_output = function(stream)
 {
-    throw new Error("FIXME: Not implemented");
+   if (stream instanceof VariableTerm)
+        Errors.instantiationError(stream);
+    if ((stream instanceof BlobTerm) && stream.type == "stream")
+        this.streams.current_output = stream;
+    Errors.typeError(Constants.streamAtom, stream);
 }
 
 // 8.11.5
 module.exports.open = [
     function(file, mode, stream)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.open[1](file, mode, stream, Constants.emptyListAtom);
+    },
     function(file, mode, stream, options)
     {
         throw new Error("FIXME: Not implemented");
@@ -34,8 +45,8 @@ module.exports.open = [
 module.exports.close = [
     function(stream)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.close[1](stream, Constants.emptyListAtom);
+    },
     function(stream, options)
     {
         throw new Error("FIXME: Not implemented");
@@ -45,8 +56,8 @@ module.exports.close = [
 module.exports.flush_output = [
     function()
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.flush_output[1](this.streams.current_output);
+    },
     function(stream)
     {
         throw new Error("FIXME: Not implemented");
@@ -60,8 +71,8 @@ module.exports.stream_property = function(stream, property)
 module.exports.at_end_of_stream = [
     function()
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.at_end_of_stream[1](this.streams.current_output);
+    },
     function(stream)
     {
         throw new Error("FIXME: Not implemented");
@@ -76,8 +87,8 @@ module.exports.set_stream_position = function(stream, position)
 module.exports.get_char = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.get_char[1](this.streams.current_input, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -85,8 +96,8 @@ module.exports.get_char = [
 module.exports.get_code = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.get_code[1](this.streams.currentintput, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -96,8 +107,8 @@ module.exports.get_code = [
 module.exports.peek_char = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.peek_char[1](this.streams.current_input, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -105,8 +116,8 @@ module.exports.peek_char = [
 module.exports.peek_code = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.peek_code[1](this.streams.current_input, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -116,8 +127,8 @@ module.exports.peek_code = [
 module.exports.put_char = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.put_char[1](this.streams.current_output, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -125,8 +136,8 @@ module.exports.put_char = [
 module.exports.put_code = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.put_code[1](this.streams.current_output, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -136,8 +147,8 @@ module.exports.put_code = [
 module.exports.get_byte = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.get_byte[1](this.streams.current_input, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -146,8 +157,8 @@ module.exports.get_byte = [
 module.exports.peek_byte = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.peek_byte[1](this.streams.current_input, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");
@@ -156,8 +167,8 @@ module.exports.peek_byte = [
 module.exports.put_byte = [
     function(c)
     {
-        throw new Error("FIXME: Not implemented");
-    }
+        module.exports.put_byte[1](this.streams.current_output, c);
+    },
     function(stream, c)
     {
         throw new Error("FIXME: Not implemented");

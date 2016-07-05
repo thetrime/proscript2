@@ -16,6 +16,7 @@ var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
 var fs = require('fs');
+var BlobTerm = require('./blob_term');
 
 function builtin(module, name)
 {
@@ -28,6 +29,7 @@ function builtin(module, name)
 var foreignModules = [require('./iso_foreign.js'),
                       require('./iso_arithmetic.js'),
                       require('./iso_record.js'),
+                      require('./iso_stream.js'),
                       require('./record.js'),
                       require('./foreign.js')];
 
@@ -135,9 +137,15 @@ Environment.prototype.reset = function()
                                    null,
                                    null,
                                    []);
-    this.streams = {stdin: undefined,
-                    stdout: stdout,
-                    stderr: stdout};
+    var null_stream = Stream.new_stream(null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        []);
+
+    this.streams = {current_input: new BlobTerm("stream", null_stream),
+                    current_output: new BlobTerm("stream", stdout)};
 }
 
 Environment.prototype.getModule = function()

@@ -5,7 +5,7 @@ var ArrayUtils = require('./array_utils');
 module.exports.writeln = function(arg)
 {
     var bytes = ArrayUtils.toByteArray(arg.toString());
-    return this.streams.stdout.write(this.streams.stdout, 1, bytes.length, bytes) >= 0;
+    return this.streams.current_output.value.write(this.streams.current_output.value, 1, bytes.length, bytes) >= 0;
 }
 
 
