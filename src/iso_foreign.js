@@ -200,7 +200,7 @@ module.exports.number = function(a)
             (a instanceof FloatTerm));
     // FIXME: Bignum support
 }
-// 8.4.1
+// 8.4.1 term-comparison
 module.exports["@=<"] = function(a, b)
 {
     return term_difference(a, b) <= 0;
@@ -225,7 +225,7 @@ module.exports["@>="] = function(a, b)
 {
     return term_difference(a, b) >= 0;
 }
-// 8.5.1
+// 8.5.1 functor/3
 module.exports.functor = function(term, name, arity)
 {
     if (term instanceof VariableTerm)
@@ -258,7 +258,7 @@ module.exports.functor = function(term, name, arity)
     else
         Errors.typeError(Constants.termAtom, term);
 }
-// 8.5.2
+// 8.5.2 arg/3
 module.exports.arg = function(n, term, arg)
 {
     // NB: ISO only requires the +,+,? mode
@@ -276,7 +276,7 @@ module.exports.arg = function(n, term, arg)
         return false; // N is too big
     return this.unify(term.args[n.value], arg);
 }
-// 8.5.3
+// 8.5.3 (=..)/2
 module.exports["=.."] = function(term, univ)
 {
     // CHECKME: More errors should be checked
@@ -295,52 +295,33 @@ module.exports["=.."] = function(term, univ)
     else
         Errors.typeError(Constants.termAtom, term);
 }
-// 8.5.4
+// 8.5.4 copy_term/2
 module.exports.copy_term = function(term, copy)
 {
     return this.unify(Kernel.copyTerm(term), copy);
 }
-// 8.8.1
+// 8.8.1 clause/2
 module.exports.clause = function(head, body)
 {
     // Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
-// 8.8.2
+// 8.8.2 current_predicate/2
 module.exports.current_predicate = function(head, body)
 {
     // Needs nondeterminism
     throw new Error("FIXME: Not implemented");
 }
-// 8.9 in iso_record.js
-
-// 8.10.1
-module.exports.findall = function(template, goal, instances)
-{
-    throw new Error("FIXME: Not implemented");
-}
-// 8.10.2
-module.exports.bagof = function(template, goal, instances)
-{
-    throw new Error("FIXME: Not implemented");
-}
-// 8.10.3
-module.exports.setof = function(template, goal, instances)
-{
-    throw new Error("FIXME: Not implemented");
-}
+// 8.9 (asserta/1, assertz/1, retract/1, abolish/1) are in iso_record.js
+// 8.10 (findall/3, bagof/3, setof/3) are in builtin.pl (note that they might be much faster if implemented directly in Javascript)
 // 8.11 is in iso_stream.js
 // 8.12 is in iso_stream.js
 // 8.13 is in iso_stream.js
 // 8.14 is in iso_stream.js
 
-// 8.15.1: \+ is compiled directly to opcodes
-// 8.15.2
-module.exports.once = function(goal)
-{
-    throw new Error("FIXME: Not implemented");
-}
-// 8.15.3
+// 8.15.1: (\+)/1 is compiled directly to opcodes
+// 8.15.2 once/1 is in builtin.pl
+// 8.15.3 repeat/0
 module.exports.repeat = function()
 {
     this.create_choicepoint(true);

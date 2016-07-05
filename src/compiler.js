@@ -39,6 +39,7 @@ function compilePredicate(clauses)
                 clausePointers[i] = instructions.length;
                 instructions.push({opcode: Instructions.nop});
             }
+            console.log("Compiling " + util.inspect(clauses[i], {showHidden: false, depth: null}));
 	    compileClause(dereference_recursive(clauses[i]), instructions);
 	}
 	// Now go back and fill in the try-retry-trust constructs

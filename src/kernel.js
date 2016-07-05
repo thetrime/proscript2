@@ -94,7 +94,7 @@ function _copyTerm(t, vars, newVars)
     {
         var newArgs = new Array(t.args.length);
         for (var i = 0; i < t.args.length; i++)
-            newArgs[i] = _copyTerm(t.args[i], vars, newVars);
+            newArgs[i] = _copyTerm(t.args[i].dereference(), vars, newVars);
         return new CompoundTerm(t.functor, newArgs);
     }
     // For everything else, just return the term itself
@@ -377,6 +377,7 @@ function execute(env)
             case "i_cut":
             {
                 // The task of i_cut is to pop and discard all choicepoints newer than env.currentFrame.choicepoint
+                console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
                 env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
                 env.currentFrame.choicepoint = env.choicepoints.length;
                 //throw "not implemented";

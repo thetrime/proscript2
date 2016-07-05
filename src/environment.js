@@ -15,6 +15,7 @@ var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
+var fs = require('fs');
 
 function builtin(module, name)
 {
@@ -27,15 +28,20 @@ function builtin(module, name)
 var foreignModules = [require('./iso_foreign.js'),
                       require('./iso_arithmetic.js'),
                       require('./iso_record.js'),
+                      require('./record.js'),
                       require('./foreign.js')];
 
+var builtinModules = [fs.readFileSync(__dirname + '/builtin.pl', 'utf8')];
 
 function Environment()
 {
+//    this.consultString("[-].");
+//    throw(0);
     this.userModule = Module.get("user");
+    this.currentModule = this.userModule;
     for (var i = 0; i < foreignModules.length; i++)
     {
-        var predicate_names = Object.keys(foreignModules[i]);
+        predicate_names = Object.keys(foreignModules[i]);
         for (var p = 0; p < predicate_names.length; p++)
         {
             // Each export may either a be a function OR a list of functions
@@ -51,6 +57,10 @@ function Environment()
             else
                 this.userModule.defineForeignPredicate(predicate_names[p], pred);
         }
+    }
+    for (var i = 0; i < builtinModules.length; i++)
+    {
+        this.consultString(builtinModules[i]);
     }
     this.reset();
 }
@@ -137,10 +147,19 @@ Environment.prototype.getModule = function()
 
 Environment.prototype.consultString = function(data)
 {
-    var clause = Parser.test(data);
-    //console.log(util.inspect(clause, {showHidden: false, depth: null}));
-    var functor = clauseFunctor(clause);
-    this.getModule().addClause(functor, clause);
+    var stream = Stream.new_stream(string_read,
+                                   null,
+                                   null,
+                                   null,
+                                   null,
+                                   IO.toByteArray(data));
+    var clause = null;
+    while ((clause = Parser.readTerm(stream, [])) != null)
+    {
+        console.log("Clause: " + util.inspect(clause, {showHidden: false, depth: null}));
+        var functor = clauseFunctor(clause);
+        this.getModule().addClause(functor, clause);
+    }
 }
 
 Environment.prototype.execute = function(queryTerm)
@@ -191,20 +210,8 @@ Environment.prototype.consultURL = function(url, callback)
     {
 	var status = xhr.status;
 	if (status == 200)
-	{
-	    var stream = Stream.new_stream(xhr_read,
-					   null,
-					   null,
-					   null,
-					   null,
-					   IO.toByteArray(xhr.responseText));
-	    var clause = null;
-	    while ((clause = Parser.readTerm(stream, [])) != null)
-	    {
-		console.log("Clause: " + clause);
-		var functor = clauseFunctor(clause);
-		_this.getModule().addClause(functor, clause);
-	    }
+        {
+            _this.consultString(xhr.responseText);
 	    callback();
 	}
 	else
@@ -217,7 +224,7 @@ Environment.prototype.consultURL = function(url, callback)
     xhr.send();
 }
 
-function xhr_read(stream, size, count, buffer)
+function string_read(stream, size, count, buffer)
 {
     var bytes_read = 0;
     var records_read;

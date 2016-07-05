@@ -17,6 +17,7 @@ var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
 var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
+var util = require('util');
 
 function parse_infix(s, lhs, precedence, vars)
 {
@@ -34,7 +35,7 @@ function parse_postfix(s, lhs)
 function syntax_error(msg)
 {
     // FIXME:
-    throw msg;
+    throw new Error(util.inspect(msg));
 }
 
 // this should be called with token assigned either an integer or a float
@@ -53,7 +54,7 @@ function numberToken(token)
 
 function atomicToken(token)
 {
-    console.log("Token: " + token);
+    //console.log("Token: " + token);
     if (typeof(token) === 'number')
     {
         var number = numberToken(token);
@@ -144,6 +145,10 @@ function read_expression(s, precedence, isarg, islist, vars)
     var lhs;
     // Either the token is an operator, or it must be an atom (or the start of a list or curly-list)
     var op = prefix_operators[token];
+    // There are some caveats here. For example, when reading [-] or foo(is, is) the thing is not actually an operator.
+    var peeked_token = peek_token(s);
+    if (peeked_token == ']' || peeked_token == ')' || peeked_token == ',') // Maybe others? This is a bit ugly :(
+        op = undefined;
     if (op === undefined)
     {  
         if (token == "\"")
@@ -197,7 +202,7 @@ function read_expression(s, precedence, isarg, islist, vars)
 		var t = read_expression(s, Infinity, true, true, vars);
 		if (t == "]")
                 {
-                    lhs = "[]";
+                    lhs = Constants.emptyListAtom;
                     break;
                     // Special case for the empty list, since the first argument is ']'
                 }
@@ -300,7 +305,7 @@ function read_expression(s, precedence, isarg, islist, vars)
                     if (next == null)
                         return syntax_error("end_of_file");
                     else
-                        return syntax_error(next);
+                        return syntax_error("Unexpected: " + util.inspect(next));
                 }
             }
 	    lhs = new CompoundTerm(lhs, args);
@@ -385,7 +390,9 @@ function read_token(s)
     {
 	return s.peeked_tokens.pop();
     }
-    return lex(s.stream);
+    var q = lex(s.stream);
+    //console.log("lex: " + q);
+    return q;
 }
 
 function is_char(c)
@@ -396,11 +403,12 @@ function is_char(c)
             c == '_');
 }
 
-var punctuation_array = ['`', '~', '@', '#', '$', '^', '&', '*', '-', '+', '=', '<', '>', '/', '?', ':', ',', '\\', '.'];
+//var graphic_array = ['`', '~', '@', '#', '$', '^', '&', '*', '-', '+', '=', '<', '>', '/', '?', ':', ',', '\\', '.'];
+var graphic_array = ['#', '$', '&', '*', '+', '-', '.', '/', ':', '<', '=', '>', '?', '@', '^', '~'];
 
-function is_punctuation(c)
+function is_graphic_char(c)
 {
-    return punctuation_array.indexOf(c) != -1;
+    return graphic_array.indexOf(c) != -1 || c == '\\'; // graphic-token-char is either graphic-char or backslash-char
 }
 
 // lex(stream) returns a single token throws an exception if one is raised
@@ -543,19 +551,19 @@ function lex(s)
             buffer += c;
             // An unquoted atom may contain either all punctuation or all A-Za-z0-9_. There are probably more complicated rules, but this will do
             char_atom = is_char(c);
-            punctuation_atom = is_punctuation(c);
+            punctuation_atom = is_graphic_char(c);
             while (true)
-            {                
+            {
                 c = peek_raw_char_with_conversion(s);                
                 if (c == -1)
                     break;
                 if (char_atom && is_char(c))
                     buffer += get_raw_char_with_conversion(s);
-                else if (punctuation_atom && is_punctuation(c))
+                else if (punctuation_atom && is_graphic_char(c))
                     buffer += get_raw_char_with_conversion(s);
                 else
                     break;
-            }            
+            }
         }
 	return buffer;
     }

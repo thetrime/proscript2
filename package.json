@@ -5,13 +5,14 @@
   "main": "bundle.js",
   "dependencies": {
       "xmlhttprequest": "^1.8.0",
-      "browserify": "^13.0.0"
+      "browserify": "^13.0.0",
+      "brfs": "^1.4.3"
   },
   "devDependencies": {},
   "scripts": {
-      "start": "STATIC_ROOT=./static watchify src/core.js --standalone Prolog -v -o build/proscript.js",
-      "install": "STATIC_ROOT=./static browserify --standalone Prolog src/core.js | uglifyjs -cm > build/proscript.js",
-      "build-debug": "STATIC_ROOT=./static browserify src/core.js -v -o build/proscript.js",
+      "start": "STATIC_ROOT=./static watchify src/core.js --standalone Prolog -t brfs -v -o build/proscript.js",
+      "install": "STATIC_ROOT=./static browserify --standalone Prolog -t brfs src/core.js | uglifyjs -cm > build/proscript.js",
+      "build-debug": "STATIC_ROOT=./static browserify -t brfs src/core.js -v -o build/proscript.js",
       "test": "echo \"Error: no tests exist\" && exit 1"
   },
   "repository": {

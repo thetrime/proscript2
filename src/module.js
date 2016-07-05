@@ -23,7 +23,7 @@ Module.prototype.defineForeignPredicate = function(name, fn)
 Module.prototype.definePredicate = function(functor)
 {
     this.predicates[functor.toString()] = {clauses: [],
-                                      code: undefined};
+                                           code: undefined};
     console.log(">>> Defined " + this.name + ":" + functor);
 }
 
@@ -48,6 +48,8 @@ Module.prototype.getPredicateCode = function(functor)
     if (this.predicates[functor.toString()] === undefined)
     {
         console.log("No such predicate in module " + this.name);
+        // FIXME: Handle this error properly
+        throw(0);
         return undefined;
     }
     console.log("Found: " + util.inspect(this.predicates[functor.toString()]));
