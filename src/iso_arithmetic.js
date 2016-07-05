@@ -434,7 +434,7 @@ function compare(a, b)
                 return 1;
             else if (ae.value == be.value)
                 return 0;
-            return 1;
+            return -1;
         }
         case "bigint":
         {
