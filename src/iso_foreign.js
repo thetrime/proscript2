@@ -677,8 +677,33 @@ module.exports.set_prolog_flag = function(flag, value)
 // 8.17.2
 module.exports.current_prolog_flag = function(flag, value)
 {
-    // Needs nondeterminism
-    throw new Error("FIXME: Not implemented");
+    if (flag instanceof VariableTerm)
+    {
+        // Search case
+        var index;
+        if (this.foreign === undefined)
+            index = 0;
+        else
+            index = this.foreign;
+        if (index >= PrologFlag.flags.length)
+            return false;
+        if (index+1 < PrologFlag.flags.length)
+            this.create_choicepoint(index+1);
+        return this.unify(flag, new AtomTerm(PrologFlag.flags[index].name)) && this.unify(value, PrologFlag.flags[index].fn(false, null));
+    }
+    else if (flag instanceof AtomTerm)
+    {
+        // Lookup case
+        for (var i = 0; i < PrologFlag.flags.length; i++)
+        {
+            if (PrologFlag.flags[i].name == flag.value)
+            {
+                return this.unify(value, PrologFlag.flags[i].fn(false, null));
+            }
+        }
+    }
+    else
+        Errors.typeError(Constants.atomAtom, flag);
 }
 // 8.17.3
 module.exports.halt = [function()

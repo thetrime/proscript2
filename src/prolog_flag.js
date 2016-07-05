@@ -1,28 +1,30 @@
 var Errors = require('./errors.js');
 var Constants = require('./constants.js');
+var AtomTerm = require('./atom_term.js');
+var IntegerTerm = require('./integer_term.js');
 
 function flag_bounded(set, value)
 {
     if (set) Errors.permissionError(Constants.modifyAtom, Constants.flagAtom, Constants.boundedAtom);
-    return this.unify(value, Constants.trueAtom);
+    return Constants.trueAtom;
 }
 
 function flag_max_integer(set, value)
 {
     if (set) Errors.permissionError(Constants.modifyAtom, Constants.flagAtom, Constants.maxIntegerAtom);
-    return this.unify(value, new IntegerTerm(268435455));
+    return new IntegerTerm(268435455);
 }
 
 function flag_min_integer(set, value)
 {
     if (set) Errors.permissionError(Constants.modifyAtom, Constants.flagAtom, Constants.minIntegerAtom);
-    return this.unify(value, new IntegerTerm(536870911));
+    return new IntegerTerm(536870911);
 }
 
 function flag_integer_rounding_function(set, value)
 {
     if (set) Errors.permissionError(Constants.modifyAtom, Constants.flagAtom, Constants.integerRoundingFunctionAtom);
-    return unify(value, Constants.towardZeroAtom);
+    return Constants.towardZeroAtom;
 }
 
 function flag_char_conversion(set, value)
@@ -37,7 +39,7 @@ function flag_char_conversion(set, value)
             Errors.domainError(Constants.flagValueAtom, value);
         return true;
     }
-    return this.unify(value, prolog_flag_values.char_conversion?Constants.onAtom:Constants.offAtom);
+    return prolog_flag_values.char_conversion?Constants.onAtom:Constants.offAtom;
 }
 
 function flag_debug(set, value)
@@ -52,13 +54,13 @@ function flag_debug(set, value)
             Errors.domainError(Constants.flagValueAtom, value);
         return true;
     }
-    return this.unify(value, prolog_flag_values.debug?Constants.onAtom:Constants.offAtom);
+    return prolog_flag_values.debug?Constants.onAtom:Constants.offAtom;
 }
 
 function flag_max_arity(set, value)
 {
     if (set) Errors.permissionError(Constants.modifyAtom, Constants.flagAtom, Constants.maxArityAtom);
-    return this.unify(value, Constants.unboundedAtom);
+    return Constants.unboundedAtom;
 }
 
 function flag_unknown(set, value)
@@ -75,7 +77,7 @@ function flag_unknown(set, value)
             Errors.domainError(Constants.flagValueAtom, value);
         return true;
     }
-    return this.unify(value, new AtomTerm(prolog_flag_values.unknown));
+    return new AtomTerm(prolog_flag_values.unknown);
 }
 
 function flag_double_quotes(set, value)
@@ -92,7 +94,7 @@ function flag_double_quotes(set, value)
             Errors.domainError(Constants.flagValueAtom, value);
         return true;
     }
-    return this.unify(value, new AtomTerm(prolog_flag_values.double_quotes));
+    return new AtomTerm(prolog_flag_values.double_quotes);
 }
 
 
