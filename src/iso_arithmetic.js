@@ -76,15 +76,72 @@ function evaluate_expression(a)
         }
         else if (a.functor.equals(Constants.remainderFunctor))
         {
-            throw new Error("FIXME: Not implemented");
+            Term.must_be_bound(a.args[0]);
+            Term.must_be_bound(a.args[1]);
+            if (!(a.args[0] instanceof IntegerTerm || a.args[0] instanceof BigIntegerTerm))
+                Errors.typeError(Constants.integerAtom, a.args[0]);
+            if (!(a.args[1] instanceof IntegerTerm || a.args[1] instanceof BigIntegerTerm))
+                Errors.typeError(Constants.integerAtom, a.args[1]);
+            if (a.args[0] instanceof IntegerTerm && a.args[1] instanceof IntegerTerm)
+            {
+                if (a.args[1].value == 0)
+                    Errors.zeroDivisor();
+                return new IntegerTerm(a.args[0] % a.args[1]);
+            }
+            else
+            {
+                var bi = toBigIntegers(a.args);
+                return NumericTerm.get(bi[0].remainder(bi[1]));
+            }
         }
         else if (a.functor.equals(Constants.moduloFunctor))
         {
-            throw new Error("FIXME: Not implemented");
+            Term.must_be_bound(a.args[0]);
+            Term.must_be_bound(a.args[1]);
+            if (!(a.args[0] instanceof IntegerTerm || a.args[0] instanceof BigIntegerTerm))
+                Errors.typeError(Constants.integerAtom, a.args[0]);
+            if (!(a.args[1] instanceof IntegerTerm || a.args[1] instanceof BigIntegerTerm))
+                Errors.typeError(Constants.integerAtom, a.args[1]);
+            if (a.args[0] instanceof IntegerTerm && a.args[1] instanceof IntegerTerm)
+            {
+                if (a.args[1].value == 0)
+                    Errors.zeroDivisor();
+                return new IntegerTerm(a.args[0].value - Math.floor(a.args[0].value / a.args[1].value) * a.args[1].value);
+            }
+            else
+            {
+                var bi = toBigIntegers(a.args);
+                return NumericTerm.get(bi[0].mod(bi[1]));
+            }
         }
         else if (a.functor.equals(Constants.negateFunctor))
         {
-            throw new Error("FIXME: Not implemented");
+            Term.must_be_bound(a.args[0]);
+            if (a.args[0] instanceof IntegerTerm)
+            {
+                if (a.args[0] == Number.MIN_SAFE_INTEGER)
+                {
+                    if (isUnbounded)
+                        return new BigIntegerTerm(new BigInteger(a.args[0].value).negate())
+                    Errors.intOverflow();
+                }
+                return new IntegerTerm(-a.args[0].value);
+            }
+            else if (a.args[0] instanceof FloatTerm)
+            {
+                var result = -a.args[0].value;
+                if (result == Infinity || result == -Infinity)
+                    Errors.floatOverflow();
+                return new FloatTerm(result);
+            }
+            else if (a.args[0] instanceof BigIntegerTerm)
+            {
+                return new BigIntegerTerm(a.args[0].value.negate());
+            }
+            else if (a.args[0] instanceof RationalTerm)
+            {
+                return new RationalTerm(a.args[0].value.negate());
+            }
         }
         else if (a.functor.equals(Constants.absFunctor))
         {
@@ -118,11 +175,43 @@ function evaluate_expression(a)
         }
         else if (a.functor.equals(Constants.floatIntegerPartFunctor))
         {
-            throw new Error("FIXME: Not implemented");
+            Term.must_be_bound(a.args[0]);
+            if (a.args[0] instanceof IntegerTerm || a.args[0] instanceof BigIntegerTerm)
+            {
+                if (strict_iso)
+                    typeError(Constants.floatAtom, a.args[0]);
+                return a.args[0];
+            }
+            else if (a.args[0] instanceof FloatTerm)
+            {
+                var sign = a.args[0].value >= 0 ? 1 : -1;
+                return new FloatTerm(sign * Math.floor(Math.abs(a.args[0].value)));
+            }
+            else if (a.args[0] instanceof RationalTerm)
+            {
+                return new BigIntegerTerm(a.args[0].value.numerator().divide(a.args[0].value.denominator()));
+            }
         }
         else if (a.functor.equals(Constants.floatFractionPartFunctor))
         {
-            throw new Error("FIXME: Not implemented");
+            Term.must_be_bound(a.args[0]);
+            if (a.args[0] instanceof IntegerTerm || a.args[0] instanceof BigIntegerTerm)
+            {
+                if (strict_iso)
+                    typeError(Constants.floatAtom, a.args[0]);
+                return new IntegerTerm(0);
+            }
+            else if (a.args[0] instanceof FloatTerm)
+            {
+                var sign = a.args[0].value >= 0 ? 1 : -1;
+                return new FloatTerm(a.args[0].value - (sign * Math.floor(Math.abs(a.args[0].value))));
+            }
+            else if (a.args[0] instanceof RationalTerm)
+            {
+                var quotient = a.args[0].value.numerator().divide(a.args[0].value.denominator());
+                var r = new Rational(quotient, new BigInteger(1));
+                return new RationalTerm(a.args[0].value.subtract(r));
+            }
         }
         else if (a.functor.equals(Constants.floatFunctor))
         {
