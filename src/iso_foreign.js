@@ -304,18 +304,7 @@ module.exports.copy_term = function(term, copy)
 module.exports.clause = function(head, body)
 {
     // Needs nondeterminism
-    var q;
-    if (this.foreign === undefined)
-    {
-        q = 5;
-    }
-    else
-        q = this.foreign;
-    console.log("Value of q: " + q);
-    if (q > 1)
-        this.create_choicepoint(q-1);
-    return true;
-    //throw new Error("FIXME: Not implemented");
+    throw new Error("FIXME: Not implemented");
 }
 // 8.8.2
 module.exports.current_predicate = function(head, body)
@@ -354,8 +343,8 @@ module.exports.once = function(goal)
 // 8.15.3
 module.exports.repeat = function()
 {
-    // Needs nondeterminism
-    throw new Error("FIXME: Not implemented");
+    this.create_choicepoint(true);
+    return true;
 }
 // 8.16.1
 module.exports.atom_length = function(atom, length)
@@ -371,10 +360,38 @@ module.exports.atom_length = function(atom, length)
     return this.unify(new IntegerTerm(atom.value.length), length);
 }
 // 8.16.2
-module.exports.atom_concat = function(a, b, c)
+module.exports.atom_concat = function(atom1, atom2, atom12)
 {
-    // ??+ or ++-. Needs nondeterminism
-    throw new Error("FIXME: Not implemented");
+    var index = 0;
+    if (this.foreign === undefined)
+    {
+        // First call
+        if (atom1 instanceof VariableTerm && atom12 instanceof VariableTerm)
+            Errors.instantiationError(atom1);
+        if (atom2 instanceof VariableTerm && atom12 instanceof VariableTerm)
+            Errors.instantiationError(atom2);
+        if (!(atom1 instanceof VariableTerm))
+            must_be_atom(atom1);
+        if (!(atom2 instanceof VariableTerm))
+            must_be_atom(atom2);
+        if (!(atom12 instanceof VariableTerm))
+            must_be_atom(atom12);
+        if (atom1 instanceof AtomTerm && atom2 instanceof AtomTerm)
+        {
+            // Deterministic case
+            return this.unify(atom12, new AtomTerm(atom1.value + atom2.value));
+        }
+        // Non-deterministic case
+        index = 0;
+    }
+    else
+        index = this.foreign;
+    if (index == atom12.value.length+1)
+    {
+        return false;
+    }
+    this.create_choicepoint(index+1);
+    return this.unify(atom1, new AtomTerm(atom12.value.substring(0, index))) && this.unify(atom2, new AtomTerm(atom12.value.substring(index)));
 }
 // 8.16.3
 module.exports.sub_atom = function(atom, before, length, after, subatom)
