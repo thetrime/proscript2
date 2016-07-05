@@ -396,8 +396,95 @@ module.exports.atom_concat = function(atom1, atom2, atom12)
 // 8.16.3
 module.exports.sub_atom = function(atom, before, length, after, subatom)
 {
-    // This is really hard to get right. Needs nondeterminism
-    throw new Error("FIXME: Not implemented");
+    var index;
+    must_be_bound(atom);
+    must_be_atom(atom);
+    if (!(subatom instanceof VariableTerm))
+        must_be_atom(subatom);
+    var input = atom.value;
+    if (this.foreign === undefined)
+    {
+        // First call
+        index = {start:0, fixed_start:false, length:0, fixed_length:false, remaining:input.length, fixed_remaining:false};
+        if (before instanceof IntegerTerm)
+        {
+            index.fixed_start = true;
+            index.start = before.value;
+        }
+        if (length instanceof IntegerTerm)
+        {
+            index.fixed_length = true;
+            index.length = length.value;
+        }
+        if (after instanceof IntegerTerm)
+        {
+            index.fixed_remaining = true;
+            index.remaining = after.value;
+        }
+        if (index.fixed_start && index.fixed_remaining && !index.fixed_length)
+        {
+            // Deterministic: Fall through to general case
+            index.length = input.length-index.start-index.remaining;
+            index.fixed_length = true;
+        }
+        if (index.fixed_remaining && index.fixed_length && !index.fixed_start)
+        {
+            // Deterministic: Fall through to general case
+            index.start = input.length-index.length-index.remaining;
+            index.fixed_start = true;
+        }
+        if (index.fixed_start && index.fixed_length)
+        {
+            // Deterministic general case.
+            return this.unify(after, new IntegerTerm(input.length-index.start-index.length)) &&
+                this.unify(before, new IntegerTerm(index.start)) &&
+                this.unify(length, new IntegerTerm(index.length)) &&
+                this.unify(subatom, new AtomTerm(input.substring(index.start, index.start+index.length)));
+        }
+    }
+    else
+    {
+        // Retry case
+        index = this.foreign;
+        if (!index.fixed_length)
+        {
+            index.length++;
+            if (index.start + index.length > input.length)
+            {
+                index.length = 0;
+                if (!index.fixed_start)
+                {
+                    index.start++;
+                    if (index.start > input.length)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    // start is fixed, so length and remaining are free
+                    // but remaining is always just computed
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            // length is fixed, so start and remaining must be free
+            index.start++;
+            index.remaining--;
+            if (index.length + index.start > input.length)
+            {
+                return false;
+            }
+        }
+    }
+    // Make a new choicepoint
+    this.create_choicepoint(index);
+    return this.unify(after, new IntegerTerm(input.length-index.start-index.length)) &&
+        this.unify(before, new IntegerTerm(index.start)) &&
+        this.unify(length, new IntegerTerm(index.length)) &&
+        this.unify(subatom, new AtomTerm(input.substring(index.start, index.start+index.length)));
 }
 // 8.16.4
 module.exports.atom_chars = function(atom, chars)
