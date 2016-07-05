@@ -92,7 +92,9 @@ function instructionSize(i)
 	else if (i.args[t] == "address")
 	    rc += 4;
 	else if (i.args[t] == "slot")
-	    rc += 2;
+            rc += 2;
+        else if (i.args[t] == "foreign_function")
+            rc += 0;
     }
     return rc;
 }
@@ -140,7 +142,11 @@ function assembleInstruction(instructions, iP, bytecode, ptr, constants)
 	    bytecode[ptr+1] = (instruction.slot >> 8) & 255;
 	    bytecode[ptr+2] = (instruction.slot >> 0) & 255;
 	    rc += 2;
-	}
+        }
+        else if (arg == "foreign_function")
+        {
+            constants.push(instruction.foreign_function);
+        }
     }
     return rc;
 }
@@ -565,11 +571,11 @@ function analyzeVariables(term, isHead, depth, map, context)
 
 function foreignShim(fn)
 {
-    var bytes = new Uint8Array(1);
-    assembleInstruction([{opcode: Instructions.iForeign}], 0, bytes, 0, []);
-    return {bytecode: bytes,
-            constants: [fn],
-            instructions:[{opcode: Instructions.iForeign}]};
+    var instructions = [];
+    instructions.push({opcode: Instructions.iForeign,
+                       foreign_function: fn});
+    instructions.push({opcode: Instructions.iForeignRetry});
+    return assemble(instructions);
 }
 
 module.exports = {compilePredicate:compilePredicate,

@@ -214,9 +214,16 @@ function execute(env)
             }
             case "i_foreign":
             {
+                env.currentFrame.reserved_slots[0] = undefined;
+                // FALL-THROUGH
+            }
+            case "i_foreignretry":
+            {
+                env.foreign = env.currentFrame.reserved_slots[0];
                 var args = env.currentFrame.slots.slice(0);
                 for (var i = 0; i < args.length; i++)
                     args[i] = args[i].dereference();
+                // Set the foreign info to undefined
                 var rc = env.currentFrame.code.constants[0].apply(env, args);
                 console.log("Foreign result: " + rc);
                 if (rc == 0)

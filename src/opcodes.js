@@ -101,8 +101,10 @@ var opcodes =
 	 args: ["address"]},
         {key: "iForeign",
          label: "i_foreign",
+         args: ["foreign_function"]},
+        {key: "iForeignRetry",
+         label: "i_foreignretry",
          args: []},
-
 	{key: "nop",
 	 label: "nop",
 	 args: []}

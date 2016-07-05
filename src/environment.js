@@ -14,6 +14,7 @@ var Instructions = require('./opcodes.js').opcode_map;
 var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
+var Choicepoint = require('./choicepoint.js');
 
 function builtin(module, name)
 {
@@ -54,9 +55,11 @@ function Environment()
     this.reset();
 }
 
-Environment.prototype.create_choicepoint = function()
+Environment.prototype.create_choicepoint = function(data)
 {
-    // FIXME: Implement. This is not that trivial :(
+    this.choicepoints.push(new Choicepoint(this, 1));
+    this.currentFrame.reserved_slots[0] = data;
+    return this.choicepoints.length;
 }
 
 Environment.prototype.unify = function(a, b)

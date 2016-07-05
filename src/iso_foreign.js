@@ -304,7 +304,18 @@ module.exports.copy_term = function(term, copy)
 module.exports.clause = function(head, body)
 {
     // Needs nondeterminism
-    throw new Error("FIXME: Not implemented");
+    var q;
+    if (this.foreign === undefined)
+    {
+        q = 5;
+    }
+    else
+        q = this.foreign;
+    console.log("Value of q: " + q);
+    if (q > 1)
+        this.create_choicepoint(q-1);
+    return true;
+    //throw new Error("FIXME: Not implemented");
 }
 // 8.8.2
 module.exports.current_predicate = function(head, body)
