@@ -8,23 +8,17 @@ var Parser = require('./parser');
 var ArrayUtils = require('./array_utils');
 var Constants = require('./constants');
 
-function outputString(stream, value)
-{
-    var bytes = ArrayUtils.toByteArray(value.toString());
-    return stream.write(stream, bytes.length, bytes) >= 0;
-}
-
-function outputAtom(stream, options, term)
+function formatAtom(options, term)
 {
     if (options.quoted)
     {
         if (needsQuote(term.value))
-            outputString(stream, quoteString(term.value));
+            return quoteString(term.value);
         else
-            outputString(stream, term.value);
+            return term.value;
     }
     else
-        outputString(stream, term.value);
+        return term.value;
 }
 
 function getOp(functor, options)
@@ -39,155 +33,145 @@ function getOp(functor, options)
     return null;
 }
 
-function outputTerm(stream, options, precedence, term)
+// The reason that we generate lots and lots of strings here is that it's not possible to deterministically determine
+// how to print a term without lookahead. Consider is(a,b) and +(a,b). These should be printed as "a is b" and "a+b" respectively
+// but until we have determined the first character of the second argument we cannot determine if there should be a space
+// We cannot just look directly ahead either, since the right hand side may involve a term with a prefix-operator like +(a,-b)
+// It might be possible to solve this more efficiently, but for now, just convert everything into strings and then assemble it
+// later into one big string, then print that to the stream just once
+function glue_atoms(a, b)
 {
+    if (Parser.is_graphic_char(a.charAt(a.length-1)) && !Parser.is_graphic_char(b.charAt(0)))
+        return a+b;
+    else if (!Parser.is_graphic_char(a.charAt(a.length-1)) && Parser.is_graphic_char(b.charAt(0)))
+        return a+b;
+    else
+        return a+" "+b;
+}
+
+function formatTerm(options, precedence, term)
+{
+    console.log("term: " + term);
     if (term === undefined)
-        throw new Error("Undefined term passed to writeTerm");
+        throw new Error("Undefined term passed to formatTerm");
     term = term.dereference();
     if (term instanceof VariableTerm)
     {
-        outputString(stream, "_" + term.index);
+        return "_" + term.index;
     }
     else if (term instanceof IntegerTerm)
     {
-        outputString(stream, String(term.value));
+        return String(term.value);
     }
     else if (term instanceof FloatTerm)
     {
         // CHECKME: If .quoted == true then we have to make sure this can be read in again. Consider things like 3e-10
-        outputString(stream, String(term.value));
+        return String(term.value);
     }
     else if (term instanceof AtomTerm)
     {
-        outputAtom(stream, options, term);
+        return formatAtom(options, term);
     }
     else if (term instanceof CompoundTerm && term.functor.equals(Constants.numberedVarFunctor) && term.args[0] instanceof IntegerTerm && options.numbervars)
     {
         var i = term.args[0].value % 26;
         var j = Math.trunc(term.args[0].value / 26);
         if (j == 0)
-            outputString(stream, String.fromCharCode(65+i));
+            return String.fromCharCode(65+i);
         else
-            outputString(stream, String.fromCharCode(65+i) + String(j));
+            return String.fromCharCode(65+i) + String(j);
     }
     else if (term instanceof CompoundTerm)
     {
         // if arg is a current operator
         var op = getOp(term.functor, options);
-        console.log(term.functor.name + "-> " + op);
         if (term.functor.equals(Constants.listFunctor) && options.ignore_ops != true)
         {
-            outputString(stream, '[');
+            var output = '[';
             var head = term.args[0];
             var tail = term.args[1];
             while (true)
             {
-                outputTerm(stream, options, 1200, head);
+                output += formatTerm(options, 1200, head);
                 if (tail instanceof CompoundTerm && tail.functor.equals(Constants.listFunctor))
                 {
-                    outputString(stream, ',');
+                    output += ',';
                     head = tail.args[0];
                     tail = tail.args[1];
                     continue;
                 }
                 else if (tail.equals(Constants.emptyListAtom))
-                {
-                    outputString(stream, ']');
-                    break;
-                }
+                    return output + "]";
                 else
-                {
-                    outputString(stream, '|');
-                    outputTerm(stream, options, 1200, tail);
-                    outputString(stream, ']');
-                    break;
-                }
+                    return output + "|" + formatTerm(options, 1200, tail) + "]";
             }
         }
         else if (term.functor.equals(Constants.curlyFunctor) && options.ignore_ops != true)
         {
-            outputString(stream, '{');
+            var output = '{';
             var head = term.args[0];
             while (head instanceof CompoundTerm && head.functor.equals(Constants.conjunctionFunctor))
             {
-                outputTerm(stream, options, 1200, head.args[0]);
-                outputString(stream, ',');
+                output += formatTerm(options, 1200, head.args[0]) + ',';
                 head = head.args[1];
             }
-            outputTerm(stream, options, 1200, head);
-            outputString(stream, '}');
+            return output + formatTerm(options, 1200, head) + '}'
         }
         else if (op == null || options.ignore_ops == true)
         {
-            outputAtom(stream, options, term.functor.name);
-            outputString(stream, '(');
+            var output = formatAtom(options, term.functor.name) + '(';
             for (var i = 0; i < term.args.length; i++)
             {
-                outputTerm(stream, options, 1200, term.args[i]);
+                output += formatTerm(options, 1200, term.args[i]);
                 if (i+1 < term.args.length)
-                    outputString(stream, ',');
+                    output += ',';
             }
-            outputString(stream, ')');
+            return output + ')';
         }
         else if (op != null && options.ignore_ops != true)
         {
+            var output = '';
+            var next;
             if (op.precedence > precedence)
-                outputString(stream, '(');
+                output = '(';
             switch (op.fixity)
             {
                 case "fx":
                 {
-                    outputAtom(stream, options, term.functor.name);
-                    outputString(stream, ' '); // FIXME: Maybe. Depends on interaction between term and op :(
-                    outputTerm(stream, options, precedence-1, term.args[0]);
+                    output = glue_atoms(output+formatAtom(options, term.functor.name), formatTerm(options, precedence-1, term.args[0]));
                     break;
                 }
                 case "fy":
                 {
-                    outputAtom(stream, options, term.functor.name);
-                    outputString(stream, ' ');
-                    outputTerm(stream, options, precedence, term.args[0]);
+                    output = glue_atoms(output+formatAtom(options, term.functor.name), formatTerm(options, precedence, term.args[0]));
                     break;
                 }
                 case "xfx":
                 {
-                    outputTerm(stream, options, precedence-1, term.args[0]);
-                    outputString(stream, ' ');
-                    outputAtom(stream, options, term.functor.name);
-                    outputString(stream, ' ');
-                    outputTerm(stream, options, precedence-1, term.args[1]);
+                    output = glue_atoms(output+formatTerm(options, precedence-1, term.args[0]), formatAtom(options, term.functor.name));
+                    output = glue_atoms(output,formatTerm(options, precedence-1, term.args[1]));
                     break;
                 }
                 case "xfy":
                 {
-                    outputTerm(stream, options, precedence-1, term.args[0]);
-                    outputString(stream, ' ');
-                    outputAtom(stream, options, term.functor.name);
-                    outputString(stream, ' ');
-                    outputTerm(stream, options, precedence, term.args[1]);
+                    output = glue_atoms(output+formatTerm(options, precedence-1, term.args[0]), formatAtom(options, term.functor.name));
+                    output = glue_atoms(output,formatTerm(options, precedence, term.args[1]));
                     break;
                 }
                 case "yfx":
                 {
-                    outputTerm(stream, options, precedence, term.args[0]);
-                    outputString(stream, ' ');
-                    outputAtom(stream, options, term.functor.name);
-                    outputString(stream, ' ');
-                    outputTerm(stream, options, precedence-1, term.args[1]);
+                    output = glue_atoms(output+formatTerm(options, precedence, term.args[0]), formatAtom(options, term.functor.name));
+                    output = glue_atoms(output,formatTerm(options, precedence-1, term.args[1]));
                     break;
                 }
                 case "xf":
                 {
-                    outputTerm(stream, options, precedence-1, term.args[0]);
-                    outputString(stream, ' ');
-                    outputAtom(stream, options, term.functor.name);
+                    output = glue_atoms(output+formatTerm(options, precedence-1, term.args[0]), formatAtom(options, term.functor.name));
                     break;
                 }
                 case "yf":
                 {
-                    outputTerm(stream, options, precedence, term.args[0]);
-                    outputString(stream, ' ');
-                    outputAtom(stream, options, term.functor.name);
+                    output = glue_atoms(output+formatTerm(options, precedence, term.args[0]), formatAtom(options, term.functor.name));
                     break;
                 }
                 default:
@@ -196,7 +180,8 @@ function outputTerm(stream, options, precedence, term)
                 }
             }
             if (op.precedence > precedence)
-                outputString(stream, ')');
+                return output + ')';
+            return output;
         }
         else
         {
@@ -211,5 +196,7 @@ function outputTerm(stream, options, precedence, term)
 
 module.exports.writeTerm = function(stream, term, options)
 {
-    outputTerm(stream, options, 1200, term, []);
+    var text = formatTerm(options, 1200, term);
+    var bytes = ArrayUtils.toByteArray(text.toString());
+    return stream.write(stream, bytes.length, bytes) >= 0;
 }

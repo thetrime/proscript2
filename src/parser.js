@@ -673,4 +673,5 @@ module.exports = {readTerm: readTerm,
                   numberToken: numberToken,
                   atomicToken: atomicToken,
                   test: doTest,
-                  standard_operators: standard_operators};
+                  standard_operators: standard_operators,
+                  is_graphic_char:is_graphic_char};
