@@ -1,6 +1,5 @@
 Modules
 Other types: (parsing, passing them in to predicates and handling where appropriate)
-   floats
    bigintegers
    rationals
 inria-suite
@@ -9,8 +8,8 @@ setup-call-cleanup
 LRU cache for atoms/integers/floats
 documenting the design
 ISO predicates (and others)
-Nondeterministic foreign predicates
-Metapredicates
+Foreign exception handling
+Metapredicatesg
 tidy
    There are at least 2 representations of every instruction(!)
 Checkings
