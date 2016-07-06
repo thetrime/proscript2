@@ -41,5 +41,13 @@ module.exports.must_be_blob = function(type, t)
         Errors.typeError(new AtomTerm(type), t);
     if (t.type != type)
         Errors.typeError(new AtomTerm(type), t);
+}
 
+module.exports.head_functor = function(t)
+{
+    if (t instanceof AtomTerm)
+        return new Functor(t, 0);
+    else if (t instanceof CompoundTerm)
+        return t.functor;
+    Errors.typeError(Constants.callableAtom, t);
 }

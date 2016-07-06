@@ -1,3 +1,5 @@
+"use strict";
+
 var ArrayUtils = require('./array_utils.js');
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
@@ -289,14 +291,42 @@ module.exports.copy_term = function(term, copy)
 // 8.8.1 clause/2
 module.exports.clause = function(head, body)
 {
-    // Needs nondeterminism
-    throw new Error("FIXME: Not implemented");
+    // FIXME: Assumes current module
+    // FIXME: Should allow Module:Head
+    var functor = Term.head_functor(head);
+    var clauses = this.currentModule.predicates[functor.toString()].clauses;
+    var index = this.foreign || 0;
+    if (index > clauses.length)
+        return false;
+    if (index + 1 < clauses.length)
+        this.create_choicepoint(index+1);
+    var clause = clauses[index];
+    if (clause instanceof CompoundTerm && clause.functor.equals(Constants.clauseFunctor))
+        return this.unify(clause.args[0], head) && this.unify(clause.args[1], body);
+    else
+        return this.unify(clause, head) && this.unify(Constants.trueAtom, body);
 }
 // 8.8.2 current_predicate/2
-module.exports.current_predicate = function(head, body)
+module.exports.current_predicate = function(indicator)
 {
-    // Needs nondeterminism
-    throw new Error("FIXME: Not implemented");
+    if (indicator instanceof CompoundTerm)
+    {
+        if (!indicator.functor.equals(Constants.predicateIndicatorFunctor))
+            Errors.typeError(Constants.predicateIndicatorAtom, indicator);
+    }
+    else if (!indicator instanceof VariableTerm)
+        Errors.typeError(Constants.predicateIndicatorAtom, indicator);
+    // Now indicator is either unbound or bound to /(A,B)
+    // FIXME: Currently only examines the current module
+    // FIXME: Should also allow Module:Indicator!
+    var index = this.foreign || 0;
+    var keys = Object.keys(this.currentModule.predicates);
+    if (index > keys.length)
+        return false;
+    if (index + 1 < keys.length)
+        this.create_choicepoint(index+1);
+    return this.unify(indicator, new CompoundTerm(Constants.predicateIndicatorFunctor, [this.currentModule.predicates[keys[index]].functor.name,
+                                                                                        new IntegerTerm(this.currentModule.predicates[keys[index]].functor.arity)]));
 }
 // 8.9 (asserta/1, assertz/1, retract/1, abolish/1) are in iso_record.js
 // 8.10 (findall/3, bagof/3, setof/3) are in builtin.pl (note that they might be much faster if implemented directly in Javascript)

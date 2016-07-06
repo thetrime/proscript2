@@ -16,6 +16,7 @@ Module.prototype.defineForeignPredicate = function(name, fn)
     var compiled = Compiler.foreignShim(fn);
     this.predicates[functor.toString()] = {code: {opcodes: compiled.bytecode,
                                                   constants: compiled.constants},
+                                           functor: functor,
                                            instructions: compiled.instructions};
     console.log(">>> Defined (foreign) " + this.name + ":" + functor);
 }
@@ -23,6 +24,7 @@ Module.prototype.defineForeignPredicate = function(name, fn)
 Module.prototype.definePredicate = function(functor)
 {
     this.predicates[functor.toString()] = {clauses: [],
+                                           functor: functor,
                                            code: undefined};
     console.log(">>> Defined " + this.name + ":" + functor);
 }

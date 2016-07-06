@@ -37,6 +37,8 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
                   roundFunctor: new Functor(new AtomTerm("round"), 1),
                   ceilingFunctor: new Functor(new AtomTerm("ceiling"), 1),
 
+                  predicateIndicatorFunctor: new Functor(new AtomTerm("/"), 2),
+
 
                   catchFunctor: new Functor(new AtomTerm("catch"), 3),
                   throwFunctor: new Functor(new AtomTerm("throw"), 1),

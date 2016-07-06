@@ -94,6 +94,8 @@ module.exports.stream_property = function(stream, property)
 {
     stream = get_stream(stream);
     var index = this.foreign || 0;
+    if (index > stream_properties.length)
+        return false;
     if (index + 1 < stream_properties.length)
         this.create_choicepoint(index+1);
     return stream_properties[index](stream, property);
