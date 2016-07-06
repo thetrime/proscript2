@@ -18,6 +18,8 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
                   onAtom: new AtomTerm("on"),
                   offAtom: new AtomTerm("off"),
                   maxArityAtom: new AtomTerm("max_arity"),
+                  streamOptionAtom: new AtomTerm("stream_option"),
+                  ioModeAtom: new AtomTerm("io_mode"),
 
                   addFunctor: new Functor(new AtomTerm("+"), 2),
                   subtractFunctor: new Functor(new AtomTerm("-"), 2),

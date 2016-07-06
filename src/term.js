@@ -5,6 +5,7 @@ var BlobTerm = require('./blob_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var FloatTerm = require('./float_term.js');
+var Errors = require('./errors.js');
 
 module.exports.must_be_bound = function(t)
 {

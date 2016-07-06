@@ -155,7 +155,7 @@ Environment.prototype.getModule = function()
 
 Environment.prototype.consultString = function(data)
 {
-    var stream = new Stream(string_read,
+    var stream = new Stream(Stream.string_read,
                             null,
                             null,
                             null,
@@ -230,25 +230,6 @@ Environment.prototype.consultURL = function(url, callback)
 	}
     };
     xhr.send();
-}
-
-function string_read(stream, size, count, buffer)
-{
-    var bytes_read = 0;
-    var records_read;
-    for (records_read = 0; records_read < count; records_read++)
-    {
-        for (var b = 0; b < size; b++)
-        {
-            t = stream.data.shift();
-            if (t === undefined)
-            {                
-                return records_read;
-            }
-            buffer[bytes_read++] = t;
-        }
-    }
-    return records_read;
 }
 
 function fromByteArray(byteArray)

@@ -153,5 +153,23 @@ Stream.prototype.peekb = function()
     return this.buffer[0];
 }
 
+Stream.string_read = function(stream, size, count, buffer)
+{
+    var bytes_read = 0;
+    var records_read;
+    for (records_read = 0; records_read < count; records_read++)
+    {
+        for (var b = 0; b < size; b++)
+        {
+            t = stream.data.shift();
+            if (t === undefined)
+            {                
+                return records_read;
+            }
+            buffer[bytes_read++] = t;
+        }
+    }
+    return records_read;
+}
 
 module.exports = Stream;

@@ -1,5 +1,13 @@
 var BlobTerm = require('./blob_term');
 var AtomTerm = require('./atom_term');
+var IntegerTerm = require('./integer_term');
+var Options = require('./options');
+var Stream = require('./stream');
+var Term = require('./term');
+var Errors = require('./errors');
+var Constants = require('./constants');
+var fs = require('fs');
+var Buffer = require('Buffer');
 
 function get_stream(s)
 {
@@ -27,6 +35,64 @@ function get_stream_position(stream, property)
 var stream_properties = [get_stream_position];
 
 
+// fs doesnt support seek() or tell(), but readSync and writeSync include position arguments. If we keep track of everything ourselves, we should be OK
+function fsRead(stream, size, count, buffer)
+{
+    // FIXME: This is pretty inefficient. I should probably just use node buffers everywhere
+    // FIXME: We dont really need the size+count abstraction, do we?
+    var b = Buffer.alloc(size*count);
+    var bytes = fs.readSync(stream.data.fd, b, 0, count, stream.data.position)
+    if (bytes != -1)
+        stream.data.position += bytes;
+    return bytes;
+}
+
+function fsWrite(stream, size, count, buffer)
+{
+    var bytes = fs.writeSync(stream.data.fd, buffer, 0, count, stream.data.position);
+    if (bytes != -1)
+        stream.data.position += bytes;
+    return bytes;
+}
+
+function fsSeek(stream, position)
+{
+    stream.data.position = position;
+}
+
+function fsClose(stream)
+{
+    return fs.closeSync(stream.data.fd);
+}
+
+function fsTell(stream)
+{
+    return stream.data.position;
+}
+
+
+// path and mode are Javascript strings here, and options is a Javascript object
+function openStream(path, mode, options)
+{
+    if (mode == "read")
+    {
+        return new Stream(fsRead, null, fsSeek, fsClose, fsTell, {fd: fs.openSync(path, 'r'),
+                                                                  position: 0});
+    }
+    else if (mode == "write")
+    {
+        return new Stream(null, fsWrite, fsSeek, fsClose, fsTell, {fd: fs.openSync(path, 'w'),
+                                                                   position: 0});
+    }
+    else if (mode == "append")
+    {
+        return new Stream(null, fsWrite, fsSeek, fsClose, fsTell, {fd: fs.openSync(path, 'a'),
+                                                                   position: 0});
+    }
+
+}
+
+
 // 8.11.1
 module.exports.current_input = function(stream)
 {
@@ -52,18 +118,22 @@ module.exports.set_output = function(stream)
 module.exports.open = [
     function(file, mode, stream)
     {
-        module.exports.open[1](file, mode, stream, Constants.emptyListAtom);
+        return module.exports.open[1].bind(this, file, mode, stream, Constants.emptyListAtom)();
     },
     function(file, mode, stream, options)
     {
-        throw new Error("FIXME: Not implemented");
+        Term.must_be_atom(file);
+        Term.must_be_atom(mode);
+        if (mode.value != "read" && mode.value != "write" && mode.value != "append") // FIXME: It isnt really clear what values io_mode is allowed
+            Errors.domainError(Constants.ioModeAtom, mode);
+        return this.unify(stream, new BlobTerm("stream", openStream(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
     }];
 
 // 8.11.6
 module.exports.close = [
     function(stream)
     {
-        module.exports.close[1](stream, Constants.emptyListAtom);
+        return module.exports.close[1].bind(this, stream, Constants.emptyListAtom)();
     },
     function(stream, options)
     {
@@ -82,7 +152,7 @@ module.exports.close = [
 module.exports.flush_output = [
     function()
     {
-        module.exports.flush_output[1](this.streams.current_output);
+        return module.exports.flush_output[1].bind(this, this.streams.current_output)();
     },
     function(stream)
     {
@@ -103,23 +173,28 @@ module.exports.stream_property = function(stream, property)
 module.exports.at_end_of_stream = [
     function()
     {
-        module.exports.at_end_of_stream[1](this.streams.current_output);
+        return module.exports.at_end_of_stream[1].bind(this, this.streams.current_output)();
     },
     function(stream)
     {
         return get_stream(stream).peekch() != -1;
     }];
+
 // 8.11.9
 module.exports.set_stream_position = function(stream, position)
 {
+    Term.must_be_integer(position);
     stream = get_stream(stream);
+    if (stream.seek == null)
+        Errors.permissionError(Constants.repositionAtom, Constants.streamAtom, stream.term);
+    return stream.seek(stream, position.value);
 }
 
 // 8.12.1
 module.exports.get_char = [
     function(c)
     {
-        module.exports.get_char[1](this.streams.current_input, c);
+        return module.exports.get_char[1].bind(this, this.streams.current_input, c)();
     },
     function(stream, c)
     {
@@ -132,7 +207,7 @@ module.exports.get_char = [
 module.exports.get_code = [
     function(c)
     {
-        module.exports.get_code[1](this.streams.currentintput, c);
+        return module.exports.get_code[1].bind(this, this.streams.currentintput, c)();
     },
     function(stream, c)
     {
@@ -144,7 +219,7 @@ module.exports.get_code = [
 module.exports.peek_char = [
     function(c)
     {
-        module.exports.peek_char[1](this.streams.current_input, c);
+        return module.exports.peek_char[1].bind(this, this.streams.current_input, c)();
     },
     function(stream, c)
     {
@@ -157,7 +232,7 @@ module.exports.peek_char = [
 module.exports.peek_code = [
     function(c)
     {
-        module.exports.peek_code[1](this.streams.current_input, c);
+        return module.exports.peek_code[1].bind(this, this.streams.current_input, c)();
     },
     function(stream, c)
     {
@@ -169,7 +244,7 @@ module.exports.peek_code = [
 module.exports.put_char = [
     function(c)
     {
-        module.exports.put_char[1](this.streams.current_output, c);
+        return module.exports.put_char[1].bind(this, this.streams.current_output, c)();
     },
     function(stream, c)
     {
@@ -181,7 +256,7 @@ module.exports.put_char = [
 module.exports.put_code = [
     function(c)
     {
-        module.exports.put_code[1](this.streams.current_output, c);
+        return module.exports.put_code[1].bind(this, this.streams.current_output, c)();
     },
     function(stream, c)
     {
@@ -195,7 +270,7 @@ module.exports.put_code = [
 module.exports.get_byte = [
     function(c)
     {
-        module.exports.get_byte[1](this.streams.current_input, c);
+        return module.exports.get_byte[1].bind(this, this.streams.current_input, c)();
     },
     function(stream, c)
     {
@@ -206,7 +281,7 @@ module.exports.get_byte = [
 module.exports.peek_byte = [
     function(c)
     {
-        module.exports.peek_byte[1](this.streams.current_input, c);
+        return module.exports.peek_byte[1].bind(this, this.streams.current_input, c)();
     },
     function(stream, c)
     {
@@ -217,7 +292,7 @@ module.exports.peek_byte = [
 module.exports.put_byte = [
     function(c)
     {
-        module.exports.put_byte[1](this.streams.current_output, c);
+        return module.exports.put_byte[1].bind(this, this.streams.current_output, c)();
     },
     function(stream, c)
     {
