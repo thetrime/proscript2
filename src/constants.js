@@ -40,8 +40,9 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
                   ceilingFunctor: new Functor(new AtomTerm("ceiling"), 1),
 
                   predicateIndicatorFunctor: new Functor(new AtomTerm("/"), 2),
+                  numberedVarFunctor: new Functor(new AtomTerm("$VAR"), 1),
 
-
+                  curlyFunctor: new Functor(new AtomTerm("{}"), 1),
                   catchFunctor: new Functor(new AtomTerm("catch"), 3),
                   throwFunctor: new Functor(new AtomTerm("throw"), 1),
                   unifyFunctor: new Functor(new AtomTerm("="), 2),

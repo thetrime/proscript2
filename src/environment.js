@@ -17,6 +17,7 @@ var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
 var fs = require('fs');
 var BlobTerm = require('./blob_term');
+var ArrayUtils = require('./array_utils');
 
 function builtin(module, name)
 {
@@ -266,11 +267,15 @@ function fromByteArray(byteArray)
     return str;
 }
 
-function console_write(stream, size, count, buffer)
+var console_buffer = '';
+function console_write(stream, count, buffer)
 {
-    var str = fromByteArray(buffer);
-    console.log(str);
-    return size*count;
+    var str = console_buffer + fromByteArray(buffer);
+    var lines = str.split('\n');
+    for (var i = 0; i < lines.length-1; i++)
+        console.log(" ***************: " + lines[i]);
+    console_buffer = lines[lines.length-1];
+    return count;
 }
 
 function clauseFunctor(term)

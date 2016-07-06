@@ -6,6 +6,8 @@ var Stream = require('./stream');
 var Term = require('./term');
 var Errors = require('./errors');
 var Constants = require('./constants');
+var Parser = require('./parser');
+var TermWriter = require('./term_writer');
 var fs = require('fs');
 
 function get_stream(s)
@@ -76,9 +78,8 @@ function fsTell(stream)
     return stream.data.position;
 }
 
-
 // path and mode are Javascript strings here, and options is a Javascript object
-function openStream(path, mode, options)
+function fsOpen(path, mode, options)
 {
     if (mode == "read")
     {
@@ -132,7 +133,7 @@ module.exports.open = [
         Term.must_be_atom(mode);
         if (mode.value != "read" && mode.value != "write" && mode.value != "append") // FIXME: It isnt really clear what values io_mode is allowed
             Errors.domainError(Constants.ioModeAtom, mode);
-        return this.unify(stream, new BlobTerm("stream", openStream(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
+        return this.unify(stream, new BlobTerm("stream", fsOpen(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
     }];
 
 // 8.11.6
@@ -158,7 +159,7 @@ module.exports.close = [
 module.exports.flush_output = [
     function()
     {
-        return module.exports.flush_output[1].bind(this, this.streams.current_output)();
+        return module.exports.flush_output[1].bind(this, this.streams.current_output.term)();
     },
     function(stream)
     {
@@ -179,7 +180,7 @@ module.exports.stream_property = function(stream, property)
 module.exports.at_end_of_stream = [
     function()
     {
-        return module.exports.at_end_of_stream[1].bind(this, this.streams.current_output)();
+        return module.exports.at_end_of_stream[1].bind(this, this.streams.current_output.term)();
     },
     function(stream)
     {
@@ -200,7 +201,7 @@ module.exports.set_stream_position = function(stream, position)
 module.exports.get_char = [
     function(c)
     {
-        return module.exports.get_char[1].bind(this, this.streams.current_input, c)();
+        return module.exports.get_char[1].bind(this, this.streams.current_input.term, c)();
     },
     function(stream, c)
     {
@@ -213,7 +214,7 @@ module.exports.get_char = [
 module.exports.get_code = [
     function(c)
     {
-        return module.exports.get_code[1].bind(this, this.streams.currentintput, c)();
+        return module.exports.get_code[1].bind(this, this.streams.currentintput.term, c)();
     },
     function(stream, c)
     {
@@ -225,7 +226,7 @@ module.exports.get_code = [
 module.exports.peek_char = [
     function(c)
     {
-        return module.exports.peek_char[1].bind(this, this.streams.current_input, c)();
+        return module.exports.peek_char[1].bind(this, this.streams.current_input.term, c)();
     },
     function(stream, c)
     {
@@ -238,7 +239,7 @@ module.exports.peek_char = [
 module.exports.peek_code = [
     function(c)
     {
-        return module.exports.peek_code[1].bind(this, this.streams.current_input, c)();
+        return module.exports.peek_code[1].bind(this, this.streams.current_input.term, c)();
     },
     function(stream, c)
     {
@@ -250,7 +251,7 @@ module.exports.peek_code = [
 module.exports.put_char = [
     function(c)
     {
-        return module.exports.put_char[1].bind(this, this.streams.current_output, c)();
+        return module.exports.put_char[1].bind(this, this.streams.current_output.term, c)();
     },
     function(stream, c)
     {
@@ -262,7 +263,7 @@ module.exports.put_char = [
 module.exports.put_code = [
     function(c)
     {
-        return module.exports.put_code[1].bind(this, this.streams.current_output, c)();
+        return module.exports.put_code[1].bind(this, this.streams.current_output.term, c)();
     },
     function(stream, c)
     {
@@ -276,7 +277,7 @@ module.exports.put_code = [
 module.exports.get_byte = [
     function(c)
     {
-        return module.exports.get_byte[1].bind(this, this.streams.current_input, c)();
+        return module.exports.get_byte[1].bind(this, this.streams.current_input.term, c)();
     },
     function(stream, c)
     {
@@ -287,7 +288,7 @@ module.exports.get_byte = [
 module.exports.peek_byte = [
     function(c)
     {
-        return module.exports.peek_byte[1].bind(this, this.streams.current_input, c)();
+        return module.exports.peek_byte[1].bind(this, this.streams.current_input.term, c)();
     },
     function(stream, c)
     {
@@ -298,7 +299,7 @@ module.exports.peek_byte = [
 module.exports.put_byte = [
     function(c)
     {
-        return module.exports.put_byte[1].bind(this, this.streams.current_output, c)();
+        return module.exports.put_byte[1].bind(this, this.streams.current_output.term, c)();
     },
     function(stream, c)
     {
@@ -307,3 +308,84 @@ module.exports.put_byte = [
         stream.putb(c.value);
         return true;
     }];
+// 8.14.1 read_term/3, read_term/2, read/1, read/2
+module.exports.read_term = [
+    function(term, options)
+    {
+        return this.unify(term, Parser.readTerm(this.streams.current_input, Options.parseOptions(options, Constants.readOption)));
+    },
+    function(stream, term, options)
+    {
+        return this.unify(term, Parser.readTerm(get_stream(stream), Options.parseOptions(options, Constants.readOption)));
+    }];
+module.exports.read = [
+    function(term)
+    {
+        return this.unify(term, Parser.readTerm(this.streams.current_input, {}));
+    },
+    function(stream, term)
+    {
+        return this.unify(term, Parser.readTerm(get_stream(stream), {}));
+    }];
+
+// 8.14.2 write_term/3, write_term/2, write/1, write/2, writeq/1, writeq/2, write_canonical/1, write_canonical/2
+module.exports.write_term = [
+    function(term, options)
+    {
+        return TermWriter.writeTerm(this.streams.current_output, term, Options.parseOptions(options, Constants.writeOptionAtom));
+    },
+    function(stream, term, options)
+    {
+        return TermWriter.writeTerm(get_stream(stream), term, Options.parseOptions(options, Constants.writeOptionAtom));
+    }];
+module.exports.write = [
+    function(term)
+    {
+        return TermWriter.writeTerm(this.streams.current_output, term, {numbervars: true});
+    },
+    function(stream, term)
+    {
+        return TermWriter.writeTerm(get_stream(stream), term, {numbervars: true});
+    }];
+module.exports.writeq = [
+    function(term)
+    {
+        return TermWriter.writeTerm(this.streams.current_output, term, {numbervars: true, quoted:true});
+    },
+    function(stream, term)
+    {
+        return TermWriter.writeTerm(get_stream(stream), term, {numbervars: true, quoted:true});
+    }];
+module.exports.write_canonical = [
+    function(term)
+    {
+        return TermWriter.writeTerm(this.streams.current_output, term, {ignore_ops: true, quoted:true});
+    },
+    function(stream, term)
+    {
+        return TermWriter.writeTerm(get_stream(stream), term, {ignore_ops: true, quoted:true});
+    }];
+
+// 8.14.3 op/3
+module.exports.op = function(priority, fixity, op)
+{
+    throw new Error("not implemented");
+}
+
+// 8.14.4 current_op/3
+module.exports.current_op = function(priority, fixity, op)
+{
+    throw new Error("not implemented");
+}
+
+// 8.14.5 char_conversion/2
+module.exports.char_conversion = function(in_char, out_char)
+{
+    throw new Error("not implemented");
+}
+
+// 8.14.6 current_char_conversion/2
+module.exports.current_char_conversion = function(in_char, out_char)
+{
+    throw new Error("not implemented");
+}

@@ -15,6 +15,7 @@ var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
+var Functor = require('./functor.js');
 var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
 var util = require('util');
@@ -131,6 +132,26 @@ var infix_operators = {":-": {precedence: 1200, fixity: "xfx"},
                        "**": {precedence: 200, fixity: "xfx"},
                        "^": {precedence: 200, fixity: "xfy"}};
 
+var standard_operators = [];
+for (var p in prefix_operators)
+{
+    if (prefix_operators.hasOwnProperty(p))
+    {
+        standard_operators.push({functor: new Functor(new AtomTerm(p), 1),
+                                 precedence: prefix_operators[p].precedence,
+                                 fixity: prefix_operators[p].fixity});
+    }
+}
+for (var p in infix_operators)
+{
+    if (infix_operators.hasOwnProperty(p))
+    {
+        standard_operators.push({functor: new Functor(new AtomTerm(p), 1),
+                                 precedence: infix_operators[p].precedence,
+                                 fixity: infix_operators[p].fixity});
+    }
+}
+
 // This returns a javascript object representation of the term. It takes the two extra args because of some oddities with Prolog:
 // 1) If we are reading foo(a, b) and we are at the a, we would accept the , as part of the LHS. ie, we think (a,b) is the sole argument. Instead, we should make , have
 //    very high precedence if we are reading an arg. Of course, () can reduce this again, so that foo((a,b)) does indeed read ,(a,b) as the single argument
@@ -217,7 +238,7 @@ function read_expression(s, precedence, isarg, islist, vars)
                 }
                 else if (next == "}" && token == "{")
                 {
-		    lhs = new CompoundTerm("{}", args);
+                    lhs = make_curly(args);
                     break;
                 }
                 else if (next == "|" && token == "[")
@@ -602,6 +623,16 @@ function make_list(items, tail)
     return result;
 }
 
+function make_curly(items)
+{
+    var result = items[items.length-1];
+    for (i = items.length-2; i >= 0; i--)
+        result = new CompoundTerm(Constants.conjunctionFunctor, [items[i], result]);
+    return new CompoundTerm(Constants.curlyFunctor, [result]);
+}
+
+
+
 function readTerm(stream, options)
 {
     return read_expression({stream:stream, peeked_token: undefined}, Infinity, false, false, {});
@@ -641,4 +672,5 @@ function doTest(atom)
 module.exports = {readTerm: readTerm,
                   numberToken: numberToken,
                   atomicToken: atomicToken,
-		  test: doTest};
+                  test: doTest,
+                  standard_operators: standard_operators};

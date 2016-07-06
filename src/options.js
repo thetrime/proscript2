@@ -24,7 +24,14 @@ module.exports.parseOptions = function(t, domain)
             if (head.functor.arity == 1)
             {
                 if (head.args[0] instanceof AtomTerm)
-                    options[head.functor.name.value] = head.args[0].value;
+                {
+                    if (head.args[0].value == "true")
+                        options[head.functor.name.value] = true;
+                    else if (head.args[0].value == "false")
+                        options[head.functor.name.value] = false;
+                    else
+                        options[head.functor.name.value] = head.args[0].value;
+                }
                 else if (head.args[0] instanceof IntegerTerm)
                     options[head.functor.name.value] = head.args[0].value;
                 Errors.domainError(domain, head);

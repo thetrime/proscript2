@@ -97,3 +97,8 @@ call(X):- X.
 once(X):- X, !.
 
 assert(X):- assertz(X).
+
+nl:- put_code(10).
+
+writeln(X):-
+        write(X), nl.
