@@ -7,9 +7,10 @@ tail recursion
 setup-call-cleanup
 LRU cache for atoms/integers/floats
 documenting the design
-ISO predicates (and others)
 Foreign exception handling
-Metapredicatesg
+Metapredicates
+Convert stream code to use buffers everywhere
+
 tidy
    There are at least 2 representations of every instruction(!)
 Checkings
