@@ -573,8 +573,8 @@ function lex(s)
 function get_raw_char_with_conversion(s)
 {
     if (!PrologFlag.values['char_conversion'])
-	return Stream.get_raw_char(s);
-    var t = Stream.get_raw_char(s);
+        return s.get_raw_char();
+    var t = s.get_raw_char();
     var tt = char_conversion_override[t];
     if (tt === undefined)
         return t;
@@ -585,8 +585,8 @@ function get_raw_char_with_conversion(s)
 function peek_raw_char_with_conversion(s)
 {
     if (!PrologFlag.values['char_conversion'])
-	return Stream.peek_raw_char(s);
-    var t = Stream.peek_raw_char(s);
+        return s.peek_raw_char();
+    var t = s.peek_raw_char();
     var tt = char_conversion_override[t];
     if (tt === undefined)
         return t;
@@ -629,12 +629,12 @@ function parser_test_read(stream, size, count, buffer)
 function doTest(atom)
 {
     var s = {peeked_token: undefined,
-	     stream: Stream.new_stream(parser_test_read,
-				       null,
-				       null,
-				       null,
-				       null,
-				       IO.toByteArray(atom))};
+             stream: new Stream(parser_test_read,
+                                null,
+                                null,
+                                null,
+                                null,
+                                IO.toByteArray(atom))};
     return read_expression(s, Infinity, false, false, {});
 }
 

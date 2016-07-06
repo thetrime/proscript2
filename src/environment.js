@@ -131,21 +131,21 @@ Environment.prototype.reset = function()
     this.trail = [];
     this.halted = false;
     this.exitcode = -1;
-    var stdout = Stream.new_stream(null,
-                                   console_write,
-                                   null,
-                                   null,
-                                   null,
-                                   []);
-    var null_stream = Stream.new_stream(null,
-                                        null,
-                                        null,
-                                        null,
-                                        null,
-                                        []);
+    var stdout = new Stream(null,
+                            console_write,
+                            null,
+                            null,
+                            null,
+                            []);
+    var null_stream = new Stream(null,
+                                 null,
+                                 null,
+                                 null,
+                                 null,
+                                 []);
 
-    this.streams = {current_input: new BlobTerm("stream", null_stream),
-                    current_output: new BlobTerm("stream", stdout)};
+    this.streams = {current_input: null_stream,
+                    current_output: stdout};
 }
 
 Environment.prototype.getModule = function()
@@ -155,12 +155,12 @@ Environment.prototype.getModule = function()
 
 Environment.prototype.consultString = function(data)
 {
-    var stream = Stream.new_stream(string_read,
-                                   null,
-                                   null,
-                                   null,
-                                   null,
-                                   IO.toByteArray(data));
+    var stream = new Stream(string_read,
+                            null,
+                            null,
+                            null,
+                            null,
+                            IO.toByteArray(data));
     var clause = null;
     while ((clause = Parser.readTerm(stream, [])) != null)
     {

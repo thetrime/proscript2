@@ -180,12 +180,6 @@ function execute(env)
                     continue;
                 return false;
             }
-            case "i_save_cut":
-            {
-                throw "not implemented";
-                env.PC++;
-                continue;
-            }
             case "i_enter":
             {
                 env.nextFrame = new Frame(env);
@@ -380,7 +374,6 @@ function execute(env)
                 console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
                 env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
                 env.currentFrame.choicepoint = env.choicepoints.length;
-                //throw "not implemented";
                 env.PC++;
                 continue;
             }
