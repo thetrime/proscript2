@@ -11,6 +11,7 @@ function Stream(read, write, seek, close, tell, userdata)
     this.data = userdata;
     this.buffer = [];
     this.buffer_size = 0;
+    this.do_buffer = true;
     this.term = new BlobTerm("stream", this);
 }
 
@@ -124,6 +125,8 @@ Stream.prototype.putch = function(c)
         Errors.ioError(Constants.writeAtom, this.term);
     this.buffer.push(c);
     this.buffer_size++;
+    if (this.do_buffer == false)
+        this.flush();
     return true;
 }
 
@@ -133,6 +136,8 @@ Stream.prototype.putb = function(c)
         Errors.ioError(Constants.writeAtom, this.term);
     this.buffer.push(c);
     this.buffer_size++;
+    if (this.do_buffer == false)
+        this.flush();
     return true;
 }
 

@@ -138,6 +138,7 @@ Environment.prototype.reset = function()
                             null,
                             null,
                             []);
+    stdout.do_buffer = false;
     var null_stream = new Stream(null,
                                  null,
                                  null,
