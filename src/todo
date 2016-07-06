@@ -18,3 +18,4 @@ Checkings
 
 Bugs:
    It seems suspicious that hVar doesn't do anything (?!)
+   If we retract a clause from a predicate that we are executing, then the code in the stack will be wrong. How can this possibly be avoided, though?

@@ -328,7 +328,45 @@ module.exports.current_predicate = function(indicator)
     return this.unify(indicator, new CompoundTerm(Constants.predicateIndicatorFunctor, [this.currentModule.predicates[keys[index]].functor.name,
                                                                                         new IntegerTerm(this.currentModule.predicates[keys[index]].functor.arity)]));
 }
-// 8.9 (asserta/1, assertz/1, retract/1, abolish/1) are in iso_record.js
+// 8.9.1
+module.exports.asserta = function(term)
+{
+    // FIXME: Does not take modules into account
+    this.currentModule.asserta(term);
+}
+// 8.9.2
+module.exports.assertz = function(term)
+{
+    // FIXME: Does not take modules into account
+    this.currentModule.assertz(term);
+}
+// 8.9.3
+module.exports.retract = function(term)
+{
+    // FIXME: Does not take modules into account
+    var functor = Term.clause_functor(term);
+    var index = this.foreign || 0;
+    var module = this.currentModule;
+    if (module.predicates[functor.toString()].dynamic !== true)
+        Errors.permissionError(Constants.accessAtom, Constants.staticProcedureAtom, term);
+    if (index >= module.predicates[functor.toString()].clauses.length)
+        return false;
+    if (index + 1 < module.predicates[functor.toString()].clauses.length)
+        this.create_choicepoint(index+1);
+    if (this.unify(module.predicates[functor.toString()].clauses[index], term))
+    {
+        module.retractClause(functor, index);
+        return true;
+    }
+    // This will backtrack into the choicepoint we created just before, if the unificaiton failed
+    return false;
+}
+// 8.9.4
+module.exports.abolish = function(indicator)
+{
+    // FIXME: Does not take modules into account
+    this.currentModule.abolish(indicator);
+}
 // 8.10 (findall/3, bagof/3, setof/3) are in builtin.pl (note that they might be much faster if implemented directly in Javascript)
 // 8.11 is in iso_stream.js
 // 8.12 is in iso_stream.js

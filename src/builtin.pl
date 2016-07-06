@@ -95,3 +95,5 @@ recorded(Key, Term):-
 
 call(X):- X.
 once(X):- X, !.
+
+assert(X):- assertz(X).
