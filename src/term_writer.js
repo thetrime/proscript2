@@ -31,7 +31,7 @@ function getOp(functor, options)
 {
     if (options.operators !== undefined)
         return options.operators[functor.toString()];
-    for (var i = 0; i < Parser.standard_operators; i++)
+    for (var i = 0; i < Parser.standard_operators.length; i++)
     {
         if (Parser.standard_operators[i].functor.equals(functor))
             return Parser.standard_operators[i];
@@ -74,6 +74,7 @@ function outputTerm(stream, options, precedence, term)
     {
         // if arg is a current operator
         var op = getOp(term.functor, options);
+        console.log(term.functor.name + "-> " + op);
         if (term.functor.equals(Constants.listFunctor) && options.ignore_ops != true)
         {
             outputString(stream, '[');

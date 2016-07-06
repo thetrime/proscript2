@@ -146,7 +146,7 @@ for (var p in infix_operators)
 {
     if (infix_operators.hasOwnProperty(p))
     {
-        standard_operators.push({functor: new Functor(new AtomTerm(p), 1),
+        standard_operators.push({functor: new Functor(new AtomTerm(p), 2),
                                  precedence: infix_operators[p].precedence,
                                  fixity: infix_operators[p].fixity});
     }
