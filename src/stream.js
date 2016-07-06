@@ -18,7 +18,7 @@ Stream.prototype.flush = function()
 {
     if (this.write == null)
         Errors.permissionError(Constants.outputAtom, Constants.streamAtom, this.term);
-    return this.buffer_size == this.write(this, 1, this.buffer_size, this.buffer);
+    return this.buffer_size == this.write(this, this.buffer_size, this.buffer);
 }
 
 Stream.prototype.get_raw_char = function()
@@ -55,7 +55,7 @@ Stream.prototype.getch = function()
     // The first byte has leading bits 1, then a 1 for every additional byte we need followed by a 0
     // After the 0 is the top 1-5 bits of the final character. This makes it quite confusing.
     for (var mask = 0x20; mask != 0; mask >>=1 )
-    {        
+    {
         var next = this.getb();
         if (next == -1)
             return -1;
@@ -105,7 +105,7 @@ Stream.prototype.getb = function()
     if (this.buffer_size == 0)
     {
         //debug_msg("Buffering...");
-        this.buffer_size = this.read(this, 1, STREAM_BUFFER_SIZE, this.buffer);
+        this.buffer_size = this.read(this, STREAM_BUFFER_SIZE, this.buffer);
         //debug_msg("Buffer now contains " + this.buffer_size + " elements");
     }
     if (this.buffer_size < 0)
@@ -141,7 +141,7 @@ Stream.prototype.peekb = function()
     if (this.buffer_size == 0)
     {
         //debug_msg("Buffering...");
-        this.buffer_size = this.read(this, 1, STREAM_BUFFER_SIZE, this.buffer);
+        this.buffer_size = this.read(this, STREAM_BUFFER_SIZE, this.buffer);
         //debug_msg("Buffer now contains " + s.buffer_size + " elements");
     }
     if (this.buffer_size < 0)
@@ -153,21 +153,18 @@ Stream.prototype.peekb = function()
     return this.buffer[0];
 }
 
-Stream.string_read = function(stream, size, count, buffer)
+Stream.string_read = function(stream, count, buffer)
 {
     var bytes_read = 0;
     var records_read;
     for (records_read = 0; records_read < count; records_read++)
     {
-        for (var b = 0; b < size; b++)
+        t = stream.data.shift();
+        if (t === undefined)
         {
-            t = stream.data.shift();
-            if (t === undefined)
-            {                
-                return records_read;
-            }
-            buffer[bytes_read++] = t;
+            return records_read;
         }
+        buffer[bytes_read++] = t;
     }
     return records_read;
 }

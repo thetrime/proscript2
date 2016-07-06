@@ -7,7 +7,6 @@ var Term = require('./term');
 var Errors = require('./errors');
 var Constants = require('./constants');
 var fs = require('fs');
-var Buffer = require('Buffer');
 
 function get_stream(s)
 {
@@ -36,20 +35,27 @@ var stream_properties = [get_stream_position];
 
 
 // fs doesnt support seek() or tell(), but readSync and writeSync include position arguments. If we keep track of everything ourselves, we should be OK
-function fsRead(stream, size, count, buffer)
+function fsRead(stream, count, buffer)
 {
     // FIXME: This is pretty inefficient. I should probably just use node buffers everywhere
-    // FIXME: We dont really need the size+count abstraction, do we?
-    var b = Buffer.alloc(size*count);
+    var b = new Buffer(count);
     var bytes = fs.readSync(stream.data.fd, b, 0, count, stream.data.position)
     if (bytes != -1)
+    {
+        for (var i = 0; i < bytes; i++)
+            buffer[i] = b.readUInt8(i);
         stream.data.position += bytes;
+    }
     return bytes;
 }
 
-function fsWrite(stream, size, count, buffer)
+function fsWrite(stream, count, buffer)
 {
-    var bytes = fs.writeSync(stream.data.fd, buffer, 0, count, stream.data.position);
+    // FIXME: This is pretty inefficient. I should probably just use node buffers everywhere
+    var b = new Buffer(count);
+    for (var i = 0; i < count; i++)
+        b.writeUInt8(buffer[i], i);
+    var bytes = fs.writeSync(stream.data.fd, b, 0, count, stream.data.position);
     if (bytes != -1)
         stream.data.position += bytes;
     return bytes;
@@ -143,7 +149,7 @@ module.exports.close = [
         if (stream.close != null)
         {
             // FIXME: If options contains force(true) then ignore errors in close()
-            return stream.close();
+            return stream.close(stream);
         }
         return false;
     }];
@@ -250,7 +256,7 @@ module.exports.put_char = [
     {
         Term.must_be_character(c);
         stream = get_stream(stream);
-        stream.putch(String.fromCharCode(c.value));
+        stream.putch(c.value.charCodeAt(0));
         return true;
     }];
 module.exports.put_code = [
