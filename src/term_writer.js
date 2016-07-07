@@ -7,6 +7,7 @@ var Functor = require('./functor');
 var Parser = require('./parser');
 var ArrayUtils = require('./array_utils');
 var Constants = require('./constants');
+var Operators = require('./operators');
 
 function formatAtom(options, term)
 {
@@ -25,10 +26,15 @@ function getOp(functor, options)
 {
     if (options.operators !== undefined)
         return options.operators[functor.toString()];
-    for (var i = 0; i < Parser.standard_operators.length; i++)
+    if (functor.arity < 1 || functor.arity > 2)
+        return null;
+    var op = Operators[functor.name.value];
+    if (op != undefined)
     {
-        if (Parser.standard_operators[i].functor.equals(functor))
-            return Parser.standard_operators[i];
+        if (functor.arity == 1)
+            return op.prefix;
+        else (functor.arity == 2)
+            return op.infix;
     }
     return null;
 }

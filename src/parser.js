@@ -18,6 +18,7 @@ var AtomTerm = require('./atom_term.js');
 var Functor = require('./functor.js');
 var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
+var Operators = require('./operators.js');
 var util = require('util');
 
 function parse_infix(s, lhs, precedence, vars)
@@ -68,90 +69,6 @@ function atomicToken(token)
     return new AtomTerm(token);
 }
 
-// A reminder: yfx means an infix operator f, with precedence p, where the lhs has a precendece <= p and the rhs has a precedence < p.
-
-var prefix_operators = {":-": {precedence: 1200, fixity: "fx"},
-                        "?-": {precedence: 1200, fixity: "fx"},
-                        "dynamic": {precedence: 1150, fixity: "fx"},
-                        "discontiguous": {precedence: 1150, fixity: "fx"},
-                        "initialization": {precedence: 1150, fixity: "fx"},
-                        "meta_predicate": {precedence: 1150, fixity: "fx"},
-                        "module_transparent": {precedence: 1150, fixity: "fx"},
-                        "multifile": {precedence: 1150, fixity: "fx"},
-                        "thread_local": {precedence: 1150, fixity: "fx"},
-                        "volatile": {precedence: 1150, fixity: "fx"},
-                        "\\+": {precedence: 900, fixity: "fy"},
-                        "~": {precedence: 900, fixity: "fx"},
-                        "?": {precedence: 500, fixity: "fx"},
-                        "+": {precedence: 200, fixity: "fy"},
-                        "-": {precedence: 200, fixity: "fy"},
-                        "\\": {precedence: 200, fixity: "fy"}};
-
-
-var infix_operators = {":-": {precedence: 1200, fixity: "xfx"},
-                       "-->": {precedence: 1200, fixity: "xfx"},
-                       ";": {precedence: 1100, fixity: "xfy"},
-                       "|": {precedence: 1100, fixity: "xfy"},
-                       "->": {precedence: 1050, fixity: "xfy"},
-                       "*->": {precedence: 1050, fixity: "xfy"},
-                       ",": {precedence: 1000, fixity: "xfy"},
-                       ":=": {precedence: 990, fixity: "xfx"},
-                       "<": {precedence: 700, fixity: "xfx"},
-                       "=": {precedence: 700, fixity: "xfx"},
-                       "=..": {precedence: 700, fixity: "xfx"},
-                       "=@=": {precedence: 700, fixity: "xfx"},
-                       "=:=": {precedence: 700, fixity: "xfx"},
-                       "=<": {precedence: 700, fixity: "xfx"},
-                       "==": {precedence: 700, fixity: "xfx"},
-                       "=\\=": {precedence: 700, fixity: "xfx"},
-                       ">": {precedence: 700, fixity: "xfx"},
-                       ">=": {precedence: 700, fixity: "xfx"},
-                       "@<": {precedence: 700, fixity: "xfx"},
-                       "@=<": {precedence: 700, fixity: "xfx"},
-                       "@>": {precedence: 700, fixity: "xfx"},
-                       "@>=": {precedence: 700, fixity: "xfx"},
-                       "\\=": {precedence: 700, fixity: "xfx"},
-                       "\\==": {precedence: 700, fixity: "xfx"},
-                       "is": {precedence: 700, fixity: "xfx"},
-                       ">:<": {precedence: 700, fixity: "xfx"},
-                       ":<": {precedence: 700, fixity: "xfx"},
-                       ":": {precedence: 600, fixity: "xfy"},
-                       "+": {precedence: 500, fixity: "yfx"},
-                       "-": {precedence: 500, fixity: "yfx"},
-                       "/\\": {precedence: 500, fixity: "yfx"},
-                       "\\/": {precedence: 500, fixity: "yfx"},
-                       "xor": {precedence: 500, fixity: "yfx"},
-                       "*": {precedence: 400, fixity: "yfx"},
-                       "/": {precedence: 400, fixity: "yfx"},
-                       "//": {precedence: 400, fixity: "yfx"},
-                       "rdiv": {precedence: 400, fixity: "yfx"},
-                       "<<": {precedence: 400, fixity: "yfx"},
-                       ">>": {precedence: 400, fixity: "yfx"},
-                       "mod": {precedence: 400, fixity: "yfx"},
-                       "rem": {precedence: 400, fixity: "yfx"},
-                       "**": {precedence: 200, fixity: "xfx"},
-                       "^": {precedence: 200, fixity: "xfy"}};
-
-var standard_operators = [];
-for (var p in prefix_operators)
-{
-    if (prefix_operators.hasOwnProperty(p))
-    {
-        standard_operators.push({functor: new Functor(new AtomTerm(p), 1),
-                                 precedence: prefix_operators[p].precedence,
-                                 fixity: prefix_operators[p].fixity});
-    }
-}
-for (var p in infix_operators)
-{
-    if (infix_operators.hasOwnProperty(p))
-    {
-        standard_operators.push({functor: new Functor(new AtomTerm(p), 2),
-                                 precedence: infix_operators[p].precedence,
-                                 fixity: infix_operators[p].fixity});
-    }
-}
-
 // This returns a javascript object representation of the term. It takes the two extra args because of some oddities with Prolog:
 // 1) If we are reading foo(a, b) and we are at the a, we would accept the , as part of the LHS. ie, we think (a,b) is the sole argument. Instead, we should make , have
 //    very high precedence if we are reading an arg. Of course, () can reduce this again, so that foo((a,b)) does indeed read ,(a,b) as the single argument
@@ -165,7 +82,7 @@ function read_expression(s, precedence, isarg, islist, vars)
     }
     var lhs;
     // Either the token is an operator, or it must be an atom (or the start of a list or curly-list)
-    var op = prefix_operators[token];
+    var op = (Operators[token] || {}).prefix;
     // There are some caveats here. For example, when reading [-] or foo(is, is) the thing is not actually an operator.
     var peeked_token = peek_token(s);
     if (peeked_token == ']' || peeked_token == ')' || peeked_token == ',') // Maybe others? This is a bit ugly :(
@@ -350,7 +267,7 @@ function read_expression(s, precedence, isarg, islist, vars)
         {
 	    return lhs;
         }
-	op = infix_operators[infix_operator];
+        op = (Operators[infix_operator] || {}).infix;
 	if (op !== undefined)
         {
             if (op.fixity == "xfx" && precedence > op.precedence)
@@ -673,5 +590,4 @@ module.exports = {readTerm: readTerm,
                   numberToken: numberToken,
                   atomicToken: atomicToken,
                   test: doTest,
-                  standard_operators: standard_operators,
                   is_graphic_char:is_graphic_char};
