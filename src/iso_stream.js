@@ -33,6 +33,7 @@ function get_stream_position(stream, property)
     return false;
 }
 
+// FIXME: 7.10.2.13 requires us to support the following: file_name/1, mode/1, input/0, output/0, alias/1, position/1, end_of_stream/1 eof_action/1, reposition/1, type/1
 var stream_properties = [get_stream_position];
 
 
@@ -129,9 +130,10 @@ module.exports.open = [
     },
     function(file, mode, stream, options)
     {
+        // FIXME: Options we must support for open/4 are given in 7.10.2.11
         Term.must_be_atom(file);
         Term.must_be_atom(mode);
-        if (mode.value != "read" && mode.value != "write" && mode.value != "append") // FIXME: It isnt really clear what values io_mode is allowed
+        if (mode.value != "read" && mode.value != "write" && mode.value != "append") // These are the three IO modes required in 7.10.1.1
             Errors.domainError(Constants.ioModeAtom, mode);
         return this.unify(stream, new BlobTerm("stream", fsOpen(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
     }];
@@ -149,9 +151,10 @@ module.exports.close = [
             stream.flush();
         if (stream.close != null)
         {
-            // FIXME: If options contains force(true) then ignore errors in close()
+            // FIXME: If options contains force(true) then ignore errors in close(), and in fact not close the stream at all if we failed to flush. See 7.10.2.12
             return stream.close(stream);
         }
+        // FIXME: If we have just closed current_input or current_output then we must set those back to stdin or stdout according to 7.10.2.4
         return false;
     }];
 
