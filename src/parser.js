@@ -15,6 +15,7 @@ var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
+var NumericTerm = require('./numeric_term.js');
 var Functor = require('./functor.js');
 var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
@@ -46,7 +47,7 @@ function numberToken(token)
 {
     if (!isNaN(token) && parseInt(token) == token)
     {
-        return new IntegerTerm(parseInt(token));
+        return NumericTerm.get(token);
     }
     if (!isNaN(token) && parseFloat(Number(token)) == token)
     {

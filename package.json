@@ -6,7 +6,8 @@
   "dependencies": {
       "xmlhttprequest": "^1.8.0",
       "browserify": "^13.0.0",
-      "brfs": "^1.4.3"
+      "brfs": "^1.4.3",
+      "big-integer": "^1.6.15"
   },
   "devDependencies": {},
   "scripts": {

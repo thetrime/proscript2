@@ -22,6 +22,19 @@ CompoundTerm.prototype.dereference = function()
     return this;
 }
 
+CompoundTerm.prototype.dereference_recursive = function()
+{
+    var deref_args = new Array(this.functor.arity);
+    for (var i = 0; i < this.functor.arity; i++)
+    {
+        if (this.args[i] instanceof CompoundTerm)
+            deref_args[i] = this.args[i].dereference_recursive();
+        else
+            deref_args[i] = this.args[i].dereference();
+    }
+    return new CompoundTerm(this.functor, deref_args);
+}
+
 CompoundTerm.prototype.toString = function()
 {
     var s = this.functor.name.toString() + "(";

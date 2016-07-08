@@ -1,3 +1,5 @@
+"use strict";
+
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var AtomTerm = require('./atom_term.js');
@@ -5,22 +7,68 @@ var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var FloatTerm = require('./float_term.js');
 var BigIntegerTerm = require('./biginteger_term.js');
+var BigInteger = require('big-integer');
+var NumericTerm = require('./numeric_term');
+var Rational = require('./rational.js');
 var RationalTerm = require('./rational_term.js');
 var Errors = require('./errors.js');
 var Term = require('./term.js');
 var util = require('util');
 
 
-var strict_iso = true;
-var is_unbounded = false;
+var strict_iso = false;
+var is_unbounded = true;
 
-function evaluate_args(a)
+function evaluate_args(args)
 {
-    var evaluated = new Array(a.length);
-    for (i = 0; i < a.length; i++)
-        evaluated[i] = evaluate_expression(a[i]);
+    var evaluated = new Array(args.length);
+    for (var i = 0; i < args.length; i++)
+    {
+        evaluated[i] = evaluate_expression(args[i]);
+    }
     return evaluated;
 }
+
+function toFloats(args)
+{
+    var floats = new Array(args.length);
+    for (var i = 0; i < args.length; i++)
+    {
+        if (args[i] instanceof IntegerTerm || args[i] instanceof FloatTerm)
+            floats[i] = Number(args[i].value);
+        else if (args[i] instanceof BigInteger || args[i] instanceof RationalTerm)
+            floats[i] = Number(args[i].value.valueOf());
+    }
+    return floats;
+}
+
+function toBigIntegers(args)
+{
+    var bi = new Array(args.length);
+    for (var i = 0; i < args.length; i++)
+    {
+        if (args[i] instanceof IntegerTerm)
+            bi[i] = new BigInteger(args[i].value);
+        else if (args[i] instanceof BigIntegerTerm)
+            bi[i] = args[i].value;
+        else
+            throw new Error("Illegal BigInteger conversion from " + args[i].getClass());
+    }
+    return bi;
+}
+
+function toRationals(args)
+{
+    var r = new Array(args.length);
+    for (var i = 0; i < args.length; i++)
+    {
+        if (!(args[i] instanceof RationalTerm))
+            throw new Error("Illegal Rational conversion");
+        r[i] = args[i].value;
+    }
+    return r;
+}
+
 
 function evaluate_expression(a)
 {
@@ -151,7 +199,7 @@ function evaluate_expression(a)
             else
             {
                 var bi = toBigIntegers(arg);
-                if (bi[1].value.equals(NumericTerm.BigZero))
+                if (bi[1].value.isZero())
                     Errors.zeroDivisor();
                 return new BigIntegerTerm(bi[0].divide(bi[1]));
             }
@@ -164,7 +212,6 @@ function evaluate_expression(a)
                 // Rational
                 var r = toRationals(arg);
                 var res = r[0].divide(r[1]);
-                // FIXME: This COULD be a BigIntegerTerm
                 return NumericTerm.get(res);
             }
             else
@@ -292,7 +339,7 @@ function evaluate_expression(a)
             }
             else if (arg[0] instanceof RationalTerm)
             {
-                return new BigIntegerTerm(arg[0].value.numerator().divide(arg[0].value.denominator()));
+                return new BigIntegerTerm(arg[0].value.numerator.divide(arg[0].value.denominator));
             }
         }
         else if (a.functor.equals(Constants.floatFractionPartFunctor))
@@ -311,7 +358,7 @@ function evaluate_expression(a)
             }
             else if (arg[0] instanceof RationalTerm)
             {
-                var quotient = arg[0].value.numerator().divide(arg[0].value.denominator());
+                var quotient = arg[0].value.numerator.divide(arg[0].value.denominator);
                 var r = new Rational(quotient, new BigInteger(1));
                 return new RationalTerm(arg[0].value.subtract(r));
             }
@@ -339,7 +386,7 @@ function evaluate_expression(a)
             else if (a instanceof BigIntegerTerm && !strict_iso)
                 return arg[0];
             else if (arg[0] instanceof RationalTerm && !strict_iso)
-                return arg[0].truncate();
+                return arg[0].truncate(); // FIXME: No?
             Errors.typeError(Constants.floatAtom, arg[0]);
         }
         else if (a.functor.equals(Constants.truncateFunctor))
@@ -382,6 +429,61 @@ function evaluate_expression(a)
             Errors.typeError(Constants.floatAtom, arg[0]);
         }
         // Can add in extensions here, otherwise we fall through to the evaluableError below
+        else if (a.functor.equals(Constants.exponentiationFunctor))
+        {
+            var arg = evaluate_args(a.args);
+            if (arg[0] instanceof FloatTerm || arg[1] instanceof FloatTerm)
+            {
+                var f = toFloats(arg);
+                return new FloatTerm(Math.pow(f[0], f[1]));
+            }
+            else if (arg[0] instanceof IntegerTerm)
+            {
+                if (arg[1] instanceof IntegerTerm)
+                {
+                    var attempt = Math.pow(arg[0], arg[1]);
+                    console.log("Here: " + attempt);
+                    if (attempt == ~~attempt) // no loss of precision
+                        return new IntegerTerm(attempt);
+                    return new BigIntegerTerm(new BigInteger(arg[0].value).pow(arg[1]));
+                }
+                if (arg[1] instanceof BigIntegerTerm)
+                    Errors.integerOverflow();
+                if (arg[1] instanceof RationalTerm)
+                {
+                    throw new Error("Not implemented");
+                }
+            }
+            else if (arg[0] instanceof BigIntegerTerm)
+            {
+                if (arg[1] instanceof IntegerTerm)
+                {
+                    throw new Error("Not implemented");
+                }
+                else if (arg[1] instanceof RationalTerm)
+                {
+                    throw new Error("Not implemented");
+                }
+                else if (arg[1] instanceof BigIntegerTerm)
+                {
+                    Errors.integerOverflow();
+                }
+            }
+            else if (arg[0] instanceof RationalTerm)
+            {
+                throw new Error("Not implemented");
+            }
+        }
+        else if (a.functor.equals(Constants.rdivFunctor) && !strict_iso)
+        {
+            var arg = evaluate_args(a.args);
+            if (!(arg[0] instanceof IntegerTerm || arg[0] instanceof BigIntegerTerm))
+                Errors.typeError(Constants.integerAtom, arg[0]);
+            if (!(arg[1] instanceof IntegerTerm || arg[1] instanceof BigIntegerTerm))
+                Errors.typeError(Constants.integerAtom, arg[1]);
+            var bi = toBigIntegers(arg);
+            return NumericTerm.get(Rational.rationalize(bi[0], bi[1]));
+        }
     }
     console.log("Could not evaluate: " + util.inspect(a));
     Errors.typeError(Constants.evaluableAtom, a);
@@ -461,7 +563,8 @@ function compare(a, b)
 // 8.6.1
 module.exports.is = function(result, expr)
 {
-    return this.unify(result, evaluate_expression(expr));
+    var q = evaluate_expression(expr);
+    return this.unify(result, q);
 }
 
 // 8.7.1 Arithmetic comparison

@@ -20,7 +20,7 @@ RationalTerm.prototype.getClass = function()
 
 RationalTerm.prototype.toString = function()
 {
-    return this.value;
+    return "rdiv(" + this.value.numerator.toString() + "," + this.value.denominator.toString()+")";
 }
 
 module.exports = RationalTerm;

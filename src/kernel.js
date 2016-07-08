@@ -278,7 +278,12 @@ function execute(env)
                 env.foreign = env.currentFrame.reserved_slots[0];
                 var args = env.currentFrame.slots.slice(0);
                 for (var i = 0; i < args.length; i++)
+                {
                     args[i] = args[i].dereference();
+                    if (args[i] instanceof CompoundTerm)
+                        args[i] = args[i].dereference_recursive();
+                }
+
                 // Set the foreign info to undefined
                 var rc = false;
                 try

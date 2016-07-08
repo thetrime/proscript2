@@ -1,3 +1,6 @@
+var BigInteger = require('big-integer');
+var NumericTerm = require('./numeric_term');
+
 function BigIntegerTerm(value)
 {
     this.value = value;
@@ -20,7 +23,7 @@ BigIntegerTerm.prototype.getClass = function()
 
 BigIntegerTerm.prototype.toString = function()
 {
-    return this.value;
+    return this.value.toString()
 }
 
 module.exports = BigIntegerTerm;
