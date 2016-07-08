@@ -260,6 +260,16 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
         instructions.push({opcode: Instructions.hAtom,
                            atom: arg});
     }
+    else if (arg instanceof FloatTerm)
+    {
+        instructions.push({opcode: Instructions.hAtom,
+                           atom: arg});
+    }
+    else if (arg instanceof BigIntegerTerm)
+    {
+        instructions.push({opcode: Instructions.hAtom,
+                           atom: arg});
+    }
     else if (arg instanceof CompoundTerm)
     {
 	instructions.push({opcode: Instructions.hFunctor,

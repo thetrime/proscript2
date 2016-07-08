@@ -15,6 +15,7 @@ var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
+var BigInteger = require('big-integer');
 var NumericTerm = require('./numeric_term.js');
 var Functor = require('./functor.js');
 var FloatTerm = require('./float_term.js');
@@ -55,13 +56,15 @@ function numberToken(token)
         if (parseFloat(Number(token)) == token)
             return new FloatTerm(parseFloat(token));
     }
+    else if (token instanceof BigInteger)
+        return new BigIntegerTerm(token);
     return null;
 }
 
 function atomicToken(token)
 {
     //console.log("Token: " + token);
-    if (typeof(token) === 'number')
+    if (typeof(token) === 'number' || token instanceof BigInteger)
     {
         var number = numberToken(token);
         if (number != null)
@@ -425,6 +428,44 @@ function lex(s)
     {
         // Integer. May contain 0-9 only. Floats complicate this a bit
         // FIXME: We need to read the token in as a string first then convert to either an Integer, BigInteger or Float
+        var token = c;
+        var seen_decimal = false;
+        while(true)
+        {
+            c = peek_raw_char_with_conversion(s);
+            if (c >= '0' && c <= '9')
+            {
+                token = token + c;
+                get_raw_char_with_conversion(s);
+            }
+            else if (c == '.' && !seen_decimal)
+            {
+                token += '.';
+                get_raw_char_with_conversion(s);
+                // FIXME: Check that the next char is a number to avoid "X = 3." from causing problems
+                seen_decimal = true;
+            }
+            else if (is_char(c))
+                throw syntax_error("illegal number" + token + ": " + c);
+            else
+                break;
+        }
+        if (!seen_decimal && token.length < 16)
+        {
+            console.log("Integer: " + token);
+            return parseInt(token);
+        }
+        if (seen_decimal)
+        {
+            console.log("Float: " + token);
+            return parseFloat(token);
+        }
+        if (parseInt(token) == parseFloat(token)) // FIXME: only if unbounded! Otherwise float
+        {
+            console.log("BigInteger: " + token);
+            return new BigInteger(token);
+        }
+        /*
         var negate = false;
         if (c == '-')
         {
@@ -463,6 +504,7 @@ function lex(s)
 		return negate?(-token):token;
             }
         }
+        */
     }
     else 
     {

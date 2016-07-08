@@ -1,7 +1,7 @@
 var BigInteger = require('big-integer');
 var Rational = require('./rational');
 var IntegerTerm = require('./integer_term');
-var BigIntegerTerm = require('./biginteger_term');
+var BigIntegerTerm = require('./biginteger_term.js');
 var RationalTerm = require('./rational_term');
 
 module.exports.get = function(t)
@@ -10,6 +10,7 @@ module.exports.get = function(t)
     {
         if (t.isSmall)
             return new IntegerTerm(t.valueOf());
+        console.log(require('./biginteger_term.js'));
         return new BigIntegerTerm(t);
     }
     else if (t instanceof Rational)

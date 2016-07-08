@@ -1,6 +1,3 @@
-var BigInteger = require('big-integer');
-var NumericTerm = require('./numeric_term');
-
 function BigIntegerTerm(value)
 {
     this.value = value;

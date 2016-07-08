@@ -62,9 +62,14 @@ function toRationals(args)
     var r = new Array(args.length);
     for (var i = 0; i < args.length; i++)
     {
-        if (!(args[i] instanceof RationalTerm))
-            throw new Error("Illegal Rational conversion");
-        r[i] = args[i].value;
+        if (args[i] instanceof RationalTerm)
+            r[i] = args[i].value;
+        else if (args[i] instanceof BigIntegerTerm)
+            r[i] = new Rational(args[i].value, BigInteger.one);
+        else if (args[i] instanceof IntegerTerm)
+            r[i] = new Rational(new BigInteger(args[i].value), BigInteger.one);
+        else
+            throw new Error("Illegal BigInteger conversion from " + args[i].getClass());
     }
     return r;
 }
