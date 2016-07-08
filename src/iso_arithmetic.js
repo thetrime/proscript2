@@ -226,7 +226,7 @@ function evaluate_expression(a)
                 {
                     if (isUnbounded)
                         return new BigIntegerTerm(new BigInteger(arg[0].value).negate())
-                    Errors.intOverflow();
+                    Errors.integerOverflow();
                 }
                 return new IntegerTerm(-arg[0].value);
             }
@@ -384,7 +384,7 @@ function evaluate_expression(a)
         // Can add in extensions here, otherwise we fall through to the evaluableError below
     }
     console.log("Could not evaluate: " + util.inspect(a));
-    Errors.evaluableError(a);
+    Errors.typeError(Constants.evaluableAtom, a);
 }
 
 var type_names = ["int", "bigint", "float", "rational"];

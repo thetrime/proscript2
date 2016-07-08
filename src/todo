@@ -7,7 +7,6 @@ tail recursion
 setup-call-cleanup
 LRU cache for atoms/integers/floats
 documenting the design
-Foreign exception handling
 Metapredicates
 Convert stream code to use buffers everywhere
 

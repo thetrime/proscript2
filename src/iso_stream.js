@@ -4,6 +4,7 @@ var IntegerTerm = require('./integer_term');
 var Options = require('./options');
 var Stream = require('./stream');
 var Term = require('./term');
+var CompoundTerm = require('./compound_term');
 var Errors = require('./errors');
 var Constants = require('./constants');
 var Parser = require('./parser');
@@ -317,11 +318,11 @@ module.exports.put_byte = [
 module.exports.read_term = [
     function(term, options)
     {
-        return this.unify(term, Parser.readTerm(this.streams.current_input, Options.parseOptions(options, Constants.readOption)));
+        return this.unify(term, Parser.readTerm(this.streams.current_input, Options.parseOptions(options, Constants.readOptionAtom)));
     },
     function(stream, term, options)
     {
-        return this.unify(term, Parser.readTerm(get_stream(stream), Options.parseOptions(options, Constants.readOption)));
+        return this.unify(term, Parser.readTerm(get_stream(stream), Options.parseOptions(options, Constants.readOptionAtom)));
     }];
 module.exports.read = [
     function(term)
@@ -401,6 +402,7 @@ module.exports.op = function(priority, fixity, op)
         case "yf": slot = "postfix"; break;
         default: Errors.domainError(Constants.operatorSpecifierAtom, fixity);
     }
+    // FIXME: Ensure we do not create a prefix and an infix op with the same name
     if (Operators[op.value] === undefined && new_op != undefined)
         Operators[op.value] = {};
     Operators[op.value][slot] = new_op;

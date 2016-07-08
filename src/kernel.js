@@ -155,6 +155,7 @@ function popArgFrame(env)
 
 var debugger_steps = 0;
 var next_opcode = undefined;
+var exception = undefined;
 function execute(env)
 {
     var current_opcode;
@@ -218,7 +219,18 @@ function execute(env)
                 for (var i = 0; i < args.length; i++)
                     args[i] = args[i].dereference();
                 // Set the foreign info to undefined
-                var rc = env.currentFrame.code.constants[0].apply(env, args);
+                var rc = false;
+                try
+                {
+                    rc = env.currentFrame.code.constants[0].apply(env, args);
+                }
+                catch (e)
+                {
+                    exception = e;
+                    console.log("Foreign result: " + exception);
+                    next_opcode = "b_throw_foreign";
+                    continue next_instruction;
+                }
                 console.log("Foreign result: " + rc);
                 if (rc == 0)
                 {
@@ -272,7 +284,11 @@ function execute(env)
                 // into a frame that should've been destroyed by the bubbling exception
 
                 // First, make a copy of the ball, since we are about to start unwinding things and we dont want to undo its binding
-                var exception = copyTerm(env.argP[env.argI-1]);
+                exception = copyTerm(env.argP[env.argI-1]);
+                // Fall-through
+            }
+            case "b_throw_foreign":
+            {
                 var frame = env.currentFrame;
                 console.log(util.inspect(env.choicepoints));
                 while (frame != undefined)

@@ -244,7 +244,7 @@ module.exports.functor = function(term, name, arity)
         return this.unify(name, term.functor.name) && this.unify(arity, new IntegerTerm(term.functor.arity));
     }
     else
-        Errors.typeError(Constants.termAtom, term);
+        Errors.typeError(Constants.compoundAtom, term);
 }
 // 8.5.2 arg/3
 module.exports.arg = function(n, term, arg)
@@ -259,7 +259,7 @@ module.exports.arg = function(n, term, arg)
     if (n.value < 0)
         Errors.domainError(Constants.notLessThanZeroAtom, n);
     if (!(term instanceof CompoundTerm))
-        Errors.typeError(Constants.compound, term);
+        Errors.typeError(Constants.compoundAtom, term);
     if (term.args[n.value] === undefined)
         return false; // N is too big
     return this.unify(term.args[n.value], arg);
@@ -641,7 +641,7 @@ module.exports.number_chars = function(number, chars)
         }
         var token = Parser.numberToken(buffer);
         if (token == null)
-            Errors.syntaxError(Constants.illegalNumber);
+            Errors.syntaxError(Constants.illegalNumberAtom);
         return this.unify(number, Parser.numberToken(buffer));
     }
     else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
@@ -680,7 +680,7 @@ module.exports.number_codes = function(number, codes)
         }
         var token = Parser.numberToken(buffer);
         if (token == null)
-            Errors.syntaxError(Constants.illegalNumber);
+            Errors.syntaxError(Constants.illegalNumberAtom);
         return this.unify(number, Parser.numberToken(buffer));
     }
     else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
