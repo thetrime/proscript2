@@ -1,6 +1,6 @@
 var opcodes =
     [
-	{key: "iFail",
+        {key: "iFail",
 	 label: "i_fail",
 	 args: []},
 	{key: "iEnter",
@@ -26,6 +26,9 @@ var opcodes =
          args: ["slot"]},
         {key: "bThrow",
          label:"b_throw",
+         args: []},
+        {key: "bCleanupChoicepoint",
+         label:"b_cleanup_choicepoint",
          args: []},
         {key: "iExitCatch",
          label:"i_exitcatch",

@@ -63,7 +63,6 @@ function atomicToken(token)
         var number = numberToken(token);
         if (number != null)
         {
-            console.log("Is number");
             return number;
         }
     }

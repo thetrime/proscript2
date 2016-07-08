@@ -166,7 +166,7 @@ Environment.prototype.consultString = function(data)
     var clause = null;
     while ((clause = Parser.readTerm(stream, [])) != null)
     {
-        console.log("Clause: " + util.inspect(clause, {showHidden: false, depth: null}));
+        //console.log("Clause: " + util.inspect(clause, {showHidden: false, depth: null}));
         var functor = clauseFunctor(clause);
         this.getModule().addClause(functor, clause);
     }

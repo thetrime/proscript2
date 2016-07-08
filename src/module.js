@@ -101,7 +101,7 @@ Module.prototype.getPredicateCode = function(functor)
         throw(0);
         return undefined;
     }
-    console.log("Found: " + util.inspect(this.predicates[functor.toString()]));
+    //console.log("Found: " + util.inspect(this.predicates[functor.toString()]));
     if (this.predicates[functor.toString()].code === undefined)
         this.compilePredicate(functor);
     //console.log(util.inspect(this.predicates[functor.toString()], {showHidden: false, depth: null}));

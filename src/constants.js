@@ -70,7 +70,7 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
 
                   predicateIndicatorFunctor: new Functor(new AtomTerm("/"), 2),
                   numberedVarFunctor: new Functor(new AtomTerm("$VAR"), 1),
-
+                  cleanupChoicepointFunctor: new Functor(new AtomTerm("$cleanup_choicepoint"), 2),
                   curlyFunctor: new Functor(new AtomTerm("{}"), 1),
                   catchFunctor: new Functor(new AtomTerm("catch"), 3),
                   throwFunctor: new Functor(new AtomTerm("throw"), 1),

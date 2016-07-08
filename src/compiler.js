@@ -39,7 +39,7 @@ function compilePredicate(clauses)
                 clausePointers[i] = instructions.length;
                 instructions.push({opcode: Instructions.nop});
             }
-            console.log("Compiling " + util.inspect(clauses[i], {showHidden: false, depth: null}));
+            //console.log("Compiling " + util.inspect(clauses[i], {showHidden: false, depth: null}));
 	    compileClause(dereference_recursive(clauses[i]), instructions);
 	}
 	// Now go back and fill in the try-retry-trust constructs
@@ -56,7 +56,7 @@ function compilePredicate(clauses)
 
     // Now convert instructions into an array of primitive types and an array of constants
     var result = assemble(instructions);
-    console.log(util.inspect(result, {showHidden: false, depth: null}));
+    //console.log(util.inspect(result, {showHidden: false, depth: null}));
     return result;
 }
 
@@ -160,11 +160,11 @@ function compileQuery(term)
     // b_firstvar, and the variable passed in will be destroyed
     var variables = [];
     findVariables(term, variables);
-    console.log("Variables found in " + term + ":" + util.inspect(variables));
+    //console.log("Variables found in " + term + ":" + util.inspect(variables));
     compileClause(new CompoundTerm(Constants.clauseFunctor, [new CompoundTerm("$query", variables), dereference_recursive(term)]), instructions);
     var code = assemble(instructions);
     code.variables = variables;
-    console.log(util.inspect(code, {showHidden: false, depth: null}));
+    //console.log(util.inspect(code, {showHidden: false, depth: null}));
     return code;
 }
 
@@ -285,7 +285,8 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
     }
     else if (term.equals(Constants.trueAtom))
     {
-	instructions.push({opcode: Instructions.iTrue});
+        if (isTailGoal)
+            instructions.push({opcode: Instructions.iExit});
     }
     else if (term.equals(Constants.catchAtom))
     {
@@ -388,7 +389,14 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
 	    compileTermCreation(term.args[0], variables, instructions);
             instructions.push({opcode: Instructions.bThrow});
 	}
-	else if (term.functor.equals(Constants.localCutFunctor))
+        else if (term.functor.equals(Constants.cleanupChoicepointFunctor))
+	{
+            compileTermCreation(term.args[0], variables, instructions);
+            compileTermCreation(term.args[1], variables, instructions);
+            instructions.push({opcode: Instructions.bCleanupChoicepoint});
+	}
+
+        else if (term.functor.equals(Constants.localCutFunctor))
         {
             // FIXME: Check that reservedContext.nextReserved < reservedContext.maxReserved
             var cutPoint = reservedContext.nextReserved++;

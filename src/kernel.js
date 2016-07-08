@@ -11,7 +11,7 @@ var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
 var CompoundTerm = require('./compound_term.js');
 var Choicepoint = require('./choicepoint.js');
-
+var Instructions = require('./opcodes.js').opcode_map;
 var READ = 0;
 var WRITE = 1;
 
@@ -101,7 +101,7 @@ function _copyTerm(t, vars, newVars)
     return t;
 }
 
-function unwind_stack(env, choicepoint)
+function restore_state(env, choicepoint)
 {
     env.currentFrame = choicepoint.frame;
     env.PC = choicepoint.retryPC;
@@ -110,6 +110,11 @@ function unwind_stack(env, choicepoint)
     env.argI = choicepoint.argI;
     env.argS = choicepoint.argS;
     env.nextFrame = choicepoint.nextFrame;
+}
+
+function unwind_stack(env, choicepoint)
+{
+    restore_state(env, choicepoint);
     unwind_trail(env);
 }
 
@@ -136,6 +141,57 @@ function backtrack(env)
         return backtrack(env);
     }
     return true;
+}
+
+function cut_to(env, point)
+{
+    while (env.choicepoints.length > point)
+    {
+        var c = env.choicepoints.pop();
+        if (c.cleanup != undefined)
+        {
+            // Run the cleanup if the catcher unifies. Basically, since this is SO far outside the normal execution flow,
+            // just run it as if it were a new top-level query
+            if (env.unify(c.cleanup.catcher, Constants.cutAtom))
+            {
+                // What do we do about exceptions, failures etc? For now, just ignore them
+                var savedState = new Choicepoint(env, env.PC);
+                try
+                {
+                    var compiledCode = Compiler.compileQuery(c.cleanup.goal);
+
+                    // make a frame with 0 args (since a query has no head)
+                    env.currentFrame = new Frame(env);
+                    env.currentFrame.functor = new Functor(new AtomTerm("$cleanup"), 0);
+                    env.currentFrame.code = {opcodes: [Instructions.iExitQuery.opcode],
+                                             constants: []};
+                    env.nextFrame.parent = env.currentFrame;
+                    env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
+                    env.nextFrame.code = {opcodes: compiledCode.bytecode,
+                                          constants: compiledCode.constants};
+                    env.nextFrame.returnPC = 0; // Return to exit_query
+
+                    env.currentFrame = env.nextFrame;
+                    env.argP = env.currentFrame.slots;
+                    env.argI = 0;
+                    for (var i = 0; i < compiledCode.variables.length; i++)
+                        env.currentFrame.slots[i] = compiledCode.variables[i];
+                    env.nextFrame = new Frame(env);
+                    env.PC = 0; // Start from the beginning of the code in the next frame
+                    console.log("Executing handler " + c.cleanup.goal);
+                    console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
+                    this.execute(env);
+                }
+                catch(ignored)
+                {
+                }
+                finally
+                {
+                    restore_state(env, savedState);
+                }
+            }
+        }
+    }
 }
 
 function newArgFrame(env)
@@ -180,6 +236,11 @@ function execute(env)
                 if (backtrack(env))
                     continue;
                 return false;
+            }
+            case "i_true":
+            {
+                env.PC++;
+                continue;
             }
             case "i_enter":
             {
@@ -275,6 +336,20 @@ function execute(env)
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
+            case "b_cleanup_choicepoint":
+            {
+                // This just leaves a fake choicepoint (one you cannot backtrack onto) with a .cleanup value set to the cleanup handler
+                var c = new Choicepoint(env, -1);
+                console.log("Goal: " + env.argP[env.argI-1]);
+                console.log("Catcher: " + env.argP[env.argI-2]);
+                c.cleanup = {goal: env.argP[env.argI-1],
+                             catcher: env.argP[env.argI-2]};
+                env.argP-=2;
+                env.choicepoints.push(c);
+                env.PC++;
+                continue;
+            }
+
             case "b_throw":
             {
                 // This is the hardest part of the exception handling process.
@@ -388,7 +463,9 @@ function execute(env)
             {
                 // The task of i_cut is to pop and discard all choicepoints newer than env.currentFrame.choicepoint
                 console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
-                env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
+                // If we want to support cleanup, we cannot just do this:
+                //env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
+                cut_to(env, env.currentFrame.choicepoint);
                 env.currentFrame.choicepoint = env.choicepoints.length;
                 env.PC++;
                 continue;
@@ -397,7 +474,7 @@ function execute(env)
             {
                 // The task of c_cut is to pop and discard all choicepoints newer than the value in the given slot
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                env.choicepoints = env.choicepoints.slice(0, env.currentFrame.reserved_slots[slot]);
+                cut_to(env, env.currentFrame.reserved_slots[slot]);
                 env.PC+=3;
                 continue;
             }
@@ -595,7 +672,8 @@ function execute(env)
                 }
                 else
                 {
-                    console.log("argP: " + util.inspect(env.argP));
+                    console.log("argP: " + util.inspect(env.argP, {showHidden: false, depth:null}));
+                    console.log("argI: " + env.argI);
                     console.log("Failed to unify " + util.inspect(arg) + " with the atom " + util.inspect(atom));
                     if (backtrack(env))
                         continue;
@@ -605,12 +683,21 @@ function execute(env)
             }
             case "h_void":
             {
+                env.argI++;
 	        env.PC++;
 	        continue;
             }
 	    case "h_var":
-	    {
-		env.PC+=3;
+            {
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var arg = env.argP[env.argI++].dereference();
+                if (!env.unify(arg, env.currentFrame.slots[slot]))
+                {
+                    if (backtrack(env))
+                        continue;
+                    return false;
+                }
+                env.PC+=3;
 		continue;
 	    }
 	    case "c_jump":
@@ -642,4 +729,5 @@ function execute(env)
 
 module.exports = {execute: execute,
                   backtrack: backtrack,
+
                   copyTerm: copyTerm};

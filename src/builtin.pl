@@ -102,3 +102,31 @@ nl:- put_code(10).
 
 writeln(X):-
         write(X), nl.
+
+catch(_Goal,_Unifier,_Handler):-
+        '$catch'.
+
+setup_call_cleanup(A,B,C):-
+        setup_call_catcher_cleanup(A,B,_,C).
+
+setup_call_catcher_cleanup(Setup, Call, Catcher, Cleanup):-
+        Setup,
+        catch('$call_catcher_cleanup'(Call, Catcher, Cleanup),
+                Catcher,
+                ( Cleanup, throw(Catcher))).
+
+'$call_catcher_cleanup'(Call, Catcher, Cleanup):-
+        '$choicepoint_depth'(P),
+        Call,
+        '$choicepoint_depth'(Q),
+        ( P == Q->
+            Catcher = exit,
+            !,
+            Cleanup
+        ; '$cleanup_choicepoint'(Catcher, Cleanup)
+        ).
+
+'$call_catcher_cleanup'(_, fail, Cleanup):-
+        Cleanup,
+        !,
+        fail.
