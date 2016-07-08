@@ -26,7 +26,7 @@ var opcodes =
          args: ["slot"]},
         {key: "iSwitchModule",
          label:"i_switch_module",
-         args: []},
+         args: ["atom"]},
         {key: "bThrow",
          label:"b_throw",
          args: []},

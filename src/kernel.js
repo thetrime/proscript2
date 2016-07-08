@@ -395,15 +395,23 @@ function execute(env)
             }
             case "i_switch_module":
             {
-                throw("Not implemented");
+                // FIXME: We must make sure that when processing b_throw that we pop modules as needed
+                // FIXME: There could also be implications for the cleanup in setup-call-cleanup?
+                var module = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+                env.moduleStack.push(env.currentModule);
+                env.currentModule = Module.get(module.value);
+                env.PC+=3;
+                continue;
             }
             case "i_exitmodule":
             {
-                throw("Not implemented");
+                env.currentModule = env.moduleStack.pop();
+                env.PC++;
+                continue;
             }
             case "i_call":
             {
-		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+                var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
                 env.nextFrame.code = env.getPredicateCode(functor);
                 env.nextFrame.returnPC = env.PC+3;

@@ -185,7 +185,7 @@ Environment.prototype.consultString = function(data)
                     var args = new Array(exports[i].args[1].value);
                     for (var j = 0; j < exports[i].args[1].value; j++)
                         args[j] = new VariableTerm();
-                    var head = new CompoundTerm(directive.args[0], args);
+                    var head = new CompoundTerm(exports[i].args[0], args);
                     var shim = new CompoundTerm(Constants.clauseFunctor, [head, new CompoundTerm(Constants.crossModuleCallFunctor, [directive.args[0], head])]);
                     this.userModule.addClause(functor, shim);
                 }

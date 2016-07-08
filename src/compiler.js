@@ -56,7 +56,7 @@ function compilePredicate(clauses)
 
     // Now convert instructions into an array of primitive types and an array of constants
     var result = assemble(instructions);
-    //console.log(util.inspect(result, {showHidden: false, depth: null}));
+    console.log(util.inspect(result, {showHidden: false, depth: null}));
     return result;
 }
 
@@ -390,11 +390,14 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
             instructions.push({opcode: Instructions.bThrow});
 	}
         else if (term.functor.equals(Constants.crossModuleCallFunctor))
-	{
-	    compileTermCreation(term.args[0], variables, instructions);
-            instructions.push({opcode: Instructions.iSwitchModule});
+        {
+            instructions.push({opcode: Instructions.iSwitchModule,
+                               atom: term.args[0]});
             compileBody(term.args[1], variables, instructions, false, reservedContext);
             instructions.push({opcode: Instructions.iExitModule});
+            if (isTailGoal)
+                instructions.push({opcode: Instructions.iExit});
+
         }
         else if (term.functor.equals(Constants.cleanupChoicepointFunctor))
 	{
