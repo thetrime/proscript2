@@ -89,7 +89,7 @@ function read_expression(s, precedence, isarg, islist, vars)
     if (peeked_token == ']' || peeked_token == ')' || peeked_token == ',') // Maybe others? This is a bit ugly :(
         op = undefined;
     if (op === undefined)
-    {  
+    {
         if (token == "\"")
         {
             // We have to just read chars until we get a close " (taking care with \" in the middle)
@@ -184,7 +184,7 @@ function read_expression(s, precedence, isarg, islist, vars)
 	else if (token.variable_name != undefined)
 	{
             // It is a variable
-            if (token.variable_name.startsWith("_"))
+            if (token.variable_name[0] == "_")
                 lhs = new VariableTerm();
             else
             {
