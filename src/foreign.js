@@ -1,10 +1,12 @@
 // This module contains non-ISO extensions
 var Constants = require('./constants');
 var IntegerTerm = require('./integer_term');
+var Term = require('./term');
 
 module.exports.term_variables = function(t, vt)
 {
-    return this.unify(term_from_list(term_variables(t), Constants.emptyListAtom), vt);
+    // FIXME: term_variables is not defined!
+    return this.unify(Term.term_from_list(term_variables(t), Constants.emptyListAtom), vt);
 }
 
 module.exports["$det"] = function()

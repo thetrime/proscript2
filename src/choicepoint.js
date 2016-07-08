@@ -7,6 +7,8 @@ function Choicepoint(env, retryPC)
     this.argI = env.argI;
     this.argS = env.argS;
     this.code = env.currentFrame.code;
+    this.currentModule = env.currentModule;
+    this.moduleStack = env.moduleStack;
     this.nextFrame = env.nextFrame;
     this.functor = env.currentFrame.functor;
 }

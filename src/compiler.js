@@ -389,6 +389,13 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
 	    compileTermCreation(term.args[0], variables, instructions);
             instructions.push({opcode: Instructions.bThrow});
 	}
+        else if (term.functor.equals(Constants.crossModuleCallFunctor))
+	{
+	    compileTermCreation(term.args[0], variables, instructions);
+            instructions.push({opcode: Instructions.iSwitchModule});
+            compileBody(term.args[1], variables, instructions, false, reservedContext);
+            instructions.push({opcode: Instructions.iExitModule});
+        }
         else if (term.functor.equals(Constants.cleanupChoicepointFunctor))
 	{
             compileTermCreation(term.args[0], variables, instructions);

@@ -17,7 +17,9 @@ var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
 var fs = require('fs');
 var BlobTerm = require('./blob_term');
+var Term = require('./term');
 var ArrayUtils = require('./array_utils');
+
 
 function builtin(module, name)
 {
@@ -38,9 +40,8 @@ var builtinModules = [fs.readFileSync(__dirname + '/builtin.pl', 'utf8')];
 
 function Environment()
 {
-//    this.consultString("[-].");
-//    throw(0);
     this.userModule = Module.get("user");
+    // We have to set currentModule here so that we can load the builtins. It will be reset in reset() again to user if it was changed
     this.currentModule = this.userModule;
     for (var i = 0; i < foreignModules.length; i++)
     {
@@ -121,6 +122,7 @@ Environment.prototype.halt = function(exitcode)
 Environment.prototype.reset = function()
 {
     this.currentModule = this.userModule;
+    this.moduleStack = [this.userModule];
     this.currentFrame = undefined;
     this.choicepoints = [];
     this.trail = [];
@@ -164,12 +166,44 @@ Environment.prototype.consultString = function(data)
                             null,
                             IO.toByteArray(data));
     var clause = null;
+    var module = this.currentModule;
     while ((clause = Parser.readTerm(stream, [])) != null)
     {
-        //console.log("Clause: " + util.inspect(clause, {showHidden: false, depth: null}));
-        var functor = clauseFunctor(clause);
-        this.getModule().addClause(functor, clause);
+        if (clause instanceof CompoundTerm && clause.functor.equals(Constants.directiveFunctor))
+        {
+            var directive = clause.args[0];
+            if (directive instanceof CompoundTerm && directive.functor.equals(Constants.moduleFunctor))
+            {
+                Term.must_be_atom(directive.args[0]);
+                // Compile the shims in user
+                var exports = Term.to_list(directive.args[1]);
+                for (var i = 0; i < exports.length; i++)
+                {
+                    Term.must_be_pi(exports[i]);
+                    // For an export of foo/3, add a clause foo(A,B,C):- Module:foo(A,B,C).  to user
+                    var functor = new Functor(exports[i].args[0], exports[i].args[1].value);
+                    var args = new Array(exports[i].args[1].value);
+                    for (var j = 0; j < exports[i].args[1].value; j++)
+                        args[j] = new VariableTerm();
+                    var head = new CompoundTerm(directive.args[0], args);
+                    var shim = new CompoundTerm(Constants.clauseFunctor, [head, new CompoundTerm(Constants.crossModuleCallFunctor, [directive.args[0], head])]);
+                    this.userModule.addClause(functor, shim);
+                }
+                this.currentModule = Module.get(directive.args[0].value)
+            }
+            else
+            {
+                // FIXME: Process directives here!
+            }
+        }
+        else
+        {
+            var functor = clauseFunctor(clause);
+            this.getModule().addClause(functor, clause);
+        }
     }
+    // In case this has changed, set it back after consulting any file
+    this.currentModule = this.userModule;
 }
 
 Environment.prototype.execute = function(queryTerm)
@@ -199,10 +233,12 @@ Environment.prototype.getPredicateCode = function(functor)
     var p = this.currentModule.getPredicateCode(functor);
     if (p === undefined && this.currentModule != this.userModule)
     {
+        // Try again in module(user)
         p = this.userModule.getPredicateCode(functor);
-        if (p === undefined)
-            throw "undefined predicate";
     }
+    if (p === undefined)
+        throw "undefined predicate";
+
     return p;
 }
 

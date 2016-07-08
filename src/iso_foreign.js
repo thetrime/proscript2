@@ -11,30 +11,6 @@ var Parser = require('./parser.js');
 var PrologFlag = require('./prolog_flag.js');
 var Term = require('./term.js');
 
-// Convenience function that returns a Prolog term corresponding to the given list of prolog terms.
-function term_from_list(list, tail)
-{
-    var result = tail || Constants.emptyListAtom;
-    for (var i = list.length-1; i >= 0; i--)
-        result = new CompoundTerm(Constants.listFunctor, [list[i], result]);
-    return result;
-}
-
-// Function that returns a Javascript list of the terms in the prolog list. Raises an error if the list is not a proper list
-function list_from_term(term)
-{
-    var list = [];
-    while (term instanceof CompoundTerm && term.functor.equals(Constants.listFunctor))
-    {
-        list.push(term.args[0]);
-        term = term.args[1];
-    }
-    if (!term.equals(Constants.emptyListAtom))
-        throw new Error("Not a proper list"); // FIXME: Should throw a prolog error really
-}
-
-
-
 
 function acyclic_term(t)
 {
@@ -269,14 +245,14 @@ module.exports["=.."] = function(term, univ)
 {
     // CHECKME: More errors should be checked
     if (term instanceof AtomTerm) // FIXME: Also other atomic-type terms
-        return this.unify(univ, term_from_list([term]));
+        return this.unify(univ, Term.from_list([term]));
     if (term instanceof CompoundTerm)
     {
-        return this.unify(univ, term_from_list([term.functor.name].concat(term.args)));
+        return this.unify(univ, Term.from_list([term.functor.name].concat(term.args)));
     }
     if (term instanceof VariableTerm)
     {
-        var list = list_from_term(univ);
+        var list = Term.to_list(univ);
         var fname = list.unshift();
         return this.unify(term, new CompoundTerm(fname, list));
     }
@@ -588,7 +564,7 @@ module.exports.atom_codes = function(atom, codes)
         var list = [];
         for (var i = 0; i < atom.value.length; i++)
             list.push(new IntegerTerm(atom.value.charCodeAt(i)));
-        return this.unify(term_from_list(list), codes);
+        return this.unify(Term.from_list(list), codes);
     }
     Errors.typeError(Constants.atomAtom, atom);
 }
@@ -689,7 +665,7 @@ module.exports.number_codes = function(number, codes)
         var list = [];
         for (var i = 0; i < string.length; i++)
             list.push(new IntegerTerm(string.charCodeAt(i)));
-        return this.unify(term_from_list(list), codes);
+        return this.unify(Term.from_list(list), codes);
     }
     Errors.typeError(Constants.numberAtom, number);
 }

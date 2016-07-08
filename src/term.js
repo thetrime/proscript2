@@ -44,7 +44,7 @@ module.exports.must_be_blob = function(type, t)
         Errors.typeError(new AtomTerm(type), t);
 }
 
-module.exports.must_be_pi = function(type, t)
+module.exports.must_be_pi = function(t)
 {
     module.exports.must_be_bound(t);
     if (!(t instanceof CompoundTerm))
@@ -84,3 +84,26 @@ module.exports.clause_functor = function(t)
     Errors.typeError(Constants.callableAtom, t);
 }
 
+
+// Convenience function that returns a Prolog term corresponding to the given list of prolog terms.
+module.exports.from_list = function(list, tail)
+{
+    var result = tail || Constants.emptyListAtom;
+    for (var i = list.length-1; i >= 0; i--)
+        result = new CompoundTerm(Constants.listFunctor, [list[i], result]);
+    return result;
+}
+
+// Function that returns a Javascript list of the terms in the prolog list. Raises an error if the list is not a proper list
+module.exports.to_list = function(term)
+{
+    var list = [];
+    while (term instanceof CompoundTerm && term.functor.equals(Constants.listFunctor))
+    {
+        list.push(term.args[0]);
+        term = term.args[1];
+    }
+    if (!term.equals(Constants.emptyListAtom))
+        throw new Error("Not a proper list"); // FIXME: Should throw a prolog error really
+    return list;
+}

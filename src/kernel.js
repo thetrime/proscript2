@@ -228,7 +228,7 @@ function execute(env)
         next_opcode = undefined;
         debugger_steps ++;
         //if (debugger_steps == 50) throw(0);
-        console.log("@" + env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
+        console.log("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
         switch(current_opcode)
 	{
             case "i_fail":
@@ -392,6 +392,14 @@ function execute(env)
                     frame = frame.parent;
                 }
                 throw new Error("unhandled exception:" + exception);
+            }
+            case "i_switch_module":
+            {
+                throw("Not implemented");
+            }
+            case "i_exitmodule":
+            {
+                throw("Not implemented");
             }
             case "i_call":
             {

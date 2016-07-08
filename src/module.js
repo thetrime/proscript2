@@ -93,12 +93,9 @@ Module.prototype.compilePredicate = function(functor)
 
 Module.prototype.getPredicateCode = function(functor)
 {
-    console.log("Looking for: " + functor);
+    console.log("Looking for " + this.name + ":" + functor);
     if (this.predicates[functor.toString()] === undefined)
     {
-        console.log("No such predicate in module " + this.name);
-        // FIXME: Handle this error properly
-        throw(0);
         return undefined;
     }
     //console.log("Found: " + util.inspect(this.predicates[functor.toString()]));
