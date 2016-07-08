@@ -2,6 +2,8 @@ var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
+var FloatTerm = require('./float_term.js');
+var BigIntegerTerm = require('./biginteger_term.js');
 var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
 var Instructions = require('./opcodes.js').opcode_map;
@@ -488,9 +490,20 @@ function compileTermCreation(term, variables, instructions)
                            atom:term});
 
     }
+    else if (term instanceof FloatTerm)
+    {
+        instructions.push({opcode: Instructions.bAtom,
+                           atom:term});
+
+    }
+    else if (term instanceof BigIntegerTerm)
+    {
+        instructions.push({opcode: Instructions.bAtom,
+                           atom:term});
+    }
     else
     {
-	throw "Bad type";
+        throw "Bad type: " + term.getClass();
     }
 }
 
