@@ -45,15 +45,17 @@ function syntax_error(msg)
 // this should be called with token assigned either an integer or a float
 function numberToken(token)
 {
-    if (!isNaN(token) && parseInt(token) == token)
+    console.log("Checking " + token);
+    if (!isNaN(token))
     {
-        return NumericTerm.get(token);
+        if (parseInt(token) == token)
+            return NumericTerm.get(token);
+        if (parseInt(token) == parseFloat(token)) // very large integer
+            return NumericTerm.get(token);
+        if (parseFloat(Number(token)) == token)
+            return new FloatTerm(parseFloat(token));
     }
-    if (!isNaN(token) && parseFloat(Number(token)) == token)
-    {
-        return new FloatTerm(parseFloat(token));
-    }
-    // FIXME: bigintegers, rationals
+    return null;
 }
 
 function atomicToken(token)
@@ -64,6 +66,7 @@ function atomicToken(token)
         var number = numberToken(token);
         if (number != null)
         {
+            console.log("Number: " + number);
             return number;
         }
     }
@@ -330,7 +333,7 @@ function read_token(s)
 	return s.peeked_tokens.pop();
     }
     var q = lex(s.stream);
-    //console.log("lex: " + q);
+    //console.log("lex: " + util.inspect(q, {depth:null}));
     return q;
 }
 
@@ -421,6 +424,7 @@ function lex(s)
     else if ((c >= '0' && c <= '9') || (c == '-' && peek_raw_char_with_conversion(s) >= '0' && peek_raw_char_with_conversion(s) <= '9'))
     {
         // Integer. May contain 0-9 only. Floats complicate this a bit
+        // FIXME: We need to read the token in as a string first then convert to either an Integer, BigInteger or Float
         var negate = false;
         if (c == '-')
         {
@@ -432,7 +436,7 @@ function lex(s)
         var decimal_places = 0;
         var seen_decimal = false;
         while (true)
-        {            
+        {
             c = peek_raw_char_with_conversion(s);       
             if (seen_decimal)
                 decimal_places++;
