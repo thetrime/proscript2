@@ -8,6 +8,7 @@ var Errors = require('./errors');
 var Constants = require('./constants');
 var Parser = require('./parser');
 var TermWriter = require('./term_writer');
+var Operators = require('./operators');
 var fs = require('fs');
 
 function get_stream(s)
@@ -378,7 +379,47 @@ module.exports.op = function(priority, fixity, op)
 // 8.14.4 current_op/3
 module.exports.current_op = function(priority, fixity, op)
 {
-    throw new Error("not implemented");
+    var index = this.foreign || 0;
+    var op_count = 0;
+    var next_op = undefined;
+    var op_name;
+    // This is a little inefficient, but it is better than operators are optimised for parsing/writing than enumerating
+    for (var key in Operators)
+    {
+        if (Operators[key].prefix !== undefined)
+        {
+            if (op_count == index)
+            {
+                next_op = Operators[key].prefix;
+                op_name = key;
+            }
+            op_count++;
+        }
+        if (Operators[key].infix !== undefined)
+        {
+            if (op_count == index)
+            {
+                next_op = Operators[key].infix;
+                op_name = key;
+            }
+            op_count++;
+        }
+        if (Operators[key].postfix !== undefined)
+        {
+            if (op_count == index)
+            {
+                next_op = Operators[key].postfix;
+                op_name = key;
+            }
+            op_count++;
+        }
+
+    }
+    if (index > op_count || next_op === undefined)
+        return false;
+    if (index+1 < op_count)
+        this.create_choicepoint(index+1);
+    return this.unify(priority, new IntegerTerm(next_op.precedence)) && this.unify(fixity, new AtomTerm(next_op.fixity)) && this.unify(op, new AtomTerm(op_name));
 }
 
 // 8.14.5 char_conversion/2
