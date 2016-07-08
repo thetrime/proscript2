@@ -1,9 +1,8 @@
 var env = new Prolog.Environment();
-env.getModule().defineForeignPredicate("writeln", 1, writeln);
 env.consultURL("http://localhost:8080/bin/x.pl", function()
 	       {
                    var arg = new Prolog.VariableTerm("Input");
-                   var query = new Prolog.CompoundTerm("error", [arg]);
+                   var query = new Prolog.CompoundTerm("f", [arg]);
                    if (!env.execute(query))
 		       console.log("Failed");
 		   else
