@@ -9,6 +9,7 @@ var Constants = require('./constants');
 var Parser = require('./parser');
 var TermWriter = require('./term_writer');
 var Operators = require('./operators');
+var CharConversionTable = require('./char_conversion');
 var fs = require('fs');
 
 function get_stream(s)
@@ -373,7 +374,37 @@ module.exports.write_canonical = [
 // 8.14.3 op/3
 module.exports.op = function(priority, fixity, op)
 {
-    throw new Error("not implemented");
+    // FIXME: Should support a list as op, apparently
+    Term.must_be_atom(fixity);
+    Term.must_be_atom(op);
+    Term.must_be_integer(priority);
+    var new_op;
+    if (priority.value == 0)
+        new_op = undefined;
+    else if (priority.value > 1200)
+        Errors.domainError(Constants.operatorPriorityAtom, priority);
+    else if (priority.value < 0)
+        Errors.domainError(Constants.operatorPriorityAtom, priority);
+    else
+        new_op = {precedence: priority.value, fixity: fixity.value};
+    if (op.value == ",")
+        Errors.permissionError(Constants.modifyAtom, Constants.operatorAtom, op);
+    var slot = undefined;
+    switch(fixity.value)
+    {
+        case "fx":
+        case "fy": slot = "prefix"; break;
+        case "xfx":
+        case "xfy":
+        case "yfx": slot = "infix"; break;
+        case "xf":
+        case "yf": slot = "postfix"; break;
+        default: Errors.domainError(Constants.operatorSpecifierAtom, fixity);
+    }
+    if (Operators[op.value] === undefined && new_op != undefined)
+        Operators[op.value] = {};
+    Operators[op.value][slot] = new_op;
+    return true;
 }
 
 // 8.14.4 current_op/3
@@ -425,11 +456,62 @@ module.exports.current_op = function(priority, fixity, op)
 // 8.14.5 char_conversion/2
 module.exports.char_conversion = function(in_char, out_char)
 {
-    throw new Error("not implemented");
+    Term.must_be_character(in_char);
+    Term.must_be_character(out_char);
+    CharConversionTable[in_char.value] = out_char.value;
 }
 
 // 8.14.6 current_char_conversion/2
 module.exports.current_char_conversion = function(in_char, out_char)
 {
-    throw new Error("not implemented");
+    if (in_char instanceof AtomTerm)
+    {
+        if (CharConversionTable[in_char.value] === undefined)
+            return this.unify(out_char, in_char);
+        else
+            return this.unify(out_char, new AtomTerm(CharConversionTable[in_char.value]));
+    }
+    else if (out_char instanceof AtomTerm)
+    {
+        // This may or may not be deterministic
+        // FIXME: Does not return identity mapping
+        if (this.foreign === undefined)
+        {
+            var needle = out_char.value;
+            var out_bindings = [];
+            for (var key in CharConversionTable)
+            {
+                if (CharConversionTable[key] == needle)
+                    out_bindings.push(key);
+            }
+            if (out_bindings.length == 0)
+                return false;
+        }
+        var bindings = this.foreign;
+        var binding = bindings.pop();
+        if (bindings.length > 0)
+            this.create_choicepoint(bindings);
+        return this.unify(in_char, new AtomTerm(binding));
+    }
+    else if (in_char instanceof VariableTerm && out_char instanceof VariableTerm)
+    {
+        // FIXME: Does not return identity mapping
+        if (this.foreign === undefined)
+        {
+            var needle = out_char.value;
+            var out_bindings = [];
+            for (var key in CharConversionTable)
+            {
+                if (CharConversionTable[key] == needle)
+                    out_bindings.push(key);
+            }
+            if (out_bindings.length == 0)
+                return false;
+        }
+        var bindings = this.foreign;
+        var binding = bindings.pop();
+        if (bindings.length > 0)
+            this.create_choicepoint(bindings);
+        return this.unify(in_char, new AtomTerm(binding)) && this.unify(out_char, new AtomTerm(CharConversionTable[binding]));
+    }
 }

@@ -19,6 +19,7 @@ var Functor = require('./functor.js');
 var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
 var Operators = require('./operators.js');
+var CharConversionTable = require('./char_conversion.js');
 var util = require('util');
 
 function parse_infix(s, lhs, precedence, vars)
@@ -513,7 +514,7 @@ function get_raw_char_with_conversion(s)
     if (!PrologFlag.values['char_conversion'])
         return s.get_raw_char();
     var t = s.get_raw_char();
-    var tt = char_conversion_override[t];
+    var tt = CharConversionTable[t];
     if (tt === undefined)
         return t;
     else
@@ -525,7 +526,7 @@ function peek_raw_char_with_conversion(s)
     if (!PrologFlag.values['char_conversion'])
         return s.peek_raw_char();
     var t = s.peek_raw_char();
-    var tt = char_conversion_override[t];
+    var tt = CharConversionTable[t];
     if (tt === undefined)
         return t;
     else
