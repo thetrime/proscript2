@@ -73,34 +73,6 @@ function link(env, value)
     return v;
 }
 
-function copyTerm(t)
-{
-    t = t.dereference();
-    var variables = [];
-    Compiler.findVariables(t, variables);
-    var newVars = new Array(variables.length);
-    for (var i = 0; i < variables.length; i++)
-        newVars[i] = new VariableTerm();
-    return _copyTerm(t, variables, newVars);
-}
-
-function _copyTerm(t, vars, newVars)
-{
-    if (t instanceof VariableTerm)
-    {
-        return newVars[vars.indexOf(t)];
-    }
-    else if (t instanceof CompoundTerm)
-    {
-        var newArgs = new Array(t.args.length);
-        for (var i = 0; i < t.args.length; i++)
-            newArgs[i] = _copyTerm(t.args[i].dereference(), vars, newVars);
-        return new CompoundTerm(t.functor, newArgs);
-    }
-    // For everything else, just return the term itself
-    return t;
-}
-
 function restore_state(env, choicepoint)
 {
     env.currentFrame = choicepoint.frame;
@@ -123,7 +95,7 @@ function backtrack_to(env, choicepoint_index)
     // Backtracks to the given choicepoint, undoing everything else in between
     for (var i = env.choicepoints.length-1; i >= choicepoint_index-1; i--)
     {
-        console.log("Unwinding a choicepoint");
+        //console.log("Unwinding a choicepoint");
         unwind_stack(env, env.choicepoints[i]);
     }
     env.choicepoints = env.choicepoints.slice(0, choicepoint_index);
@@ -228,7 +200,7 @@ function execute(env)
         next_opcode = undefined;
         debugger_steps ++;
         //if (debugger_steps == 50) throw(0);
-        console.log("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
+        //console.log("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
         switch(current_opcode)
 	{
             case "i_fail":
@@ -297,7 +269,7 @@ function execute(env)
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
                 }
-                console.log("Foreign result: " + rc);
+                //console.log("Foreign result: " + rc);
                 if (rc == 0)
                 {
                     // CHECKME: Does this undo any partial bindings that happen in a failed foreign frame?
@@ -329,8 +301,16 @@ function execute(env)
             case "i_depart":
 	    {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
-		env.nextFrame.functor = functor;
-		env.nextFrame.code = env.getPredicateCode(functor);
+                env.nextFrame.functor = functor;
+                try
+                {
+                    env.nextFrame.code = env.getPredicateCode(functor);
+                } catch (e)
+                {
+                    exception = e;
+                    next_opcode = "b_throw_foreign";
+                    continue next_instruction;
+                }
 		env.nextFrame.PC = env.currentFrame.returnPC;
 		env.nextFrame.returnPC = env.currentFrame.returnPC;
 		env.nextFrame.parent = env.currentFrame.parent;
@@ -364,23 +344,23 @@ function execute(env)
                 // into a frame that should've been destroyed by the bubbling exception
 
                 // First, make a copy of the ball, since we are about to start unwinding things and we dont want to undo its binding
-                exception = copyTerm(env.argP[env.argI-1]);
+                exception = env.copyTerm(env.argP[env.argI-1]);
                 // Fall-through
             }
             case "b_throw_foreign":
             {
                 var frame = env.currentFrame;
-                console.log(util.inspect(env.choicepoints));
+                //console.log(util.inspect(env.choicepoints));
                 while (frame != undefined)
                 {
                     if (frame.functor.equals(Constants.catchFunctor))
                     {
                         // Unwind to the frames choicepoint. Note that this will be set to the fake choicepoint we created in i_catch
-                        console.log("Frame " + frame.functor + " has choicepoint of " + frame.choicepoint);
-                        console.log("Env has " + env.choicepoints.length + " choicepoints");
+                        //console.log("Frame " + frame.functor + " has choicepoint of " + frame.choicepoint);
+                        //console.log("Env has " + env.choicepoints.length + " choicepoints");
                         backtrack_to(env, frame.choicepoint);
                         // Try to unify (a copy of) the exception with the unifier
-                        if (env.unify(copyTerm(exception), frame.slots[1]))
+                        if (env.unify(env.copyTerm(exception), frame.slots[1]))
                         {
                             // Success! Exception is successfully handled. Now we just have to do i_usercall after adjusting the registers to point to the handler
                             // Things get a bit weird here because we are breaking the usual logic flow by ripping the VM out of whatever state it was in and starting
@@ -390,7 +370,7 @@ function execute(env)
                             env.PC = 6; // After we have executed the handler we need to go to the i_exitcatch which chould be at PC=6+1
                             // Javascript doesnt have a goto statement, so this is a bit tricky
                             next_opcode = "i_usercall";
-                            console.log("goto i_usercall");
+                            //console.log("goto i_usercall");
                             continue next_instruction;
                         }
                     }
@@ -418,7 +398,16 @@ function execute(env)
             {
                 var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
-                env.nextFrame.code = env.getPredicateCode(functor);
+                try
+                {
+                    env.nextFrame.code = env.getPredicateCode(functor);
+                } catch (e)
+                {
+                    console.log("Error: " + e);
+                    exception = e;
+                    next_opcode = "b_throw_foreign";
+                    continue next_instruction;
+                }
                 env.nextFrame.returnPC = env.PC+3;
                 env.currentFrame = env.nextFrame;
                 // Reset argI to be at the start of the current array. argP SHOULD already be slots for the next frame since we were
@@ -442,7 +431,7 @@ function execute(env)
                 // by moving the frames cut choicepoint to the fake choicepoint we have just created, we can simplify b_throw
                 env.currentFrame.choicepoint = env.choicepoints.length;
                 env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
-                console.log(env.currentFrame.slots);
+                //console.log(env.currentFrame.slots);
                 // Currently argP points to the first slot in the next frame that we have started building since we've done i_enter already
                 // we need to set it back to the slots of the /current/ frame so that i_usercall finds the goal
                 env.argP = env.currentFrame.slots;
@@ -454,9 +443,9 @@ function execute(env)
             {
                 // argP[argI-1] is a goal that we want to execute. First, we must compile it
                 env.argI--;
-                console.log("argP:" + env.argP);
+                //console.log("argP:" + env.argP);
                 var goal = env.argP[env.argI].dereference();
-                console.log("Goal: " + goal);
+                //console.log("Goal: " + goal);
                 var compiledCode = Compiler.compileQuery(goal);
                 env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
                 env.nextFrame.code = {opcodes: compiledCode.bytecode,
@@ -471,19 +460,19 @@ function execute(env)
                 //           Goal.
                 // Where the variables of Goal are A, B, C, ...Z. This implies we must now push the arguments of $query/N
                 // onto the stack, and NOT the arguments of Goal, since we are about to 'call' $query.
-                console.log("Vars: " + compiledCode.variables);
+                //console.log("Vars: " + compiledCode.variables);
                 for (var i = 0; i < compiledCode.variables.length; i++)
                     env.currentFrame.slots[i] = compiledCode.variables[i];
                 env.nextFrame = new Frame(env);
                 env.PC = 0; // Start from the beginning of the code in the next frame
-                console.log("Executing " + goal);
-                console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
+                //console.log("Executing " + goal);
+                //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
                 continue;
             }
             case "i_cut":
             {
                 // The task of i_cut is to pop and discard all choicepoints newer than env.currentFrame.choicepoint
-                console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
+                //console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
                 // If we want to support cleanup, we cannot just do this:
                 //env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
                 cut_to(env, env.currentFrame.choicepoint);
@@ -530,7 +519,7 @@ function execute(env)
 		    env.PC++;
 		    continue;
 		}
-		console.log("iUnify: Failed to unify " + util.inspect(arg1) + " and " + util.inspect(arg2));
+                //console.log("iUnify: Failed to unify " + util.inspect(arg1) + " and " + util.inspect(arg2));
                 if (backtrack(env))
                     continue;
                 return false;
@@ -539,7 +528,7 @@ function execute(env)
             case "b_firstvar":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                console.log("firstvar: setting slot " + slot + " to a new variable");
+                //console.log("firstvar: setting slot " + slot + " to a new variable");
                 env.currentFrame.slots[slot] = new VariableTerm("_L" + nextvar++);
                 env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
                 env.PC+=3;
@@ -548,10 +537,10 @@ function execute(env)
             case "b_argvar":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                console.log("argvar: getting variable from slot " + slot);
+                //console.log("argvar: getting variable from slot " + slot);
 		var arg = env.currentFrame.slots[slot];
                 arg = arg.dereference();
-                console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
+                //console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
                 if (arg instanceof VariableTerm)
                 {
                     // FIXME: This MAY require trailing
@@ -667,8 +656,8 @@ function execute(env)
 		    env.mode = WRITE;
                     continue;
                 }
-                console.log("argP: " + util.inspect(env.argP));
-                console.log("Failed to unify " + util.inspect(arg) + " with the functor " + util.inspect(functor));
+                //console.log("argP: " + util.inspect(env.argP));
+                //console.log("Failed to unify " + util.inspect(arg) + " with the functor " + util.inspect(functor));
 
                 if (backtrack(env))
                     continue;
@@ -693,9 +682,9 @@ function execute(env)
                 }
                 else
                 {
-                    console.log("argP: " + util.inspect(env.argP, {showHidden: false, depth:null}));
-                    console.log("argI: " + env.argI);
-                    console.log("Failed to unify " + util.inspect(arg) + " with the atom " + util.inspect(atom));
+                    //console.log("argP: " + util.inspect(env.argP, {showHidden: false, depth:null}));
+                    //console.log("argI: " + env.argI);
+                    //console.log("Failed to unify " + util.inspect(arg) + " with the atom " + util.inspect(atom));
                     if (backtrack(env))
                         continue;
                     return false;
@@ -749,6 +738,4 @@ function execute(env)
 }
 
 module.exports = {execute: execute,
-                  backtrack: backtrack,
-
-                  copyTerm: copyTerm};
+                  backtrack: backtrack};

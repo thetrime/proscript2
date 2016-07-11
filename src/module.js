@@ -3,6 +3,7 @@ var Compiler = require('./compiler.js');
 var Functor = require('./functor.js');
 var AtomTerm = require('./atom_term.js');
 var Term = require('./term.js');
+var Constants = require('./constants.js');
 var util = require('util');
 
 function Module(name)
@@ -71,6 +72,9 @@ Module.prototype.abolish = function(indicator)
 
 Module.prototype.addClause = function(functor, clause)
 {
+    // FIXME: Check that this is not an access violation (for example, writing to ','/2)
+    if (functor.equals(Constants.conjunctionFunctor))
+        throw new Error("Cannot change ,/2: " + clause);
     if (this.predicates[functor.toString()] === undefined)
         this.definePredicate(functor);
     this.predicates[functor.toString()].clauses.push(clause);
@@ -93,7 +97,7 @@ Module.prototype.compilePredicate = function(functor)
 
 Module.prototype.getPredicateCode = function(functor)
 {
-    console.log("Looking for " + this.name + ":" + functor);
+    //console.log("Looking for " + this.name + ":" + functor);
     if (this.predicates[functor.toString()] === undefined)
     {
         return undefined;

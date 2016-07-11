@@ -262,7 +262,7 @@ module.exports["=.."] = function(term, univ)
 // 8.5.4 copy_term/2
 module.exports.copy_term = function(term, copy)
 {
-    return this.unify(Kernel.copyTerm(term), copy);
+    return this.unify(this.copyTerm(term), copy);
 }
 // 8.8.1 clause/2
 module.exports.clause = function(head, body)

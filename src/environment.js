@@ -9,6 +9,7 @@ var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
 var Constants = require('./constants.js');
 var Stream = require('./stream.js');
+var Errors = require('./errors.js');
 var Frame = require('./frame.js');
 var Instructions = require('./opcodes.js').opcode_map;
 var Compiler = require('./compiler.js');
@@ -19,6 +20,7 @@ var fs = require('fs');
 var BlobTerm = require('./blob_term');
 var Term = require('./term');
 var ArrayUtils = require('./array_utils');
+var PrologFlag = require('./prolog_flag');
 
 
 function builtin(module, name)
@@ -80,7 +82,7 @@ Environment.prototype.unify = function(a, b)
 {
     a = a.dereference();
     b = b.dereference();
-    console.log("Unify: " + a + " vs " + b);
+    //console.log("Unify: " + a + " vs " + b);
     if (a.equals(b))
         return true;
     if (a instanceof VariableTerm)
@@ -107,7 +109,7 @@ Environment.prototype.unify = function(a, b)
 
 Environment.prototype.bind = function(variable, value)
 {
-    console.log("Binding " + util.inspect(variable) + " to " + util.inspect(value) + " at " + this.TR);
+    //console.log("Binding " + util.inspect(variable) + " to " + util.inspect(value) + " at " + this.TR);
     this.trail[this.TR] = variable;
     variable.limit = this.TR++;
     variable.value = value;
@@ -169,6 +171,7 @@ Environment.prototype.consultString = function(data)
     var module = this.currentModule;
     while ((clause = Parser.readTerm(stream, [])) != null)
     {
+        //console.log("Read: " + clause);
         if (clause instanceof CompoundTerm && clause.functor.equals(Constants.directiveFunctor))
         {
             var directive = clause.args[0];
@@ -191,14 +194,19 @@ Environment.prototype.consultString = function(data)
                 }
                 this.currentModule = Module.get(directive.args[0].value)
             }
+            // FIXME: Process any other special directives here!
             else
             {
-                // FIXME: Process directives here!
+                console.log("Processing directive " + directive);
+                if (this.execute(directive))
+                    console.log("    Directive succeeded");
+                else
+                    console.log("    Directive failed");
             }
         }
         else
         {
-            var functor = clauseFunctor(clause);
+            var functor = clauseFunctor(clause);2
             this.getModule().addClause(functor, clause);
         }
     }
@@ -219,8 +227,9 @@ Environment.prototype.execute = function(queryTerm)
     var queryFrame = new Frame(this);
     queryFrame.functor = "$query";
     queryFrame.code = {opcodes: queryCode.bytecode,
-		       constants: queryCode.constants};
-    queryFrame.slots = [queryTerm.args[0]];
+                       constants: queryCode.constants};
+    for (var i = 0; i < queryCode.variables.length; i++)
+        queryFrame.slots[i] = queryCode.variables[i];
     queryFrame.returnPC = 0;
     this.PC = 0;
     this.currentFrame = queryFrame;
@@ -237,7 +246,16 @@ Environment.prototype.getPredicateCode = function(functor)
         p = this.userModule.getPredicateCode(functor);
     }
     if (p === undefined)
-        throw "undefined predicate";
+    {
+        if (PrologFlag.values.unknown == "error")
+            Errors.existenceError(Constants.procedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
+        else if (PrologFlag.values.unknown == "fail")
+        {
+            return Compiler.fail()
+        }
+        else
+            Errors.existenceError(Constants.procedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
+    }
 
     return p;
 }
@@ -245,6 +263,34 @@ Environment.prototype.getPredicateCode = function(functor)
 Environment.prototype.backtrack = function()
 {
     return Kernel.backtrack(this) && Kernel.execute(this);
+}
+
+Environment.prototype.copyTerm = function(t)
+{
+    t = t.dereference();
+    var variables = [];
+    Compiler.findVariables(t, variables);
+    var newVars = new Array(variables.length);
+    for (var i = 0; i < variables.length; i++)
+        newVars[i] = new VariableTerm();
+    return _copyTerm(t, variables, newVars);
+}
+
+function _copyTerm(t, vars, newVars)
+{
+    if (t instanceof VariableTerm)
+    {
+        return newVars[vars.indexOf(t)];
+    }
+    else if (t instanceof CompoundTerm)
+    {
+        var newArgs = new Array(t.args.length);
+        for (var i = 0; i < t.args.length; i++)
+            newArgs[i] = _copyTerm(t.args[i].dereference(), vars, newVars);
+        return new CompoundTerm(t.functor, newArgs);
+    }
+    // For everything else, just return the term itself
+    return t;
 }
 
 Environment.prototype.consultURL = function(url, callback)
@@ -269,6 +315,18 @@ Environment.prototype.consultURL = function(url, callback)
     };
     xhr.send();
 }
+
+Environment.prototype.consultFile = function(filename, callback)
+{
+    var _this = this;
+    fs.readFile(filename, 'utf8', function(error, data)
+                {
+                    if (error) throw error;
+                    _this.consultString(data);
+                    callback();
+                });
+}
+
 
 function fromByteArray(byteArray)
 {
@@ -310,7 +368,10 @@ function console_write(stream, count, buffer)
     var str = console_buffer + fromByteArray(buffer);
     var lines = str.split('\n');
     for (var i = 0; i < lines.length-1; i++)
-        console.log(" ***************: " + lines[i]);
+    {
+        if (lines[i].length > 0)
+            console.log(" ***************: " + lines[i]);
+    }
     console_buffer = lines[lines.length-1];
     return count;
 }

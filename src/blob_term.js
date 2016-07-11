@@ -20,4 +20,9 @@ BlobTerm.prototype.dereference = function()
     return this;
 }
 
+BlobTerm.prototype.getClass = function()
+{
+    return "blob";
+}
+
 module.exports = BlobTerm;

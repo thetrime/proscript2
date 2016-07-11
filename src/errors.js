@@ -8,7 +8,8 @@ var IntegerTerm = require('./integer_term');
 var errorFunctor = new Functor(new AtomTerm("error"), 2);
 var typeErrorFunctor = new Functor(new AtomTerm("type_error"), 2);
 var domainErrorFunctor = new Functor(new AtomTerm("domain_error"), 2);
-var representationError = new Functor(new AtomTerm("representation_error"), 1);
+var representationErrorFunctor = new Functor(new AtomTerm("representation_error"), 1);
+var existenceErrorFunctor = new Functor(new AtomTerm("existence_error"), 2);
 var permissionErrorFunctor = new Functor(new AtomTerm("permission_error"), 3);
 var evaluationErrorFunctor = new Functor(new AtomTerm("evaluation_error"), 1);
 var syntaxErrorFunctor = new Functor(new AtomTerm("syntax_error"), 1);
@@ -40,7 +41,13 @@ module.exports.permissionError = function(operation, type, culprit)
 
 module.exports.representationError = function(flag) // The ISO standard does NOT include what has violated the representation, sadly. We pass it in anyway
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(representationError, [flag]), new VariableTerm()]);
+    throw new CompoundTerm(errorFunctor, [new CompoundTerm(representationErrorFunctor, [flag]), new VariableTerm()]);
+}
+
+// non-ISO
+module.exports.existenceError = function(type, value)
+{
+    throw new CompoundTerm(errorFunctor, [new CompoundTerm(existenceErrorFunctor, [type, value]), new VariableTerm()]);
 }
 
 

@@ -130,3 +130,14 @@ setup_call_catcher_cleanup(Setup, Call, Catcher, Cleanup):-
         Cleanup,
         !,
         fail.
+
+
+% Directives
+dynamic(_).
+discontiguous(_).
+% op/3
+% char_conversion/2
+initialization(_). % FIXME: implement
+include(_).        % FIXME: implement
+ensure_loaded(_).  % FIXME: implement
+% set_prolog_flag/2

@@ -57,7 +57,7 @@ function glue_atoms(a, b)
 
 function formatTerm(options, precedence, term)
 {
-    console.log("term: " + term);
+    //console.log("term: " + term);
     if (term === undefined)
         throw new Error("Undefined term passed to formatTerm");
     term = term.dereference();
@@ -206,3 +206,5 @@ module.exports.writeTerm = function(stream, term, options)
     var bytes = ArrayUtils.toByteArray(text.toString());
     return stream.write(stream, bytes.length, bytes) >= 0;
 }
+
+module.exports.formatTerm = formatTerm;

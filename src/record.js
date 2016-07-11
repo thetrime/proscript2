@@ -29,11 +29,10 @@ module.exports.recorda = function(key, term, ref)
     var index = get_index(key);
     if (!this.unify(ref, new IntegerTerm(nextRef)))
         return false;
-    console.log("XXX: " + util.inspect(Kernel.copyTerm(term), {showHidden:false, depth: null}));
     database.unshift({index: index,
-                   key: Kernel.copyTerm(key),
+                   key: this.copyTerm(key),
                    ref: nextRef,
-                   value: Kernel.copyTerm(term)});
+                   value: this.copyTerm(term)});
     nextRef++;
     return true;
 }
@@ -44,9 +43,9 @@ module.exports.recordz = function(key, term, ref)
     if (!this.unify(ref, new IntegerTerm(nextRef)))
         return false;
     database.push({index: index,
-                    key: Kernel.copyTerm(key),
+                    key: this.copyTerm(key),
                     ref: nextRef,
-                    value: Kernel.copyTerm(term)});
+                    value: this.copyTerm(term)});
     nextRef++;
     return true;
 }
@@ -75,14 +74,14 @@ module.exports.recorded = function(key, value, ref)
             return false;
         if (database.length > index + 1)
         {
-            console.log("Leaving a choicepoint");
+            //console.log("Leaving a choicepoint");
             this.create_choicepoint(index+1);
         }
         else
         {
-            console.log("No other choices (" + index + ", " + database.length + ")");
+            //console.log("No other choices (" + index + ", " + database.length + ")");
         }
-        console.log("Returning a value: " + database[index].value);
+        //console.log("Returning a value: " + database[index].value);
         return this.unify(key, database[index].key) && this.unify(value, database[index].value) && this.unify(ref, new IntegerTerm(database[index].ref));
     }
     else

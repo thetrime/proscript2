@@ -46,7 +46,6 @@ function syntax_error(msg)
 // this should be called with token assigned either an integer or a float
 function numberToken(token)
 {
-    console.log("Checking " + token);
     if (!isNaN(token))
     {
         if (parseInt(token) == token)
@@ -69,7 +68,6 @@ function atomicToken(token)
         var number = numberToken(token);
         if (number != null)
         {
-            console.log("Number: " + number);
             return number;
         }
     }
@@ -87,6 +85,9 @@ function read_expression(s, precedence, isarg, islist, vars)
     {
 	return null; // end of file
     }
+    if (token == "]") // end of list
+        return token;
+
     var lhs;
     // Either the token is an operator, or it must be an atom (or the start of a list or curly-list)
     var op = (Operators[token] || {}).prefix;
@@ -144,8 +145,8 @@ function read_expression(s, precedence, isarg, islist, vars)
             var next = {};
             while(true)
             {
-		var t = read_expression(s, Infinity, true, true, vars);
-		if (t == "]")
+                var t = read_expression(s, Infinity, true, true, vars);
+                if (t == "]")
                 {
                     lhs = Constants.emptyListAtom;
                     break;
@@ -442,8 +443,17 @@ function lex(s)
             {
                 token += '.';
                 get_raw_char_with_conversion(s);
-                // FIXME: Check that the next char is a number to avoid "X = 3." from causing problems
-                seen_decimal = true;
+                var p = peek_raw_char_with_conversion(s);
+                if (p >= '0' && p <= '9')
+                    seen_decimal = true;
+                else
+                {
+                    // This is like "X = 3."
+                    // We have to unget the '.' here; the parser keeps one token as in a buffer called lookahead
+                    // get/peek_raw_char_with_conversion will return this (converted) char if we set it
+                    unget_raw_char('.');
+                    break;
+                }
             }
             else if (is_char(c))
                 throw syntax_error("illegal number" + token + ": " + c);
@@ -452,17 +462,14 @@ function lex(s)
         }
         if (!seen_decimal && token.length < 16)
         {
-            console.log("Integer: " + token);
             return parseInt(token);
         }
         if (seen_decimal)
         {
-            console.log("Float: " + token);
             return parseFloat(token);
         }
         if (parseInt(token) == parseFloat(token)) // FIXME: only if unbounded! Otherwise float
         {
-            console.log("BigInteger: " + token);
             return new BigInteger(token);
         }
         /*
@@ -554,9 +561,21 @@ function lex(s)
     }
 }
 
+var lookahead = null;
+
+function unget_raw_char(c)
+{
+    lookahead = c;
+}
 
 function get_raw_char_with_conversion(s)
 {
+    if (lookahead != null)
+    {
+        var c = lookahead;
+        lookahead = null;
+        return c;
+    }
     if (!PrologFlag.values['char_conversion'])
         return s.get_raw_char();
     var t = s.get_raw_char();
@@ -569,6 +588,10 @@ function get_raw_char_with_conversion(s)
 
 function peek_raw_char_with_conversion(s)
 {
+    if (lookahead != null)
+    {
+        return lookahead;
+    }
     if (!PrologFlag.values['char_conversion'])
         return s.peek_raw_char();
     var t = s.peek_raw_char();

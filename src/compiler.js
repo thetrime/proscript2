@@ -2,6 +2,7 @@ var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
+var BlobTerm = require('./blob_term.js');
 var FloatTerm = require('./float_term.js');
 var BigIntegerTerm = require('./biginteger_term.js');
 var IntegerTerm = require('./integer_term.js');
@@ -58,7 +59,7 @@ function compilePredicate(clauses)
 
     // Now convert instructions into an array of primitive types and an array of constants
     var result = assemble(instructions);
-    console.log(util.inspect(result, {showHidden: false, depth: null}));
+    //console.log(util.inspect(result, {showHidden: false, depth: null}));
     return result;
 }
 
@@ -511,6 +512,12 @@ function compileTermCreation(term, variables, instructions)
         instructions.push({opcode: Instructions.bAtom,
                            atom:term});
     }
+    else if (term instanceof BlobTerm)
+    {
+        // CHECKME: This is a bit suspicious, but what do we do about open(foo, read, S), assert(bar(S)) ?
+        instructions.push({opcode: Instructions.bAtom,
+                           atom:term});
+    }
     else
     {
         throw "Bad type: " + term.getClass();
@@ -620,7 +627,17 @@ function foreignShim(fn)
     return assemble(instructions);
 }
 
+function failShim()
+{
+    var instructions = [];
+    instructions.push({opcode: Instructions.iFail});
+    var compiled = assemble(instructions);
+    return {opcodes: compiled.bytecode,
+            constants: compiled.constants};
+}
+
 module.exports = {compilePredicate:compilePredicate,
                   compileQuery:compileQuery,
                   findVariables:findVariables,
-                  foreignShim: foreignShim};
+                  foreignShim: foreignShim,
+                  fail: failShim};
