@@ -12,8 +12,6 @@ var AtomTerm = require('./atom_term.js');
 var CompoundTerm = require('./compound_term.js');
 var Choicepoint = require('./choicepoint.js');
 var Instructions = require('./opcodes.js').opcode_map;
-var READ = 0;
-var WRITE = 1;
 
 /*
   Overview:
@@ -68,7 +66,7 @@ function link(env, value)
 {
     if (value === undefined)
         throw "Illegal link";
-    var v = new VariableTerm("_l");
+    var v = new VariableTerm();
     env.bind(v, value);
     return v;
 }
@@ -181,6 +179,44 @@ function popArgFrame(env)
     env.mode = argFrame.m;
 }
 
+function print_opcode(env, opcode)
+{
+    var s = opcode;
+    for (var i = 0; i < LOOKUP_OPCODE.length; i++)
+    {
+        if (LOOKUP_OPCODE[i].label == opcode)
+        {
+            for (var j = 0; j < LOOKUP_OPCODE[i].args.length; j++)
+            {
+                if (LOOKUP_OPCODE[i].args[j] == "slot")
+                {
+                    s += "(" + ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2])) + ")";
+                }
+                else if (LOOKUP_OPCODE[i].args[j] == "address")
+                {
+                    s += " " + ((env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC)
+                }
+                else if (LOOKUP_OPCODE[i].args[j] == "functor" || LOOKUP_OPCODE[i].args[j] == "atom")
+                {
+                    s += "(" + env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))] + ")";
+                }
+            }
+            return s;
+        }
+    }
+    return "??? " + opcode;
+}
+
+function pad(pad, str)
+{
+    return (str + pad).substring(0, pad.length);
+}
+
+function print_instruction(env, current_opcode)
+{
+    console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
+}
+
 var debugger_steps = 0;
 var next_opcode = undefined;
 var exception = undefined;
@@ -200,7 +236,7 @@ function execute(env)
         next_opcode = undefined;
         debugger_steps ++;
         //if (debugger_steps == 50) throw(0);
-        //console.log("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": " + current_opcode);
+        print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
             case "i_fail":
@@ -307,6 +343,7 @@ function execute(env)
                     env.nextFrame.code = env.getPredicateCode(functor);
                 } catch (e)
                 {
+                    throw(e);
                     exception = e;
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
@@ -370,7 +407,7 @@ function execute(env)
                             env.PC = 6; // After we have executed the handler we need to go to the i_exitcatch which chould be at PC=6+1
                             // Javascript doesnt have a goto statement, so this is a bit tricky
                             next_opcode = "i_usercall";
-                            //console.log("goto i_usercall");
+                            console.log("Handling exception:" + frame.slots[1].dereference());
                             continue next_instruction;
                         }
                     }
@@ -528,8 +565,8 @@ function execute(env)
             case "b_firstvar":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                //console.log("firstvar: setting slot " + slot + " to a new variable");
-                env.currentFrame.slots[slot] = new VariableTerm("_L" + nextvar++);
+                env.currentFrame.slots[slot] = new VariableTerm();
+                console.log("firstvar: setting slot " + slot + " to a new variable: " + env.currentFrame.slots[slot]);
                 env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
                 env.PC+=3;
                 continue;
@@ -537,14 +574,14 @@ function execute(env)
             case "b_argvar":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                //console.log("argvar: getting variable from slot " + slot);
+                console.log("argvar: getting variable from slot " + slot + ": " + env.currentFrame.slots[slot]);
 		var arg = env.currentFrame.slots[slot];
                 arg = arg.dereference();
                 //console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
                 if (arg instanceof VariableTerm)
                 {
                     // FIXME: This MAY require trailing
-                    env.argP[env.argI] = new VariableTerm("_A" + nextvar++);
+                    env.argP[env.argI] = new VariableTerm();
 		    env.bind(env.argP[env.argI], arg);
 		    //console.log("argP now refers to " + util.inspect(env.argP[env.argI]));
                 }
@@ -558,7 +595,8 @@ function execute(env)
             }
             case "b_var":
             {
-		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                console.log("Value for b_var: " + env.currentFrame.slots[slot] + " in slot " + slot);
 		env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
                 env.argI++;
                 env.PC+=3;
@@ -577,6 +615,13 @@ function execute(env)
 		env.PC+=3;
                 continue;
             }
+            case "b_void":
+	    {
+		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                env.argP[env.argI++] = new VariableTerm();
+                env.PC++;
+                continue;
+            }
             case "b_functor":
             {
 		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
@@ -590,13 +635,13 @@ function execute(env)
 		continue;
             }
             case "h_firstvar":
-	    {
-		// varFrame(FR, *PC++) in SWI-Prolog is the same as
+            {
+                // varFrame(FR, *PC++) in SWI-Prolog is the same as
 		// env.currentFrame.slot[(env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2])] in PS2
                 // basically varFrameP(FR, n) is (((Word)f) + n), which is to say it is a pointer to the nth word in the frame
                 // In PS2 parlance, these are 'slots'
 		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                if (env.mode == WRITE) // write
+                if (env.mode == "write")
 		{
 		    // If in write mode, we must create a variable in the current frame's slot, then bind it to the next arg to be matched
                     // This happens if we are trying to match a functor to a variable. To do that, we create a new term with the right functor
@@ -605,7 +650,7 @@ function execute(env)
                     // a variable occurring in the head, for example the X in foo(a(X)):- ...
                     // the compiler has allocated an appropriate slot in the frame above the arity of the goal we are executing
                     // we just need to create a variable in that slot, then bind it to the variable in the current frame
-                    env.currentFrame.slots[slot] = new VariableTerm("_L" + nextvar++);
+                    env.currentFrame.slots[slot] = new VariableTerm();
                     env.bind(env.argP[env.argI], env.currentFrame.slots[slot]);
 		}
                 else
@@ -615,12 +660,12 @@ function execute(env)
                     // otherwise, we can just copy the variable directly into the slot
                     if (env.argP[env.argI] instanceof VariableTerm)
                     {
-                        env.currentFrame.slots[slot] = env.argP[env.argI]
+                        env.currentFrame.slots[slot] = link(env, env.argP[env.argI]);
                     }
                     else
-		    {
-                        env.currentFrame.slots[slot] = new VariableTerm("_X" + nextvar++);
-			env.bind(env.currentFrame.slots[slot], env.argP[env.argI]);
+                    {
+                        console.log("Setting slot " + slot + " of frame " + env.currentFrame.depth + " to value " + env.argP[env.argI]);
+                        env.currentFrame.slots[slot] = env.argP[env.argI];
                     }
                 }
                 // H_FIRSTVAR always succeeds - so move on to match the next cell, and increment PC for the next instructions
@@ -632,6 +677,7 @@ function execute(env)
             {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
                 var arg = env.argP[env.argI++].dereference();
+                console.log("h_functor:" + arg);
                 env.PC+=3;
                 // Try to match a functor
                 if (arg instanceof CompoundTerm)
@@ -645,15 +691,16 @@ function execute(env)
                     }
                 }
                 else if (arg instanceof VariableTerm)
-		{
+                {
+                    console.log("here");
 		    newArgFrame(env);
                     var args = new Array(functor.arity);
                     for (var i = 0; i < args.length; i++)
-                        args[i] = new VariableTerm("_f" + nextvar++);
+                        args[i] = new VariableTerm();
 		    env.bind(arg, new CompoundTerm(functor, args));
 		    env.argP = args;
 		    env.argI = 0;
-		    env.mode = WRITE;
+                    env.mode = "write";
                     continue;
                 }
                 //console.log("argP: " + util.inspect(env.argP));
@@ -701,6 +748,7 @@ function execute(env)
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 var arg = env.argP[env.argI++].dereference();
+                console.log("h_var from slot " + slot + ": " +arg+", and " + env.currentFrame.slots[slot])
                 if (!env.unify(arg, env.currentFrame.slots[slot]))
                 {
                     if (backtrack(env))

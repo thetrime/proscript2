@@ -23,6 +23,9 @@
 function Frame(env)
 {
     this.parent = env.currentFrame;
+    this.depth = 0;
+    if (env.currentFrame != undefined)
+        this.depth = env.currentFrame.depth + 1;
     this.slots = [];
     this.reserved_slots = [];
     this.code = undefined;

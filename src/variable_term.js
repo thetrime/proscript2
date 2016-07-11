@@ -34,7 +34,9 @@ VariableTerm.prototype.getClass = function()
 
 VariableTerm.prototype.toString = function()
 {
-    return this.name;
+    if (this.value == null)
+        return this.name;
+    return this.dereference().toString();
 }
 
 VariableTerm.prototype.equals = function(o)

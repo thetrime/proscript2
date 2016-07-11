@@ -192,7 +192,7 @@ function read_expression(s, precedence, isarg, islist, vars)
 	{
             // It is a variable
             if (token.variable_name[0] == "_")
-                lhs = new VariableTerm();
+                lhs = new VariableTerm("_");
             else
             {
                 if (vars[token.variable_name] === undefined)

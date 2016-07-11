@@ -184,23 +184,44 @@ function findVariables(term, variables)
 
 }
 
+function analyzeHead(term)
+{
+    var variables = {};
+    if (term instanceof CompoundTerm)
+    {
+        for (var i = 0; i < term.functor.arity; i++)
+        {
+            if (term.args[i] instanceof VariableTerm && term.args[i].name != "_")
+            {
+                if (variables[term.args[i].name] === undefined)
+                    variables[term.args[i].name] = {variable: term.args[i],
+                                                    isArg: true,
+                                                    fresh: true,
+                                                    slot: i};
+            }
+        }
+    }
+    return variables;
+}
 
 function compileClause(term, instructions)
 {
     // First, reserve some slots for !/0, ->/2 and catch/3
     var reserved = 0;
     var context = {isFirstGoal:true,
-		   hasGlobalCut:false};
+                   hasGlobalCut:false};
     if (term instanceof CompoundTerm && term.functor.equals(Constants.clauseFunctor))
     {
         // A clause
+        if (term.args[0] instanceof CompoundTerm)
+            reserved += term.args[0].functor.arity;
+        var variables = analyzeHead(term.args[0]);
         reserved += getReservedEnvironmentSlots(term.args[1], context);
 	// Finally, we need a slot for each variable, since this is to be a stack-based, rather than register-based machine
 	// If it were register-based, we would need a register for each variable instead
 	// FIXME: By arranging these more carefully we might do better for LCO
 	var envSize = reserved;
-	var variables = {};
-        var context = {nextSlot:0};
+        context = {nextSlot:envSize};
 	envSize += analyzeVariables(term.args[0], true, 0, variables, context);
         envSize += analyzeVariables(term.args[1], false, 1, variables, context);
         compileHead(term.args[0], variables, instructions);
@@ -210,10 +231,14 @@ function compileClause(term, instructions)
     else
     {
         // Fact. A fact obviously cannot have any cuts in it, so there is nothing to reserve space for
-        var variables = {};
-        var context = {nextSlot:0};
-        var envSize = analyzeVariables(term, true, 0, variables, context);
-	compileHead(term, variables, instructions);
+        var variables = analyzeHead(term);
+        if (term instanceof CompoundTerm)
+            reserved += term.functor.arity;
+        reserved += getReservedEnvironmentSlots(term, context);
+        var envSize = reserved;
+        context = {nextSlot:envSize};
+        envSize = analyzeVariables(term, true, 0, variables, context);
+        compileHead(term, variables, instructions);
 	instructions.push({opcode: Instructions.iExitFact});
     }
 }
@@ -233,8 +258,12 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
 {
     if (arg instanceof VariableTerm)
     {
-	if (variables[arg.name].fresh)
-	{
+        if (arg.name == "_")
+        {
+            instructions.push({opcode: Instructions.hVoid})
+        }
+        else if (variables[arg.name].fresh)
+        {
 	    variables[arg.name].fresh = false;
 	    if (embeddedInTerm)
 	    {
@@ -461,7 +490,11 @@ function compileTermCreation(term, variables, instructions)
 {
     if (term instanceof VariableTerm)
     {
-	if (variables[term.name].fresh)
+        if (term.name == "_")
+        {
+            instructions.push({opcode: Instructions.bVoid});
+        }
+        else if (variables[term.name].fresh)
 	{
 	    instructions.push({opcode: Instructions.bFirstVar,
 			       name:term.name,
@@ -580,6 +613,8 @@ function analyzeVariables(term, isHead, depth, map, context)
     rc = 0;
     if (term instanceof VariableTerm)
     {
+        if (term.name == "_") // _ is always void
+            return rc;
 	if (map[term.name] === undefined)
 	{
 	    map[term.name] = ({variable: term,
@@ -592,6 +627,7 @@ function analyzeVariables(term, isHead, depth, map, context)
     }
     else if (term instanceof CompoundTerm)
     {
+        /* This is now done in getReservedEnvironmentSlots
 	if (isHead && depth == 0)
 	{
 	    // Reserve the first arity slots since that is where the previous
@@ -603,7 +639,7 @@ function analyzeVariables(term, isHead, depth, map, context)
 		    if (map[term.args[i].name] === undefined)
 		    {
 			map[term.args[i].name] = ({variable: term.args[i],
-						   isArg: isHead,
+                                                   isArg: isHead,
 						   fresh: true,
 						   slot: context.nextSlot});
 			rc++;
@@ -611,7 +647,8 @@ function analyzeVariables(term, isHead, depth, map, context)
 		}
 		context.nextSlot++;
 	    }
-	}
+        }
+        */
 	for (var i = 0; i < term.functor.arity; i++)
 	    rc += analyzeVariables(term.args[i], isHead, depth+1, map, context);
     }
