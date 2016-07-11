@@ -353,7 +353,7 @@ call_result(G,R) :-
 %
 
 protect_call_result(G,R) :-
-	catch(call_result(G,R), B, extract_error(B,R)).
+        catch(call_result(G,R), B, extract_error(B,R)), writeln(result(R)).
 
 
 %%%%%%%%%%%%%%%

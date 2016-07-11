@@ -181,63 +181,58 @@ function findVariables(term, variables)
         for (var i = 0; i < term.args.length; i++)
             findVariables(term.args[i], variables);
     }
-
 }
 
-function analyzeHead(term)
-{
-    var variables = {};
-    if (term instanceof CompoundTerm)
-    {
-        for (var i = 0; i < term.functor.arity; i++)
-        {
-            if (term.args[i] instanceof VariableTerm && term.args[i].name != "_")
-            {
-                if (variables[term.args[i].name] === undefined)
-                    variables[term.args[i].name] = {variable: term.args[i],
-                                                    isArg: true,
-                                                    fresh: true,
-                                                    slot: i};
-            }
-        }
-    }
-    return variables;
-}
+
+/*
+  A frame has 3 kinds of slots:
+  ___/ Args: One slot for each argument
+ /   \ Vars: One slot for each variable that does not first appear as a term in the args. For
+ |     Reserved: This is used for system stuff like cuts, exceptions, etc.
+These two go into a single array called 'slots'. The Reserved slots actually go into a different array
+
+The Vars slots bears some explanation. For example in foo(a(A), A), we must allocate a var slot for A, but in foo(A, a(A)) we do NOT need one
+   foo(A, a(A)):- b(A).
+will compile to h_void, h_functor(a/1), h_var(0), h_pop, i_enter, b_var(0), i_depart(b/1).
+Wherease
+   foo(a(A), A):- b(A).
+will compile to h_functor(a/1), h_firstvar(2), h_pop, h_var(2), i_enter, b_var(2), i_depart(b/1).
+
+Remember that slots 0 and 1 correspond to the 2 arguments of foo/2. In the second case we need one additional variable slot as well, slot 2.
+*/
 
 function compileClause(term, instructions)
 {
-    // First, reserve some slots for !/0, ->/2 and catch/3
-    var reserved = 0;
-    var context = {isFirstGoal:true,
-                   hasGlobalCut:false};
+    var argSlots;
     if (term instanceof CompoundTerm && term.functor.equals(Constants.clauseFunctor))
     {
         // A clause
         if (term.args[0] instanceof CompoundTerm)
-            reserved += term.args[0].functor.arity;
-        var variables = analyzeHead(term.args[0]);
-        reserved += getReservedEnvironmentSlots(term.args[1], context);
-	// Finally, we need a slot for each variable, since this is to be a stack-based, rather than register-based machine
-	// If it were register-based, we would need a register for each variable instead
-	// FIXME: By arranging these more carefully we might do better for LCO
-	var envSize = reserved;
-        context = {nextSlot:envSize};
-	envSize += analyzeVariables(term.args[0], true, 0, variables, context);
-        envSize += analyzeVariables(term.args[1], false, 1, variables, context);
+            argSlots = term.args[0].functor.arity;
+        else
+            argSlots = 0;
+        // Now we must analyze the variables. Each variable will be given the following attributes:
+        // fresh: true (this will be later altered by the compiler)
+        // slot:  0..N (the location of the variable)
+        var variables = {};
+        var localCutSlots = getReservedEnvironmentSlots(term.args[1])
+        context = {nextSlot:argSlots + localCutSlots};
+        analyzeVariables(term.args[0], true, 0, variables, context);
+        analyzeVariables(term.args[1], false, 1, variables, context);
         compileHead(term.args[0], variables, instructions);
 	instructions.push({opcode: Instructions.iEnter});
-        compileBody(term.args[1], variables, instructions, true, {nextReserved:0, maxReserved:reserved});
+        compileBody(term.args[1], variables, instructions, true, {nextReserved:0});
     }
     else
     {
         // Fact. A fact obviously cannot have any cuts in it, so there is nothing to reserve space for
-        var variables = analyzeHead(term);
         if (term instanceof CompoundTerm)
-            reserved += term.functor.arity;
-        reserved += getReservedEnvironmentSlots(term, context);
-        var envSize = reserved;
-        context = {nextSlot:envSize};
-        envSize = analyzeVariables(term, true, 0, variables, context);
+            argSlots = term.functor.arity;
+        else
+            argSlots = 0;
+        context = {nextSlot:argSlots};
+        var variables = {};
+        analyzeVariables(term, true, 0, variables, context);
         compileHead(term, variables, instructions);
 	instructions.push({opcode: Instructions.iExitFact});
     }
@@ -564,50 +559,32 @@ function compileTermCreation(term, variables, instructions)
 //   2) Exceptions - each catch/3 term needs two slots in the environment: One for the associated cut, and one for the ball
 // We have to pull apart any goals that we compile away and add slots for their arguments as well since they will be flattened into the
 // body itself. This includes ,/2, ;/2, ->/2 and catch/3
-function getReservedEnvironmentSlots(term, context)
+function getReservedEnvironmentSlots(term)
 {
     var slots = 0;
     if (term instanceof CompoundTerm)
     {
 	if (term.functor.equals(Constants.conjunctionFunctor))
 	{
-	    slots += getReservedEnvironmentSlots(term.args[0], context);
-	    context.isFirstGoal = false;
+            slots += getReservedEnvironmentSlots(term.args[0], context);
 	    slots += getReservedEnvironmentSlots(term.args[1], context);
 	}
 	else if (term.functor.equals(Constants.disjunctionFunctor))
-	{
-	    context.isFirstGoal = false
+        {
 	    slots += getReservedEnvironmentSlots(term.args[0], context);
 	    slots += getReservedEnvironmentSlots(term.args[1], context);
 	}
 	else if (term.functor.equals(Constants.localCutFunctor))
 	{
-	    slots++;
-	    context.isFirstGoal = false;
+            slots++;
 	    slots += getReservedEnvironmentSlots(term.args[0], context);
 	    slots += getReservedEnvironmentSlots(term.args[1], context);
-	}
-	else if (term.functor.equals(Constants.catchFunctor))
-	{
-	    context.isFirstGoal = false;
-	    slots += 2;
-            // FIXME: Is this really needed though?
-	}
+        }
     }
     return slots;
 }
 
-// analyzeVariables builds a map of all the variables and returns the number of variables encountered
-// SWI-Prolog allocates a table of arity variables on the argument stack, for some reason
-// If an arg is not a variable, then that position cannot be used since it contains something other than a variable
-// For example, if the head is foo(A, q(B), x, A)
-// Then the first 4 slots in the frame will be:
-// 0: A
-// 1: <STR, n>   where n holds <q/1> and n+1 holds B
-// 2: x
-// 3: A again
-// 4+: Local variables, including B.
+// analyzeVariables builds a map of all the variables and returns the number of (unique, nonvoid) variables encountered
 function analyzeVariables(term, isHead, depth, map, context)
 {
     rc = 0;
@@ -620,37 +597,38 @@ function analyzeVariables(term, isHead, depth, map, context)
 	    map[term.name] = ({variable: term,
                                isArg: (isHead && depth == 0),
 			       fresh: true,
-			       slot: context.nextSlot});
-	    context.nextSlot++;
+                               slot: context.nextSlot++});
 	    rc++;
 	}
     }
     else if (term instanceof CompoundTerm)
     {
-        /* This is now done in getReservedEnvironmentSlots
 	if (isHead && depth == 0)
 	{
 	    // Reserve the first arity slots since that is where the previous
-	    // frame is going to write the arguments
+            // frame is going to write the arguments
 	    for (var i = 0; i < term.functor.arity; i++)
-	    {
+            {
 		if (term.args[i] instanceof VariableTerm)
 		{
 		    if (map[term.args[i].name] === undefined)
 		    {
 			map[term.args[i].name] = ({variable: term.args[i],
-                                                   isArg: isHead,
+                                                   isArg: true,
 						   fresh: true,
-						   slot: context.nextSlot});
+                                                   slot: i});
 			rc++;
 		    }
-		}
-		context.nextSlot++;
-	    }
+                }
+                else
+                    rc += analyzeVariables(term.args[i], isHead, depth+1, map, context);
+            }
         }
-        */
-	for (var i = 0; i < term.functor.arity; i++)
-	    rc += analyzeVariables(term.args[i], isHead, depth+1, map, context);
+        else
+        {
+            for (var i = 0; i < term.functor.arity; i++)
+                rc += analyzeVariables(term.args[i], isHead, depth+1, map, context);
+        }
     }
     return rc;
 }

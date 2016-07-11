@@ -250,7 +250,10 @@ Environment.prototype.getPredicateCode = function(functor)
         if (PrologFlag.values.unknown == "error")
             Errors.existenceError(Constants.procedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
         else if (PrologFlag.values.unknown == "fail")
+            return Compiler.fail()
+        else if (PrologFlag.values.unknown == "warning")
         {
+            //FIXME: warning("No such predicate " + functor);
             return Compiler.fail()
         }
         else

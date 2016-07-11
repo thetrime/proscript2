@@ -236,7 +236,7 @@ function execute(env)
         next_opcode = undefined;
         debugger_steps ++;
         //if (debugger_steps == 50) throw(0);
-        print_instruction(env, current_opcode);
+        //print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
             case "i_fail":
@@ -343,7 +343,6 @@ function execute(env)
                     env.nextFrame.code = env.getPredicateCode(functor);
                 } catch (e)
                 {
-                    throw(e);
                     exception = e;
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
@@ -566,7 +565,7 @@ function execute(env)
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 env.currentFrame.slots[slot] = new VariableTerm();
-                console.log("firstvar: setting slot " + slot + " to a new variable: " + env.currentFrame.slots[slot]);
+                //console.log("firstvar: setting slot " + slot + " to a new variable: " + env.currentFrame.slots[slot]);
                 env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
                 env.PC+=3;
                 continue;
@@ -574,7 +573,7 @@ function execute(env)
             case "b_argvar":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                console.log("argvar: getting variable from slot " + slot + ": " + env.currentFrame.slots[slot]);
+                //console.log("argvar: getting variable from slot " + slot + ": " + env.currentFrame.slots[slot]);
 		var arg = env.currentFrame.slots[slot];
                 arg = arg.dereference();
                 //console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
@@ -596,7 +595,7 @@ function execute(env)
             case "b_var":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                console.log("Value for b_var: " + env.currentFrame.slots[slot] + " in slot " + slot);
+                //console.log("Value for b_var: " + env.currentFrame.slots[slot] + " in slot " + slot);
 		env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
                 env.argI++;
                 env.PC+=3;
@@ -664,7 +663,6 @@ function execute(env)
                     }
                     else
                     {
-                        console.log("Setting slot " + slot + " of frame " + env.currentFrame.depth + " to value " + env.argP[env.argI]);
                         env.currentFrame.slots[slot] = env.argP[env.argI];
                     }
                 }
@@ -677,7 +675,6 @@ function execute(env)
             {
 		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
                 var arg = env.argP[env.argI++].dereference();
-                console.log("h_functor:" + arg);
                 env.PC+=3;
                 // Try to match a functor
                 if (arg instanceof CompoundTerm)
@@ -692,7 +689,6 @@ function execute(env)
                 }
                 else if (arg instanceof VariableTerm)
                 {
-                    console.log("here");
 		    newArgFrame(env);
                     var args = new Array(functor.arity);
                     for (var i = 0; i < args.length; i++)
@@ -748,7 +744,7 @@ function execute(env)
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
                 var arg = env.argP[env.argI++].dereference();
-                console.log("h_var from slot " + slot + ": " +arg+", and " + env.currentFrame.slots[slot])
+                //console.log("h_var from slot " + slot + ": " +arg+", and " + env.currentFrame.slots[slot])
                 if (!env.unify(arg, env.currentFrame.slots[slot]))
                 {
                     if (backtrack(env))
