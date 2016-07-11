@@ -1,6 +1,7 @@
 var module_map = [];
 var Compiler = require('./compiler.js');
 var Functor = require('./functor.js');
+var Errors = require('./errors.js');
 var AtomTerm = require('./atom_term.js');
 var Term = require('./term.js');
 var Constants = require('./constants.js');
@@ -65,8 +66,8 @@ Module.prototype.abolish = function(indicator)
 {
     Term.must_be_pi(indicator);
     var functor = new Functor(indicator.args[0], indicator.args[1].value);
-    if (this.predicates[functor.toString()].dynamic !== true)
-        Errors.permissionError(Constants.accessAtom, Constants.staticProcedureAtom, term);
+    if (this.predicates[functor.toString()] === undefined || this.predicates[functor.toString()].dynamic !== true)
+        Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, indicator);
     this.predicates[functor.toString()] = undefined;
 }
 

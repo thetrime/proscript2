@@ -4,6 +4,7 @@ var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
 var IntegerTerm = require('./integer_term.js');
 var CompoundTerm = require('./compound_term.js');
+var Errors = require('./errors.js');
 var util = require('util');
 
 // FIXME: This is not very efficient - it would be much better as a linked list

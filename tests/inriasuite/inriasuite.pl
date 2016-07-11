@@ -694,7 +694,7 @@ inerror(F) :-
 %
         	
 file(fail).
-%file(abolish). % FIXME: Does not work
+file(abolish). % FIXME: Does not work
 file(and).
 file(arg).
 /*

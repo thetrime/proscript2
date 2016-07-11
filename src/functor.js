@@ -5,7 +5,10 @@ var index = 0;
 function Functor(name, arity)
 {
     if (!(name instanceof AtomTerm))
-	throw("Functor() called with something not an atom: " + name);
+    {
+        console.log(new Error().stack);
+        throw("Functor() called with something not an atom: " + name);
+    }
     this.name = name;
     this.arity = arity;
 }
