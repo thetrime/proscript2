@@ -169,7 +169,7 @@ Environment.prototype.consultString = function(data)
                             IO.toByteArray(data));
     var clause = null;
     var module = this.currentModule;
-    while ((clause = Parser.readTerm(stream, [])) != null)
+    while (!((clause = Parser.readTerm(stream, [])).equals(Constants.endOfFileAtom)))
     {
         //console.log("Read: " + clause);
         if (clause instanceof CompoundTerm && clause.functor.equals(Constants.directiveFunctor))
@@ -225,7 +225,7 @@ Environment.prototype.execute = function(queryTerm)
 		     constants: []};
     this.currentFrame = topFrame;
     var queryFrame = new Frame(this);
-    queryFrame.functor = "$query";
+    queryFrame.functor = new Functor(new AtomTerm("$query"), 0);
     queryFrame.code = {opcodes: queryCode.bytecode,
                        constants: queryCode.constants};
     for (var i = 0; i < queryCode.variables.length; i++)

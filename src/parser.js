@@ -622,7 +622,10 @@ function make_curly(items)
 
 function readTerm(stream, options)
 {
-    return read_expression({stream:stream, peeked_token: undefined}, Infinity, false, false, {});
+    var v = read_expression({stream:stream, peeked_token: undefined}, Infinity, false, false, {});
+    if (v == null)
+        return Constants.endOfFileAtom;
+    return v;
 }
 
 function parser_test_read(stream, size, count, buffer)
