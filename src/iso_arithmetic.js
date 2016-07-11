@@ -34,10 +34,13 @@ function toFloats(args)
     var floats = new Array(args.length);
     for (var i = 0; i < args.length; i++)
     {
-        if (args[i] instanceof IntegerTerm || args[i] instanceof FloatTerm)
-            floats[i] = Number(args[i].value);
-        else if (args[i] instanceof BigInteger || args[i] instanceof RationalTerm)
-            floats[i] = Number(args[i].value.valueOf());
+        var v = evaluate_expression(args[i]);
+        if (v instanceof IntegerTerm || v instanceof FloatTerm)
+            floats[i] = Number(v.value);
+        else if (v instanceof BigInteger || v instanceof RationalTerm)
+            floats[i] = Number(v.value.valueOf());
+        else
+            throw new Error("Illegal float conversion from " + v.getClass());
     }
     return floats;
 }
@@ -47,12 +50,13 @@ function toBigIntegers(args)
     var bi = new Array(args.length);
     for (var i = 0; i < args.length; i++)
     {
-        if (args[i] instanceof IntegerTerm)
-            bi[i] = new BigInteger(args[i].value);
-        else if (args[i] instanceof BigIntegerTerm)
-            bi[i] = args[i].value;
+        var v = evaluate_expression(args[i]);
+        if (v instanceof IntegerTerm)
+            bi[i] = new BigInteger(v.value);
+        else if (v instanceof BigIntegerTerm)
+            bi[i] = v.value;
         else
-            throw new Error("Illegal BigInteger conversion from " + args[i].getClass());
+            throw new Error("Illegal BigInteger conversion from " + v.getClass());
     }
     return bi;
 }
@@ -62,14 +66,15 @@ function toRationals(args)
     var r = new Array(args.length);
     for (var i = 0; i < args.length; i++)
     {
-        if (args[i] instanceof RationalTerm)
-            r[i] = args[i].value;
-        else if (args[i] instanceof BigIntegerTerm)
-            r[i] = new Rational(args[i].value, BigInteger.one);
-        else if (args[i] instanceof IntegerTerm)
-            r[i] = new Rational(new BigInteger(args[i].value), BigInteger.one);
+        var v = evaluate_expression(args[i]);
+        if (v instanceof RationalTerm)
+            r[i] = v.value;
+        else if (v instanceof BigIntegerTerm)
+            r[i] = new Rational(v.value, BigInteger.one);
+        else if (v instanceof IntegerTerm)
+            r[i] = new Rational(new BigInteger(v.value), BigInteger.one);
         else
-            throw new Error("Illegal BigInteger conversion from " + args[i].getClass());
+            throw new Error("Illegal BigInteger conversion from " + v.getClass());
     }
     return r;
 }
@@ -447,7 +452,6 @@ function evaluate_expression(a)
                 if (arg[1] instanceof IntegerTerm)
                 {
                     var attempt = Math.pow(arg[0], arg[1]);
-                    console.log("Here: " + attempt);
                     if (attempt == ~~attempt) // no loss of precision
                         return new IntegerTerm(attempt);
                     return new BigIntegerTerm(new BigInteger(arg[0].value).pow(arg[1]));
@@ -490,8 +494,8 @@ function evaluate_expression(a)
             return NumericTerm.get(Rational.rationalize(bi[0], bi[1]));
         }
     }
-    console.log("Could not evaluate: " + util.inspect(a));
-    Errors.typeError(Constants.evaluableAtom, a);
+    //console.log("Could not evaluate: " + util.inspect(a));
+    Errors.typeError(Constants.evaluableAtom, Term.predicate_indicator(a));
 }
 
 var type_names = ["int", "bigint", "float", "rational"];
@@ -551,9 +555,9 @@ function compare(a, b)
         case "float":
         {
             var floats = toFloats(ae, be);
-            if (floats[0].value == floats[1].value)
+            if (floats[0] == floats[1])
                 return 0;
-            else if (floats[0].value > floats[1].value)
+            else if (floats[0] > floats[1])
                 return 1;
             return -1;
         }

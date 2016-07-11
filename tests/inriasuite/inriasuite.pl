@@ -697,9 +697,9 @@ file(fail).
 file(abolish). % FIXME: Does not work
 file(and).
 file(arg).
-/*
-file(arith_diff).
+%file(arith_diff).
 file(arith_eq).
+/*
 file(arith_gt).
 file('arith_gt=').
 file(arith_lt).

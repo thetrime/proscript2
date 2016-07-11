@@ -112,3 +112,10 @@ module.exports.to_list = function(term)
         Errors.typeError(Constants.listAtom, term);
     return list;
 }
+
+module.exports.predicate_indicator = function(term)
+{
+    if (term instanceof AtomTerm)
+        return new CompoundTerm(Constants.predicateIndicatorFunctor, [term, new IntegerTerm(0)]);
+    return new CompoundTerm(Constants.predicateIndicatorFunctor, [term.functor.name, new IntegerTerm(term.functor.arity)]);
+}
