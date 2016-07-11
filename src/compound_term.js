@@ -11,8 +11,8 @@ function CompoundTerm(functor_name, args)
 	this.functor = functor_name
     else
     {
-	console.log(new Error().stack);
-	throw "Bad input";
+        console.log(new Error().stack);
+        throw new Error("Bad functor for compound:" + functor_name);
     }
     this.args = args;
 }
@@ -40,7 +40,10 @@ CompoundTerm.prototype.toString = function()
     var s = this.functor.name.toString() + "(";
     for (var i = 0; i < this.args.length; i++)
     {
-	s += this.args[i].dereference();
+        if (this.args[i] === undefined)
+            s += "<undefined>";
+        else
+            s += this.args[i].dereference();
 	if (i+1 < this.args.length)
 	    s+=",";
     }

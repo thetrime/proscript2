@@ -141,3 +141,35 @@ initialization(_). % FIXME: implement
 include(_).        % FIXME: implement
 ensure_loaded(_).  % FIXME: implement
 % set_prolog_flag/2
+
+% These are not ISO, but everyone seems to expect them
+
+append([], []).
+append([A|C], B) :-
+	append(A, D, B),
+        append(C, D).
+
+append([], A, A).
+append([A|B], C, [A|D]) :-
+	append(B, C, D).
+
+
+length(List, Length) :-
+        ( var(Length) ->
+          length(List, 0, Length)
+        ; Length >= 0,
+          length1(List, Length)
+        ).
+
+length([], Length, Length).
+length([_|L], N, Length) :-
+        N1 is N+1,
+        length(L, N1, Length).
+
+length1([], 0) :- !.
+length1([_|L], Length) :-
+        N1 is Length-1,
+        length1(L, N1).
+
+member(X,[X|_]).
+member(X,[Y|T]) :- member(X,T).

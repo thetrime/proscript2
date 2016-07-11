@@ -30,6 +30,7 @@ function Frame(env)
     this.reserved_slots = [];
     this.code = undefined;
     this.returnPC = 0;
+    //console.log("Created a new frame " + this.depth + ", with choicepoint is set to " + env.choicepoints.length);
     this.choicepoint = env.choicepoints.length;
 }
 

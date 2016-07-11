@@ -496,7 +496,7 @@ function compileTermCreation(term, variables, instructions)
 			       slot:variables[term.name].slot});
 	    variables[term.name].fresh = false;
 	}
-	else if (variables[term.name].isArg)
+        else if (false) // FIXME: Do we need bArgVar?
 	{
 	    instructions.push({opcode: Instructions.bArgVar,
 			       name:term.name,
@@ -515,7 +515,7 @@ function compileTermCreation(term, variables, instructions)
 	instructions.push({opcode: Instructions.bFunctor,
 			   functor:term.functor});
 	for (var i = 0; i < term.functor.arity; i++)
-	    compileTermCreation(term.args[i], variables, instructions);
+            compileTermCreation(term.args[i], variables, instructions);
 	instructions.push({opcode: Instructions.bPop});
     }
     else if (term instanceof AtomTerm)
@@ -595,8 +595,7 @@ function analyzeVariables(term, isHead, depth, map, context)
 	if (map[term.name] === undefined)
 	{
 	    map[term.name] = ({variable: term,
-                               isArg: (isHead && depth == 0),
-			       fresh: true,
+                               fresh: true,
                                slot: context.nextSlot++});
 	    rc++;
 	}
@@ -613,8 +612,7 @@ function analyzeVariables(term, isHead, depth, map, context)
 		{
 		    if (map[term.args[i].name] === undefined)
 		    {
-			map[term.args[i].name] = ({variable: term.args[i],
-                                                   isArg: true,
+                        map[term.args[i].name] = ({variable: term.args[i],
 						   fresh: true,
                                                    slot: i});
 			rc++;

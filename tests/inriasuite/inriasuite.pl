@@ -125,7 +125,7 @@ result(G, Res) :-
 special_ans_forms([success], success) :- !.
 special_ans_forms([failure], failure) :- !.
 special_ans_forms([Error], Error) :-
-	Error =..[E |_],error_type(E), !.
+        Error =..[E |_],error_type(E), !.
 special_ans_forms(X,X).
 	
 %%%%%%%%%%%%%%%%
@@ -171,7 +171,7 @@ vars_in_term(Term,VarsIn, VarsOut) :-
 % Term  is a variable
 
 vars_in_term(Term, VarsIn, VarsOut) :-
-	var(Term) ,!, 
+        var(Term) ,!,
         (already_appears(Term, VarsIn)
         ->
         VarsOut=VarsIn
@@ -244,7 +244,7 @@ make_subs_list1(_V, failure, failure).
 make_subs_list1(_V, impl_def, impl_def).
 make_subs_list1(_V, undefined, undefined).
 make_subs_list1(_V, Error, Error) :-
-	Error =.. [E|_],
+        Error =.. [E|_],
         error_type(E), !.
 
 make_subs_list1(Vs,GVs,Sub) :-
@@ -694,10 +694,10 @@ inerror(F) :-
 %
         	
 file(fail).
-/*
-file(abolish).
+%file(abolish). % FIXME: Does not work
 file(and).
 file(arg).
+/*
 file(arith_diff).
 file(arith_eq).
 file(arith_gt).

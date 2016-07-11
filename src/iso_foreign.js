@@ -6,17 +6,20 @@ var CompoundTerm = require('./compound_term.js');
 var AtomTerm = require('./atom_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
+var BigIntegerTerm = require('./biginteger_term.js');
+var RationalTerm = require('./rational_term.js');
+var BlobTerm = require('./blob_term.js');
 var FloatTerm = require('./float_term.js');
 var Parser = require('./parser.js');
 var PrologFlag = require('./prolog_flag.js');
 var Term = require('./term.js');
+var Errors = require('./errors.js');
 
 
 function acyclic_term(t)
 {
     var visited = [];
     var stack = [t.dereference()];
-    console.log("Checking whether term is cyclic...");
     while (stack.length != 0)
     {
         var arg = stack.pop();
@@ -204,7 +207,6 @@ module.exports.functor = function(term, name, arity)
         var args = new Array(arity.value);
         for (var i = 0; i < args.length; i++)
             args[i] = new VariableTerm();
-        console.log(name + ", " + args);
         return this.unify(term, new CompoundTerm(name, args));
     }
     if (term instanceof AtomTerm)
@@ -226,26 +228,29 @@ module.exports.functor = function(term, name, arity)
 module.exports.arg = function(n, term, arg)
 {
     // NB: ISO only requires the +,+,? mode
-    if (n instanceof VariableTerm)
-        Errors.instantiationError(n);
-    if (term instanceof VariableTerm)
-        Errors.instantiationError(term);
-    if (!(n instanceof IntegerTerm))
-        Errors.typeError(Constants.integerAtom, n);
+    Term.must_be_bound(term);
+    Term.must_be_integer(n);
     if (n.value < 0)
         Errors.domainError(Constants.notLessThanZeroAtom, n);
     if (!(term instanceof CompoundTerm))
         Errors.typeError(Constants.compoundAtom, term);
-    if (term.args[n.value] === undefined)
+    if (term.args[n.value-1] === undefined)
         return false; // N is too big
-    return this.unify(term.args[n.value], arg);
+    return this.unify(term.args[n.value-1], arg);
 }
 // 8.5.3 (=..)/2
 module.exports["=.."] = function(term, univ)
 {
     // CHECKME: More errors should be checked
-    if (term instanceof AtomTerm) // FIXME: Also other atomic-type terms
+    if ((term instanceof AtomTerm) ||
+        (term instanceof IntegerTerm) ||
+        (term instanceof FloatTerm) ||
+        (term instanceof BlobTerm) ||
+        (term instanceof BigIntegerTerm) ||
+        (term instanceof RationalTerm))
+    {
         return this.unify(univ, Term.from_list([term]));
+    }
     if (term instanceof CompoundTerm)
     {
         return this.unify(univ, Term.from_list([term.functor.name].concat(term.args)));
@@ -253,11 +258,11 @@ module.exports["=.."] = function(term, univ)
     if (term instanceof VariableTerm)
     {
         var list = Term.to_list(univ);
-        var fname = list.unshift();
+        var fname = list.shift();
         return this.unify(term, new CompoundTerm(fname, list));
     }
     else
-        Errors.typeError(Constants.termAtom, term);
+        Errors.typeError(Constants.compoundAtom, term);
 }
 // 8.5.4 copy_term/2
 module.exports.copy_term = function(term, copy)
@@ -601,7 +606,6 @@ module.exports.number_chars = function(number, chars)
         {
             if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
             {
-                console.log(head.args[0].getClass());
                 if (head.args[0] instanceof AtomTerm && head.args[0].value.length == 1)
                     buffer += head.args[0].value;
                 else

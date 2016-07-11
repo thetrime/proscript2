@@ -2,6 +2,7 @@
 var Constants = require('./constants');
 var IntegerTerm = require('./integer_term');
 var Term = require('./term');
+var util = require('util');
 
 module.exports.term_variables = function(t, vt)
 {
@@ -22,3 +23,9 @@ module.exports["$choicepoint_depth"] = function(t)
     return this.unify(t, new IntegerTerm(this.choicepoints.length));
 }
 
+
+module.exports.qqq = function()
+{
+    console.log("xChoicepoints: " + util.inspect(this.choicepoints));
+    return true;
+}

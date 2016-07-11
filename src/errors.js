@@ -26,6 +26,7 @@ module.exports.instantiationError = function()
 
 module.exports.typeError = function(expected, actual)
 {
+    //console.log(new Error().stack);
     throw new CompoundTerm(errorFunctor, [new CompoundTerm(typeErrorFunctor, [expected, actual]), new VariableTerm()]);
 }
 

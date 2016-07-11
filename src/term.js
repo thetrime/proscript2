@@ -22,8 +22,9 @@ module.exports.must_be_atom = function(t)
 
 module.exports.must_be_integer = function(t)
 {
+    module.exports.must_be_bound(t);
     if (!(t instanceof IntegerTerm))
-        Errors.typeError(Constants.atomAtom, t);
+        Errors.typeError(Constants.integerAtom, t);
 }
 
 module.exports.must_be_character = function(t)
@@ -104,6 +105,6 @@ module.exports.to_list = function(term)
         term = term.args[1];
     }
     if (!term.equals(Constants.emptyListAtom))
-        throw new Error("Not a proper list"); // FIXME: Should throw a prolog error really
+        Errors.typeError(Constants.listAtom, term);
     return list;
 }

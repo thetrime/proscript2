@@ -301,7 +301,6 @@ function execute(env)
                 catch (e)
                 {
                     exception = e;
-                    console.log("Foreign result: " + exception);
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
                 }
@@ -406,7 +405,7 @@ function execute(env)
                             env.PC = 6; // After we have executed the handler we need to go to the i_exitcatch which chould be at PC=6+1
                             // Javascript doesnt have a goto statement, so this is a bit tricky
                             next_opcode = "i_usercall";
-                            console.log("Handling exception:" + frame.slots[1].dereference());
+                            //console.log("Handling exception:" + frame.slots[1].dereference());
                             continue next_instruction;
                         }
                     }
@@ -439,7 +438,6 @@ function execute(env)
                     env.nextFrame.code = env.getPredicateCode(functor);
                 } catch (e)
                 {
-                    console.log("Error: " + e);
                     exception = e;
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
@@ -511,7 +509,9 @@ function execute(env)
                 //console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
                 // If we want to support cleanup, we cannot just do this:
                 //env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
-                cut_to(env, env.currentFrame.choicepoint);
+                //console.log("Cut to " + env.currentFrame.parent.choicepoint);
+                cut_to(env, env.currentFrame.parent.choicepoint);
+                //console.log("Choicepoints after cut: " + env.choicepoints.length);
                 env.currentFrame.choicepoint = env.choicepoints.length;
                 env.PC++;
                 continue;
@@ -595,8 +595,7 @@ function execute(env)
             case "b_var":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                //console.log("Value for b_var: " + env.currentFrame.slots[slot] + " in slot " + slot);
-		env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
+                env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
                 env.argI++;
                 env.PC+=3;
                 continue;
@@ -763,6 +762,7 @@ function execute(env)
             case "try_me_else":
             case "retry_me_else":
             {
+                //console.log("retry_me_else. Before putting the 'else' on the stack there are now " + env.choicepoints.length + " choicepoints, and the frame choicepoint on frame " + env.currentFrame.depth + " is " + env.currentFrame.choicepoint);
                 var address = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
                 env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=5;
