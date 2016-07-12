@@ -227,7 +227,7 @@ function pad(pad, str)
 
 function print_instruction(env, current_opcode)
 {
-    //console.log("Choicepoints: " + env.choicepoints.length);
+    console.log("Choicepoints: " + env.choicepoints.length);
     console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 
@@ -504,6 +504,9 @@ function execute(env)
                 var compiledCode;
                 try
                 {
+                    // It is DEFINITELY worth checking that the goal is bound!
+                    if (goal instanceof VariableTerm)
+                        Errors.instantiationError();
                     compiledCode = Compiler.compileQuery(goal);
                 }
                 catch (e)

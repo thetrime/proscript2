@@ -692,7 +692,6 @@ inerror(F) :-
 %   list all the files 
 %   of tests.
 %
-/*
 file(fail).
 file(abolish).
 file(and).
@@ -752,7 +751,6 @@ file(term_lt).
 file('term_lt=').
 file(true).
 file(unify).
-*/
 file(univ).
        
 %%%%%%%%%%%

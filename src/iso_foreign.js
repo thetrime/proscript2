@@ -217,7 +217,10 @@ module.exports["=.."] = function(term, univ)
     if (term instanceof VariableTerm)
     {
         var list = Term.to_list(univ);
+        if (list.length == 0)
+            Errors.domainError(Constants.nonEmptyListAtom, univ);
         var fname = list.shift();
+        Term.must_be_bound(fname);
         return this.unify(term, new CompoundTerm(fname, list));
     }
     else
@@ -388,6 +391,13 @@ module.exports.sub_atom = function(atom, before, length, after, subatom)
     Term.must_be_atom(atom);
     if (!(subatom instanceof VariableTerm))
         Term.must_be_atom(subatom);
+    if (!(before instanceof VariableTerm))
+        Term.must_be_integer(before);
+    if (!(length instanceof VariableTerm))
+        Term.must_be_integer(length);
+    if (!(after instanceof VariableTerm))
+        Term.must_be_integer(after);
+
     var input = atom.value;
     if (this.foreign === undefined)
     {

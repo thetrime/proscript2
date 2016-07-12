@@ -222,7 +222,8 @@ function compileClause(term, instructions)
         analyzeVariables(term.args[1], false, 1, variables, context);
         compileHead(term.args[0], variables, instructions);
 	instructions.push({opcode: Instructions.iEnter});
-        compileBody(term.args[1], variables, instructions, true, {nextReserved:0});
+        if (!compileBody(term.args[1], variables, instructions, true, {nextReserved:0}))
+            Errors.typeError(Constants.callableAtom, term.args[1])
     }
     else
     {
@@ -308,6 +309,7 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
 
 function compileBody(term, variables, instructions, isTailGoal, reservedContext)
 {
+    var rc = true;
     if (term instanceof VariableTerm)
     {
         compileTermCreation(term, variables, instructions);
@@ -347,34 +349,33 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
     {
 	if (term.functor.equals(Constants.conjunctionFunctor))
 	{
-            compileBody(term.args[0], variables, instructions, false, reservedContext);
-            compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext);
+            rc &= compileBody(term.args[0], variables, instructions, false, reservedContext) &&
+                compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext);
 	}
 	else if (term.functor.equals(Constants.disjunctionFunctor))
         {
             if (term.args[0] instanceof CompoundTerm && term.args[0].functor.equals(Constants.localCutFunctor))
             {
                 // If-then-else
-                // FIXME: Check that reservedContext.nextReserved < reservedContext.maxReserved
                 var ifThenElseInstruction = instructions.length;
                 var cutPoint = reservedContext.nextReserved++;
                 instructions.push({opcode: Instructions.cIfThenElse,
                                    slot:cutPoint,
                                    address: -1});
                 // If
-                compileBody(term.args[0].args[0], variables, instructions, false, reservedContext);
+                rc &= compileBody(term.args[0].args[0], variables, instructions, false, reservedContext);
                 // (Cut)
                 instructions.push({opcode: Instructions.cCut,
                                    slot: cutPoint});
                 // Then
-                compileBody(term.args[0].args[1], variables, instructions, false, reservedContext);
+                rc &= compileBody(term.args[0].args[1], variables, instructions, false, reservedContext);
                 // (and now jump out before the Else)
                 var jumpInstruction = instructions.length;
                 instructions.push({opcode: Instructions.cJump,
                                    address: -1});
                 // Else - we resume from here if the 'If' doesnt work out
                 instructions[ifThenElseInstruction].address = instructions.length;
-                compileBody(term.args[1], variables, instructions, false, reservedContext);
+                rc &= compileBody(term.args[1], variables, instructions, false, reservedContext);
                 instructions[jumpInstruction].address = instructions.length;
             }
             else
@@ -383,12 +384,12 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
                 var orInstruction = instructions.length;
                 instructions.push({opcode: Instructions.cOr,
                                    address: -1});
-                compileBody(term.args[0], variables, instructions, false, reservedContext);
+                rc &= compileBody(term.args[0], variables, instructions, false, reservedContext);
                 var jumpInstruction = instructions.length;
                 instructions.push({opcode: Instructions.cJump,
                                    address: -1});
                 instructions[orInstruction].address = instructions.length;
-                compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext);
+                rc &= compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext);
                 instructions[jumpInstruction].address = instructions.length;
             }
             // Finally, we need to make sure that the c_jump has somewhere to go,
@@ -411,7 +412,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
                                slot:cutPoint,
                                address: -1});
             // If
-            compileBody(term.args[0], variables, instructions, false, reservedContext);
+            rc &= compileBody(term.args[0], variables, instructions, false, reservedContext);
             // (Cut)
             instructions.push({opcode: Instructions.cCut,
                                slot: cutPoint});
@@ -423,7 +424,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
                 instructions.push({opcode: Instructions.iExit});
         }
 	else if (term.functor.equals(Constants.throwFunctor))
-	{
+        {
 	    compileTermCreation(term.args[0], variables, instructions);
             instructions.push({opcode: Instructions.bThrow});
 	}
@@ -431,14 +432,14 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
         {
             instructions.push({opcode: Instructions.iSwitchModule,
                                atom: term.args[0]});
-            compileBody(term.args[1], variables, instructions, false, reservedContext);
+            rc &= compileBody(term.args[1], variables, instructions, false, reservedContext);
             instructions.push({opcode: Instructions.iExitModule});
             if (isTailGoal)
                 instructions.push({opcode: Instructions.iExit});
 
         }
         else if (term.functor.equals(Constants.cleanupChoicepointFunctor))
-	{
+        {
             compileTermCreation(term.args[0], variables, instructions);
             compileTermCreation(term.args[1], variables, instructions);
             instructions.push({opcode: Instructions.bCleanupChoicepoint});
@@ -449,20 +450,20 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
             var cutPoint = reservedContext.nextReserved++;
             instructions.push({opcode: Instructions.cIfThen,
                                slot:cutPoint});
-            compileBody(term.args[0], variables, instructions, false, reservedContext);
+            rc &= compileBody(term.args[0], variables, instructions, false, reservedContext);
             instructions.push({opcode: Instructions.cCut,
                                slot: cutPoint});
-            compileBody(term.args[1], variables, instructions, false, reservedContext);
+            rc &= compileBody(term.args[1], variables, instructions, false, reservedContext);
             if (isTailGoal)
                 instructions.push({opcode: Instructions.iExit});
         }
         else if (term.functor.equals(Constants.notUnifiableFunctor))
         {
             // This is just \+(A=B)
-            compileBody(new CompoundTerm(Constants.notFunctor, [new CompoundTerm(Constants.unifyFunctor, [term.args[0], term.args[1]])]), variables, instructions, isTailGoal, reservedContext);
+            rc &= compileBody(new CompoundTerm(Constants.notFunctor, [new CompoundTerm(Constants.unifyFunctor, [term.args[0], term.args[1]])]), variables, instructions, isTailGoal, reservedContext);
         }
 	else if (term.functor.equals(Constants.unifyFunctor))
-	{
+        {
 	    compileTermCreation(term.args[0], variables, instructions);
 	    compileTermCreation(term.args[1], variables, instructions);
 	    instructions.push({opcode: Instructions.iUnify});
@@ -470,7 +471,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
 		instructions.push({opcode: Instructions.iExit});
 	}
 	else
-	{
+        {
 	    for (var i = 0; i < term.functor.arity; i++)
 		compileTermCreation(term.args[i], variables, instructions);
 	    instructions.push({opcode: isTailGoal?Instructions.iDepart:Instructions.iCall,
@@ -479,8 +480,10 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
     }
     else
     {
-        Errors.typeError(Constants.callableAtom, term);
+        rc = false;
+        //Errors.typeError(Constants.callableAtom, term);
     }
+    return rc;
 }
 
 function compileTermCreation(term, variables, instructions)
