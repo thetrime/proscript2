@@ -233,8 +233,17 @@ module.exports.clause = function(head, body)
 {
     // FIXME: Assumes current module
     // FIXME: Should allow Module:Head
+    // This is silly, but ok
+    if ((body instanceof IntegerTerm) || (body instanceof FloatTerm))
+        Errors.typeError(Constants.callableAtom, body);
+
     var functor = Term.head_functor(head);
-    var clauses = this.currentModule.predicates[functor.toString()].clauses;
+    var predicate = this.currentModule.predicates[functor.toString()];
+    if (predicate == undefined)
+        return false;
+    if (predicate.foreign)
+        Errors.permissionError(Constants.accessAtom, Constants.privateProcedureAtom, Term.predicate_indicator(head));
+    var clauses = predicate.clauses;
     var index = this.foreign || 0;
     if (index > clauses.length)
         return false;

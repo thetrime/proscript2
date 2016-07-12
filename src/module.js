@@ -21,6 +21,7 @@ Module.prototype.defineForeignPredicate = function(name, fn)
     var compiled = Compiler.foreignShim(fn);
     this.predicates[functor.toString()] = {code: {opcodes: compiled.bytecode,
                                                   constants: compiled.constants},
+                                           foreign: true,
                                            functor: functor,
                                            instructions: compiled.instructions};
     console.log(">>> Defined (foreign) " + this.name + ":" + functor);

@@ -712,10 +712,10 @@ file(atom_concat).
 file(atom_length).
 file(atomic).
 file(bagof).
-%file(call).
+%file(call).               Does not halt
 %file('catch-and-throw').  This works but isnt very good
 file(char_code).
-%file(clause).
+file(clause).
 file(compound).
 file(copy_term).
 file(current_input).  % default names of input are imp-def.
@@ -727,8 +727,8 @@ file(cut).
 file(findall).
 file(float).
 file(functor).
-%file('if-then').
-%file('if-then-else').
+%file('if-then').       % Miscompiled
+%file('if-then-else').  % Miscompiled
 file(integer).
 file(is).
 file(nonvar).
@@ -751,7 +751,7 @@ file('term_gt=').
 file(term_lt).
 file('term_lt=').
 file(true).
-%file(unify).
+file(unify).
 
        
 %%%%%%%%%%%
