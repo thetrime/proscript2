@@ -42,7 +42,6 @@ Module.prototype.makeDynamic = function(functor)
     else if (this.predicates[functor.toString()].dynamic !== true)
         Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
     this.predicates[functor.toString()].dynamic = true;
-    this.predicates[functor.toString()].code = undefined;
 }
 
 Module.prototype.asserta = function(term)
@@ -50,6 +49,7 @@ Module.prototype.asserta = function(term)
     var functor = Term.clause_functor(term);
     this.makeDynamic(functor);
     this.predicates[functor.toString()].clauses.unshift(term);
+    this.getPredicateCode(functor);
 }
 
 Module.prototype.assertz = function(term)
@@ -57,13 +57,13 @@ Module.prototype.assertz = function(term)
     var functor = Term.clause_functor(term);
     this.makeDynamic(functor);
     this.predicates[functor.toString()].clauses.push(term);
+    this.getPredicateCode(functor);
 }
 
 Module.prototype.retractClause = function(functor, index)
 {
     this.predicates[functor.toString()].clauses.splice(index, 1);
-    // We must recompile the predicate on next access
-    this.predicates[functor.toString()].code = undefined;
+    this.getPredicateCode(functor);
 }
 
 Module.prototype.abolish = function(indicator)

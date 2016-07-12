@@ -711,6 +711,7 @@ file(atom_codes).
 file(atom_concat).
 file(atom_length).
 file(atomic).
+/*
 %file(bagof).
 %file(call).
 file('catch-and-throw').
@@ -752,6 +753,7 @@ file(term_lt).
 file('term_lt=').
 file(true).
 %file(unify).
+*/
 
        
 %%%%%%%%%%%

@@ -30,6 +30,14 @@ function ExplicitFloat(s)
     this.value = parseFloat(s);
 }
 
+var ListOpenToken = {toString: function() {return "<list-open>";}};
+var ListCloseToken = {toString: function() {return "<list-close>";}};
+var CurlyOpenToken = {toString: function() {return "<curly-open>";}};
+var CurlyCloseToken = {toString: function() {return "<curly-close>";}};
+var BarToken = {toString: function() {return "<bar>";}};
+
+
+
 function parse_infix(s, lhs, precedence, vars)
 {
     var token = read_token(s);
@@ -92,7 +100,7 @@ function read_expression(s, precedence, isarg, islist, vars)
     {
 	return null; // end of file
     }
-    if (token == "]") // end of list
+    if (token == ListCloseToken) // end of list
         return token;
 
     var lhs;
@@ -145,7 +153,7 @@ function read_expression(s, precedence, isarg, islist, vars)
 		lhs = make_list(args, Constants.emptyListAtom);
 	    }
         }
-        else if (token == "[" || token == "{")
+        else if (token == ListOpenToken || token == CurlyOpenToken)
         {
             // The principle for both of these is very similar
             var args = [];
@@ -153,7 +161,7 @@ function read_expression(s, precedence, isarg, islist, vars)
             while(true)
             {
                 var t = read_expression(s, Infinity, true, true, vars);
-                if (t == "]")
+                if (t == ListCloseToken)
                 {
                     lhs = Constants.emptyListAtom;
                     break;
@@ -163,22 +171,22 @@ function read_expression(s, precedence, isarg, islist, vars)
 		var next = read_token(s);
                 if (next == ',')
                     continue;
-                else if (next == "]" && token == "[")
+                else if (next == ListCloseToken && token == ListOpenToken)
 		{
 		    lhs = make_list(args, Constants.emptyListAtom);
 		    break;
                 }
-                else if (next == "}" && token == "{")
+                else if (next == CurlyCloseToken && token == CurlyOpenToken)
                 {
                     lhs = make_curly(args);
                     break;
                 }
-                else if (next == "|" && token == "[")
+                else if (next == BarToken && token == ListOpenToken)
                 {
 		    var tail = read_expression(s, Infinity, true, true, vars);
 		    lhs = make_list(args, tail);
 		    var next = read_token(s);
-		    if (next == "]")
+                    if (next == ListCloseToken)
                         break;
                     else
                         return syntax_error("missing ]");
@@ -274,7 +282,7 @@ function read_expression(s, precedence, isarg, islist, vars)
         {
 	    return lhs;
         }
-        if (infix_operator == "|" && islist)
+        if (infix_operator == BarToken && islist)
         {
 	    return lhs;
         }
@@ -344,7 +352,7 @@ function read_token(s)
 	return s.peeked_tokens.pop();
     }
     var q = lex(s.stream);
-    //console.log("lex: " + util.inspect(q, {depth:null}));
+    //console.log("lexed: " + q);
     return q;
 }
 
@@ -414,7 +422,25 @@ function lex(s)
             }
         }
         break;
-    }    
+    }
+    if (c == "[")
+    {
+        if (peek_raw_char_with_conversion(s) == "]")
+        {
+            get_raw_char_with_conversion(s);
+            return "[]";
+        }
+        return ListOpenToken;
+    }
+    if (c == "{")
+        return CurlyOpenToken;
+    else if (c == "}")
+        return CurlyCloseToken;
+    else if (c == "]")
+        return ListCloseToken;
+    else if (c == "|")
+        return BarToken;
+
     if ((c >= 'A' && c <= 'Z') || c == '_')
     {
         token = {variable_name: "" + c};
@@ -528,6 +554,11 @@ function lex(s)
                         buffer += "\n";
                     else if (c == "'")
                         buffer += "'";
+                    else if (c == "u")
+                    {
+                        // unicode point
+                        buffer += String.fromCharCode(parseInt(get_raw_char_with_conversion(s) + get_raw_char_with_conversion(s)+get_raw_char_with_conversion(s) + get_raw_char_with_conversion(s), 16));
+                    }
                     else
                     {
                         console.log("unexpected escape code " + c);

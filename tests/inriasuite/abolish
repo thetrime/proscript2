@@ -8,8 +8,8 @@
 
 [abolish(foo/(-1)), domain_error(not_less_than_zero,-1)].
 
-[(current_prolog_flag(max_arity,A), X is A + 1, abolish(foo/X)), 
-				representation_error(max_arity)]. 
+% This does not apply to proscript; there is no maximum arity
+%[(current_prolog_flag(max_arity,A), X is A + 1, abolish(foo/X)),  representation_error(max_arity)].
 
 [abolish(5/2), type_error(atom,5)].
 

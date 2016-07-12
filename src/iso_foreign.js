@@ -539,11 +539,12 @@ module.exports.atom_codes = function(atom, codes)
     {
         var head = codes;
         var buffer = '';
+        Term.must_be_bound(codes);
         while(true)
         {
             if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
             {
-                if (head.args[0] instanceof IntegerTerm)
+                if (head.args[0] instanceof IntegerTerm && head.args[0].value >= 0)
                     buffer += String.fromCharCode(head.args[0].value);
                 else
                     Errors.representationError(Constants.characterCodeAtom, head.args[0]);

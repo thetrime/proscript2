@@ -7,6 +7,7 @@ var FloatTerm = require('./float_term.js');
 var BigIntegerTerm = require('./biginteger_term.js');
 var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
+var Errors = require('./errors.js');
 var Instructions = require('./opcodes.js').opcode_map;
 var util = require('util');
 
@@ -477,7 +478,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
     }
     else
     {
-	// FIXME: This should be a type error
+        Errors.typeError(Constants.callableAtom, term);
     }
 }
 

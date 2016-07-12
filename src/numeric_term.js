@@ -10,7 +10,6 @@ module.exports.get = function(t)
     {
         if (t.isSmall)
             return new IntegerTerm(t.valueOf());
-        console.log(require('./biginteger_term.js'));
         return new BigIntegerTerm(t);
     }
     else if (t instanceof Rational)

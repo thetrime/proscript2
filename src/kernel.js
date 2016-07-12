@@ -75,7 +75,7 @@ function set_exception(env, term)
 {
     if (term.stack != undefined)
     {
-        console.log(term.stack);
+        console.log("Trace: " + term.stack);
         exception = new CompoundTerm(Constants.systemErrorFunctor, [term.toString()]);
     }
     else
@@ -423,7 +423,6 @@ function execute(env)
                     }
                     frame = frame.parent;
                 }
-                console.log(exception.stack);
                 throw new Error("unhandled exception:" + exception);
             }
             case "i_switch_module":
