@@ -549,12 +549,12 @@ function compare(a, b)
         }
         case "bigint":
         {
-            var bigints = toBigIntegers(ae, be);
+            var bigints = toBigIntegers([ae, be]);
             return bigints[0].compare(bigints[1].value);
         }
         case "float":
         {
-            var floats = toFloats(ae, be);
+            var floats = toFloats([ae, be]);
             if (floats[0] == floats[1])
                 return 0;
             else if (floats[0] > floats[1])
@@ -563,7 +563,7 @@ function compare(a, b)
         }
         case "rational":
         {
-            var rationals = toRationals(ae, be);
+            var rationals = toRationals([ae, be]);
             return rationals[0].compare(rationals[1].value);
         }
     }

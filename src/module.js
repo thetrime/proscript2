@@ -3,8 +3,10 @@ var Compiler = require('./compiler.js');
 var Functor = require('./functor.js');
 var Errors = require('./errors.js');
 var AtomTerm = require('./atom_term.js');
+var IntegerTerm = require('./integer_term.js');
 var Term = require('./term.js');
 var Constants = require('./constants.js');
+var CompoundTerm = require('./compound_term.js');
 var util = require('util');
 
 function Module(name)
@@ -37,6 +39,8 @@ Module.prototype.makeDynamic = function(functor)
     // FIXME: Do not allow adding clauses to compiled predicates?
     if (this.predicates[functor.toString()] === undefined)
         this.definePredicate(functor);
+    else if (this.predicates[functor.toString()].dynamic !== true)
+        Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
     this.predicates[functor.toString()].dynamic = true;
     this.predicates[functor.toString()].code = undefined;
 }

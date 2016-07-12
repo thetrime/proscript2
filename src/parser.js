@@ -20,9 +20,15 @@ var NumericTerm = require('./numeric_term.js');
 var Functor = require('./functor.js');
 var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
+var Errors = require('./errors.js');
 var Operators = require('./operators.js');
 var CharConversionTable = require('./char_conversion.js');
 var util = require('util');
+
+function ExplicitFloat(s)
+{
+    this.value = parseFloat(s);
+}
 
 function parse_infix(s, lhs, precedence, vars)
 {
@@ -39,8 +45,7 @@ function parse_postfix(s, lhs)
 
 function syntax_error(msg)
 {
-    // FIXME:
-    throw new Error(util.inspect(msg));
+    Errors.syntaxError(new AtomTerm(util.inspect(msg)));
 }
 
 // this should be called with token assigned either an integer or a float
@@ -57,13 +62,15 @@ function numberToken(token)
     }
     else if (token instanceof BigInteger)
         return new BigIntegerTerm(token);
+    else if (token instanceof ExplicitFloat)
+        return new FloatTerm(token.value);
     return null;
 }
 
 function atomicToken(token)
 {
     //console.log("Token: " + token);
-    if (typeof(token) === 'number' || token instanceof BigInteger)
+    if (typeof(token) === 'number' || token instanceof BigInteger || token instanceof ExplicitFloat)
     {
         var number = numberToken(token);
         if (number != null)
@@ -466,6 +473,11 @@ function lex(s)
         }
         if (seen_decimal)
         {
+            if (parseInt(token) == parseFloat(token))
+            {
+                // care must be taken here. We do not want 1.0 to be turned into an IntegerTerm
+                return new ExplicitFloat(token);
+            }
             return parseFloat(token);
         }
         if (parseInt(token) == parseFloat(token)) // FIXME: only if unbounded! Otherwise float

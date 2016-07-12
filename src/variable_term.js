@@ -42,8 +42,7 @@ VariableTerm.prototype.toString = function()
 VariableTerm.prototype.equals = function(o)
 {
     return (o === this ||   // Simple case - two things are equal if they are the same thing
-            ((!(this.value == null && o.value == null) &&  // Only compare if we are not comparing two unbound vars
-              (o instanceof VariableTerm && this.dereference().equals(o.dereference())))));
+            (this.value != null && this.dereference().equals(o.dereference())));
 }
 
 

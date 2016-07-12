@@ -2,7 +2,7 @@
 
 [atom_chars('',L), [[L <-- []]]].
 [atom_chars([],L), [[L <-- ['[',']']]]].
-[atom_chars('''',L), [[L <-- ['''']]]].
+%[atom_chars('''',L), [[L <-- ['''']]]].
 [atom_chars('iso',L), [[L <-- ['i','s','o']]]].
 [atom_chars(A,['p','r','o','l','o','g']), [[A <-- 'prolog']]].
 [atom_chars('North',['N'|X]), [[X <-- ['o','r','t','h']]]].

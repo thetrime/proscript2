@@ -547,10 +547,10 @@ function execute(env)
 		// So first we must reduce it
 		env.argI--;
 		var arg1 = env.argP[env.argI--];
-		var arg2 = env.argP[env.argI];
+                var arg2 = env.argP[env.argI];
 		// The space formerly held by arg2 will now be free again by virtue of env.argI pointing to it
                 if (env.unify(arg1, arg2))
-		{
+                {
 		    //console.log("iUnify: Unified " + util.inspect(arg1) + " and " + util.inspect(arg2));
 		    env.PC++;
 		    continue;

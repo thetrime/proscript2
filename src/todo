@@ -15,3 +15,7 @@ Checkings
 Bugs:
    If we retract a clause from a predicate that we are executing, then the code in the stack will be wrong. How can this possibly be avoided, though?
    builtin.pl is loaded in such a way that \n is translated into a newline, requiring the code to actually have \\n if it wants to get '\n' as the atom
+
+inria-suite:
+   =\\= is not parsed correctly (arith_diff)
+   '''' is not parsed correctly (atom_chars)

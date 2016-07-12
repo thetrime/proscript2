@@ -48,41 +48,43 @@ function acyclic_term(t)
 function term_difference(a, b)
 {
     if (a.equals(b))
+    {
         return 0;
+    }
     if (a instanceof VariableTerm)
     {
         if (b instanceof VariableTerm)
             return a.index - b.index;
-        return 1;
+        return -1;
     }
     if (a instanceof FloatTerm)
     {
         if (b instanceof VariableTerm)
-            return -1;
+            return 1;
         else if (b instanceof FloatTerm)
             return a.value - b.value;
-        return 1;
+        return -1;
     }
     if (a instanceof IntegerTerm)
     {
         if ((b instanceof VariableTerm) || (b instanceof FloatTerm))
-            return -1;
+            return 1;
         else if (b instanceof IntegerTerm)
             return a.value - b.value;
-        return 1;
+        return -1;
     }
     if (a instanceof AtomTerm)
     {
         if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm))
-            return -1;
+            return 1;
         else if (b instanceof AtomTerm)
             return (a.value > b.value)?1:-1;
-        return 1;
+        return -1;
     }
     if (a instanceof CompoundTerm)
     {
         if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm) || (b instanceof AtomTerm))
-            return -1;
+            return 1;
         if (b instanceof CompoundTerm)
         {
             if (a.functor.arity != b.functor.arity)
@@ -97,9 +99,9 @@ function term_difference(a, b)
             }
             return 0;
         }
-        return 1;
+        return -1;
     }
-    // FIXME: Other types here
+    // FIXME: Other types here?
 }
 
 
@@ -198,16 +200,15 @@ module.exports.functor = function(term, name, arity)
     if (term instanceof VariableTerm)
     {
         // Construct a term
-        if (arity instanceof VariableTerm)
-            Errors.instantiationError(arity);
-        if (arity instanceof VariableTerm)
-            Errors.instantiationError(arity);
-        if (!(arity instanceof IntegerTerm))
-            Errors.typeError(Constants.integerAtom, arity);
+        Term.must_be_positive_integer(arity);
+        Term.must_be_bound(name);
         var args = new Array(arity.value);
         for (var i = 0; i < args.length; i++)
             args[i] = new VariableTerm();
-        return this.unify(term, new CompoundTerm(name, args));
+        if (name instanceof AtomTerm)
+            return this.unify(term, new CompoundTerm(name, args));
+        else if ((name instanceof IntegerTerm) || (name instanceof FloatTerm))
+            return this.unify(term, new CompoundTerm(new AtomTerm(String(name.value)), args));
     }
     if (term instanceof AtomTerm)
     {
@@ -290,13 +291,7 @@ module.exports.clause = function(head, body)
 // 8.8.2 current_predicate/2
 module.exports.current_predicate = function(indicator)
 {
-    if (indicator instanceof CompoundTerm)
-    {
-        if (!indicator.functor.equals(Constants.predicateIndicatorFunctor))
-            Errors.typeError(Constants.predicateIndicatorAtom, indicator);
-    }
-    else if (!indicator instanceof VariableTerm)
-        Errors.typeError(Constants.predicateIndicatorAtom, indicator);
+    Term.must_be_pi(indicator);
     // Now indicator is either unbound or bound to /(A,B)
     // FIXME: Currently only examines the current module
     // FIXME: Should also allow Module:Indicator!
@@ -512,12 +507,11 @@ module.exports.atom_chars = function(atom, chars)
         var buffer = '';
         while(true)
         {
+            Term.must_be_bound(head);
             if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
             {
-                if (head.args[0] instanceof AtomTerm && head.args[0].value.length == 1)
-                    buffer += head.args[0].value;
-                else
-                    Errors.typeError(Constants.characterAtom, head.args[0]);
+                Term.must_be_character(head.args[0]);
+                buffer += head.args[0].value;
                 head = head.args[1];
             }
             else if (head.equals(Constants.emptyListAtom))
@@ -534,7 +528,7 @@ module.exports.atom_chars = function(atom, chars)
         var list = [];
         for (var i = 0; i < atom.value.length; i++)
             list.push(new AtomTerm(atom.value[i]));
-        return this.unify(list_from_term(list), chars);
+        return this.unify(Term.from_list(list), chars);
     }
     Errors.typeError(Constants.atomAtom, atom);
 }
@@ -630,7 +624,7 @@ module.exports.number_chars = function(number, chars)
         var list = [];
         for (var i = 0; i < string.length; i++)
             list.push(new AtomTerm(string.value[i]));
-        return this.unify(list_from_term(list), chars);
+        return this.unify(Term.from_list(list), chars);
     }
     Errors.typeError(Constants.numberAtom, number);
 }

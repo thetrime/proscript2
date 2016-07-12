@@ -10,7 +10,7 @@ FloatTerm.prototype.dereference = function()
 
 FloatTerm.prototype.equals = function(o)
 {
-    return (o === this) || ((o || {}).value === this.value);
+    return (o === this) || (o instanceof FloatTerm && ((o || {}).value === this.value));
 }
 
 FloatTerm.prototype.toString = function()
