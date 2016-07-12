@@ -15,5 +15,5 @@
 [number_codes(A,L), instantiation_error].
 [number_codes(a,L), type_error(number,a)].
 [number_codes(A,4), type_error(list,4)].
-[number_codes(A,[ 0'1, 0'2, 1000]), representation_error(character_code)]. % 1000 not a code
+[number_codes(A,[ 0'1, 0'2, 65536]), representation_error(character_code)]. % 65536 not a code
 /* end of file number_codes */

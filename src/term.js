@@ -37,6 +37,12 @@ module.exports.must_be_integer = function(t)
         Errors.typeError(Constants.integerAtom, t);
 }
 
+module.exports.must_be_character_code = function(t)
+{
+    if (!(t instanceof IntegerTerm) || (t.value < 0 || t.value > 65535))
+        Errors.representationError(Constants.characterCodeAtom);
+}
+
 module.exports.must_be_positive_integer = function(t)
 {
     module.exports.must_be_integer(t);

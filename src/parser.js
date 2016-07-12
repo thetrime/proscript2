@@ -517,6 +517,7 @@ function lex(s)
         {
             return new BigInteger(token);
         }
+        return parseInt(token); // just barely fits
     }
     else 
     {
@@ -693,6 +694,57 @@ function parser_test_read(stream, size, count, buffer)
     return records_read;
 }
 
+function tokenToNumericTerm(token)
+{
+    // trim whitespace from the start of the token. Apparently that IS allowed
+    token = token.replace(/^\s+/gm,'');
+    if (token.indexOf('.') != -1)
+        return new FloatTerm(parseFloat(token));
+    if (token.indexOf('E') != -1)
+        return new FloatTerm(parseFloat(token));
+    if (token.substring(0, 2) == "0'" && token.length == 3)
+    {
+        return new IntegerTerm(token.charCodeAt(2));
+    }
+    if (token.substring(0, 2) == "0x")
+    {
+        token = token.substring(2);
+        if (parseInt(token, 16).toString(16) == token)
+            return new IntegerTerm(parseInt(token, 16));
+        // FIXME: biginteger hex?
+        Errors.syntaxError(new AtomTerm("illegal number " + token))
+    }
+    if (token.substring(0, 2) == "0b")
+    {
+        token = token.substring(2);
+        if (parseInt(token, 2).toString(2) == token)
+            return new IntegerTerm(parseInt(token, 2));
+        // FIXME: biginteger binary?
+        Errors.syntaxError(new AtomTerm("illegal number " + token))
+    }
+    if (token.substring(0, 2) == "0o")
+    {
+        token = token.substring(2);
+        if (parseInt(token, 8).toString(8) == token)
+            return new IntegerTerm(parseInt(token, 8));
+        // FIXME: biginteger octal?
+        Errors.syntaxError(new AtomTerm("illegal number " + token))
+    }
+    if (token.length < 16)
+    {
+        // Javascript is VERY lenient about parsing numbers. Prolog should not be.
+        // If converting the token to a number then printing it back to a string is not the same
+        // as the original token, then it is NOT a simple integer
+        if (parseInt(token).toString() == token)
+            return new IntegerTerm(parseInt(token));
+        Errors.syntaxError(new AtomTerm("illegal number " + token))
+    }
+    if (parseFloat(token) == parseInt(token))
+        return new BigIntegerTerm(new BigInteger(token));
+    return new IntegerTerm(parseInt(token));
+
+}
+
 function doTest(atom)
 {
     var s = {peeked_token: undefined,
@@ -708,5 +760,6 @@ function doTest(atom)
 module.exports = {readTerm: readTerm,
                   numberToken: numberToken,
                   atomicToken: atomicToken,
+                  tokenToNumericTerm: tokenToNumericTerm,
                   test: doTest,
                   is_graphic_char:is_graphic_char};

@@ -580,6 +580,24 @@ module.exports.char_code = function(c, code)
 // 8.16.7
 module.exports.number_chars = function(number, chars)
 {
+    if (!(chars instanceof VariableTerm))
+    {
+        // We have to try this first since for a given number there could be many possible values for chars. Consider 3E+0, 3.0 etc
+        var list = chars;
+        var head;
+        var string = "";
+        while (list instanceof CompoundTerm && list.functor.equals(Constants.listFunctor))
+        {
+            head = list.args[0].dereference();
+            Term.must_be_character(head);
+            string += head.value;
+            list = list.args[1].dereference();
+        }
+        if (!list.equals(Constants.emptyListAtom))
+            Errors.typeError(Constants.listAtom, chars);
+        return this.unify(number, Parser.tokenToNumericTerm(string));
+
+    }
     if (number instanceof VariableTerm)
     {
         // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
@@ -611,6 +629,8 @@ module.exports.number_chars = function(number, chars)
     else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
     {
         var string = String(number.value);
+        if (number instanceof FloatTerm && parseInt(number.value) == number.value)
+            string += ".0";
         var list = [];
         for (var i = 0; i < string.length; i++)
             list.push(new AtomTerm(string[i]));
@@ -621,10 +641,28 @@ module.exports.number_chars = function(number, chars)
 // 8.16.8
 module.exports.number_codes = function(number, codes)
 {
+    if (!(codes instanceof VariableTerm))
+    {
+        // We have to try this first since for a given number there could be many possible values for codes. Consider 3E+0, 3.0 etc
+        var list = codes;
+        var head;
+        var string = "";
+        while (list instanceof CompoundTerm && list.functor.equals(Constants.listFunctor))
+        {
+            head = list.args[0].dereference();
+            Term.must_be_character_code(head);
+            string += String.fromCharCode(head.value);
+            list = list.args[1].dereference();
+        }
+        if (!list.equals(Constants.emptyListAtom))
+            Errors.typeError(Constants.listAtom, codes);
+        return this.unify(number, Parser.tokenToNumericTerm(string));
+    }
     if (number instanceof VariableTerm)
     {
         var head = codes;
         var buffer = '';
+        Term.must_be_bound(codes);
         while(true)
         {
             if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
@@ -650,6 +688,8 @@ module.exports.number_codes = function(number, codes)
     else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
     {
         var string = String(number.value);
+        if (number instanceof FloatTerm && parseInt(number.value) == number.value)
+            string += ".0";
         var list = [];
         for (var i = 0; i < string.length; i++)
             list.push(new IntegerTerm(string.charCodeAt(i)));

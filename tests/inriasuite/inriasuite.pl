@@ -734,8 +734,8 @@ file(nonvar).
 file(not_provable).
 file(not_unify).
 file(number).
-%file(number_chars).   Parser failures probably
-%file(number_codes).   Parser failures probably
+file(number_chars).
+file(number_codes).
 file(once).
 file(or).
 file(repeat).
@@ -752,7 +752,7 @@ file('term_lt=').
 file(true).
 file(unify).
 file(univ).
-       
+
 %%%%%%%%%%%
 %
 %   display_list(+List)
