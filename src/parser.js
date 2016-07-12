@@ -434,8 +434,15 @@ function lex(s)
     }
     else if ((c >= '0' && c <= '9') || (c == '-' && peek_raw_char_with_conversion(s) >= '0' && peek_raw_char_with_conversion(s) <= '9'))
     {
-        // Integer. May contain 0-9 only. Floats complicate this a bit
-        // FIXME: We need to read the token in as a string first then convert to either an Integer, BigInteger or Float
+        if (c == "0" && peek_raw_char_with_conversion(s) == "'")
+        {
+            // Char code
+            get_raw_char_with_conversion(s);
+            return get_raw_char_with_conversion(s).charCodeAt(0)
+        }
+        // FIXME: Also need to handle 0x and 0b here
+
+        // Parse a number
         var token = c;
         var seen_decimal = false;
         while(true)
@@ -493,27 +500,42 @@ function lex(s)
         // 3) An operator
         // In all cases, first we have to read an atom
         var buffer = "";
-        var state = 0;
+        var is_escape = false;
         if (c == "'")
         {
             // Easy. The atom is quoted!
             while(true)
             {
                 c = get_raw_char_with_conversion(s);
+                if (c == -1)
+                    throw syntax_error("end of file in atom");
                 if (c == '\\')
                 {
-                    if (state == 1)
+                    if (is_escape)
                         buffer += "\\";
-                    state = (state + 1) % 2;
+                    is_escape = !is_escape;
                     continue;
                 }
-                else if (state == 1)
+                else if (is_escape)
                 {
-                    // control character like \n
+                    // escape/control character like \n
+                    if (c == "x")
+                    {
+                        // hex code
+                        buffer += String.fromCharCode(parseInt(get_raw_char_with_conversion(s) + get_raw_char_with_conversion(s), 16));
+                    }
+                    else if (c == "n")
+                        buffer += "\n";
+                    else if (c == "'")
+                        buffer += "'";
+                    else
+                    {
+                        console.log("unexpected escape code " + c);
+                    }
+                    is_escape = false;
+                    continue;
                 }
-                if (c == -1)
-		    throw syntax_error("end of file in atom");
-                if (c == "'" && state == 0)
+                if (c == "'" && !is_escape)
                 {
                     // This happens if we read something like '''' which is a valid encoding for a single quote
                     if (peek_raw_char_with_conversion(s) == "'")

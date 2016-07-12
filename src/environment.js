@@ -358,7 +358,7 @@ function fromByteArray(byteArray)
                     break;
                 j++;
             }
-            ch ^= (b & (0xff >> (i+3))) << (6*(i+1));
+            ch ^= (byteArray[i] & (0xff >> (i+3))) << (6*(i+1));
             str += String.fromCharCode(ch);
         }
     }

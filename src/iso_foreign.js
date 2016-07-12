@@ -623,7 +623,7 @@ module.exports.number_chars = function(number, chars)
         var string = String(number.value);
         var list = [];
         for (var i = 0; i < string.length; i++)
-            list.push(new AtomTerm(string.value[i]));
+            list.push(new AtomTerm(string[i]));
         return this.unify(Term.from_list(list), chars);
     }
     Errors.typeError(Constants.numberAtom, number);

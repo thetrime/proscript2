@@ -52,6 +52,7 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
                   streamOrAliasAtom: new AtomTerm("stream_or_alias"),
                   accessAtom: new AtomTerm("access"),
 
+                  systemErrorFunctor: new Functor(new AtomTerm("system_error"), 1),
                   failFunctor: new Functor(new AtomTerm("fail"), 0),
                   crossModuleCallFunctor: new Functor(new AtomTerm(":"), 2),
                   addFunctor: new Functor(new AtomTerm("+"), 2),

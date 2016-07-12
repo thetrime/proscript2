@@ -71,6 +71,18 @@ function link(env, value)
     return v;
 }
 
+function set_exception(env, term)
+{
+    if (term.stack != undefined)
+    {
+        console.log(term.stack);
+        exception = new CompoundTerm(Constants.systemErrorFunctor, [term.toString()]);
+    }
+    else
+        exception = env.copyTerm(term);
+
+}
+
 function restore_state(env, choicepoint)
 {
     env.currentFrame = choicepoint.frame;
@@ -379,7 +391,7 @@ function execute(env)
                 // into a frame that should've been destroyed by the bubbling exception
 
                 // First, make a copy of the ball, since we are about to start unwinding things and we dont want to undo its binding
-                exception = env.copyTerm(env.argP[env.argI-1]);
+                set_exception(env, env.argP[env.argI-1]);
                 // Fall-through
             }
             case "b_throw_foreign":
@@ -411,6 +423,7 @@ function execute(env)
                     }
                     frame = frame.parent;
                 }
+                console.log(exception.stack);
                 throw new Error("unhandled exception:" + exception);
             }
             case "i_switch_module":
@@ -438,7 +451,7 @@ function execute(env)
                     env.nextFrame.code = env.getPredicateCode(functor);
                 } catch (e)
                 {
-                    exception = e;
+                    set_exception(env, e);
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
                 }
