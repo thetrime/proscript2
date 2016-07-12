@@ -206,7 +206,7 @@ Environment.prototype.consultString = function(data)
         }
         else
         {
-            var functor = clauseFunctor(clause);2
+            var functor = clauseFunctor(clause);
             this.getModule().addClause(functor, clause);
         }
     }
@@ -381,8 +381,9 @@ function console_write(stream, count, buffer)
 
 function clauseFunctor(term)
 {
+    Term.must_be_bound(term);
     if (term instanceof AtomTerm)
-	return new Functor(term, 0);
+        return new Functor(term, 0);
     if (term.functor.equals(Constants.clauseFunctor))
 	return clauseFunctor(term.args[0]);
     return term.functor;

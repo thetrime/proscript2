@@ -226,7 +226,8 @@ function pad(pad, str)
 
 function print_instruction(env, current_opcode)
 {
-    console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
+    //console.log("Choicepoints: " + env.choicepoints.length);
+    //console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 
 var debugger_steps = 0;
@@ -248,7 +249,7 @@ function execute(env)
         next_opcode = undefined;
         debugger_steps ++;
         //if (debugger_steps == 50) throw(0);
-        //print_instruction(env, current_opcode);
+        print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
             case "i_fail":
@@ -360,10 +361,11 @@ function execute(env)
                 }
 		env.nextFrame.PC = env.currentFrame.returnPC;
 		env.nextFrame.returnPC = env.currentFrame.returnPC;
-		env.nextFrame.parent = env.currentFrame.parent;
+                env.nextFrame.parent = env.currentFrame.parent;
 		env.argP = env.nextFrame.slots;
                 env.argI = 0;
                 env.currentFrame = env.nextFrame;
+                env.currentFrame.choicepoint = env.choicepoints.length;
                 env.nextFrame = new Frame(env);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
@@ -456,6 +458,7 @@ function execute(env)
                 }
                 env.nextFrame.returnPC = env.PC+3;
                 env.currentFrame = env.nextFrame;
+                env.currentFrame.choicepoint = env.choicepoints.length;
                 // Reset argI to be at the start of the current array. argP SHOULD already be slots for the next frame since we were
                 // just filling it in
                 // FIXME: assert(env.argS.length === 0)
@@ -498,6 +501,7 @@ function execute(env)
                                       constants: compiledCode.constants};
                 env.nextFrame.returnPC = env.PC+1;
                 env.currentFrame = env.nextFrame;
+                env.currentFrame.choicepoint = env.choicepoints.length;
                 env.argP = env.currentFrame.slots;
                 env.argI = 0;
                 // Now the arguments need to be filled in. This takes a bit of thought.
@@ -521,8 +525,8 @@ function execute(env)
                 //console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
                 // If we want to support cleanup, we cannot just do this:
                 //env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
-                //console.log("Cut to " + env.currentFrame.parent.choicepoint);
-                cut_to(env, env.currentFrame.parent.choicepoint);
+                //console.log("Cut to " + env.currentFrame.choicepoint);
+                cut_to(env, env.currentFrame.choicepoint);
                 //console.log("Choicepoints after cut: " + env.choicepoints.length);
                 env.currentFrame.choicepoint = env.choicepoints.length;
                 env.PC++;

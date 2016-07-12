@@ -10,13 +10,13 @@ findall(Template, Generator, SoFar, List) :-
 	save_instances(-Template, Generator),
 	list_instances(SoFar, List).
 
-set_of(Template, Filter, Set) :-
-	bag_of(Template, Filter, Bag),
+setof(Template, Filter, Set) :-
+        bagof(Template, Filter, Bag),
 	sort(Bag, Set).
 
-bag_of(Template, Generator, Bag) :-
-	free_variables(Generator, Template, [], Vars),
-	Vars \== [],
+bagof(Template, Generator, Bag) :-
+        free_variables(Generator, Template, [], Vars),
+        Vars \== [],
 	!,
 	Key =.. [.|Vars],
 	functor(Key, ., N),
@@ -25,7 +25,7 @@ bag_of(Template, Generator, Bag) :-
 	keysort(OmniumGatherum, Gamut), !,
 	concordant_subset(Gamut, Key, Answer),
 	Bag = Answer.
-bag_of(Template, Generator, Bag) :-
+bagof(Template, Generator, Bag) :-
 	save_instances(-Template, Generator),
 	list_instances([], Bag),
 	Bag \== [].
@@ -85,6 +85,57 @@ concordant_subset([],   Key, Subset, Key, Subset) :- !.
 concordant_subset(_,    Key, Subset, Key, Subset).
 concordant_subset(More, _,   _,   Clavis, Answer) :-
         concordant_subset(More, Clavis, Answer).
+
+% free_variables/4 is written by Richard O'Keefe, and Jan Wielemaker, and is licensed in the public domain
+free_variables(Term, Bound, VarList, [Term|VarList]) :-
+	var(Term),
+	term_is_free_of(Bound, Term),
+	list_is_free_of(VarList, Term), !.
+free_variables(Term, _Bound, VarList, VarList) :-
+	var(Term), !.
+free_variables(Term, Bound, OldList, NewList) :-
+	explicit_binding(Term, Bound, NewTerm, NewBound), !,
+	free_variables(NewTerm, NewBound, OldList, NewList).
+free_variables(Term, Bound, OldList, NewList) :-
+	functor(Term, _, N),
+	free_variables(N, Term, Bound, OldList, NewList).
+
+free_variables(0, _, _, VarList, VarList) :- !.
+free_variables(N, Term, Bound, OldList, NewList) :-
+	arg(N, Term, Argument),
+	free_variables(Argument, Bound, OldList, MidList),
+	M is N-1, !,
+	free_variables(M, Term, Bound, MidList, NewList).
+
+
+explicit_binding(\+ _Goal,	       Bound, fail,	Bound      ) :- !.
+explicit_binding(not(_Goal),	       Bound, fail,	Bound	   ) :- !.
+explicit_binding(Var^Goal,	       Bound, Goal,	Bound+Var) :- !.
+explicit_binding(setof(Var,Goal,Set),  Bound, Goal-Set, Bound+Var) :- !.
+explicit_binding(bagof(Var,Goal,Bag),  Bound, Goal-Bag, Bound+Var) :- !.
+
+term_is_free_of(Term, Var) :-
+	\+ var_in_term(Term, Var).
+
+var_in_term(Term, Var) :-
+	Var == Term, !.
+var_in_term(Term, Var) :-
+	compound(Term),
+	arg(_, Term, Arg),
+	var_in_term(Arg, Var), !.
+
+list_is_free_of([Head|Tail], Var) :-
+	Head \== Var, !,
+	list_is_free_of(Tail, Var).
+list_is_free_of([], _).
+
+
+
+
+
+
+
+
 
 recorda(Key, Term):-
         recorda(Key, Term, _).
