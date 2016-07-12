@@ -32,8 +32,8 @@
 
 [functor(F,foo(a),1), type_error(atomic,foo(a))].
 
-[(current_prolog_flag(max_arity,A), X is A + 1, functor(T, foo, X)), 
-				representation_error(max_arity)]. 
+%[(current_prolog_flag(max_arity,A), X is A + 1, functor(T, foo, X)), representation_error(max_arity)].
+% This doesnt apply as we have no limits on arity if you have enough time and memory
 
 [functor(T, foo, -1), domain_error(not_less_than_zero,-1)].
 

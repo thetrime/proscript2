@@ -1,7 +1,14 @@
 var Errors = require('./errors.js');
 var Constants = require('./constants.js');
 var AtomTerm = require('./atom_term.js');
+var CompoundTerm = require('./compound_term.js');
 var IntegerTerm = require('./integer_term.js');
+
+var doubleQuotesAtom = new AtomTerm("double_quotes");
+var unknownAtom = new AtomTerm("unknown");
+var charConversionAtom = new AtomTerm("char_conversion");
+var debugAtom = new AtomTerm("debug");
+
 
 function flag_bounded(set, value)
 {
@@ -36,7 +43,7 @@ function flag_char_conversion(set, value)
         else if (value instanceof AtomTerm && value.value == "off")
             prolog_flag_values.char_conversion = false;
         else
-            Errors.domainError(Constants.flagValueAtom, value);
+            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [charConversionAtom, value]));
         return true;
     }
     return prolog_flag_values.char_conversion?Constants.onAtom:Constants.offAtom;
@@ -51,7 +58,7 @@ function flag_debug(set, value)
         else if (value instanceof AtomTerm && value.value == "off")
             prolog_flag_values.debug = false;
         else
-            Errors.domainError(Constants.flagValueAtom, value);
+            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [debugAtom, value]));
         return true;
     }
     return prolog_flag_values.debug?Constants.onAtom:Constants.offAtom;
@@ -74,7 +81,7 @@ function flag_unknown(set, value)
         else if (value instanceof AtomTerm && value.value == "warning")
             prolog_flag_values.unknown = "warning";
         else
-            Errors.domainError(Constants.flagValueAtom, value);
+            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [unknownAtom, value]));
         return true;
     }
     return new AtomTerm(prolog_flag_values.unknown);
@@ -91,7 +98,7 @@ function flag_double_quotes(set, value)
         else if (value instanceof AtomTerm && value.value == "atom")
             prolog_flag_values.double_quotes = "atom";
         else
-            Errors.domainError(Constants.flagValueAtom, value);
+            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [doubleQuotesAtom, value]));
         return true;
     }
     return new AtomTerm(prolog_flag_values.double_quotes);

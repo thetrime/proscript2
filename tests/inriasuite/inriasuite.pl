@@ -686,7 +686,6 @@ inerror(F) :-
         Y =\= 0.
 
 
-
 %%%%%%%%%
 %
 %   list all the files 
@@ -740,7 +739,7 @@ file(once).
 file(or).
 file(repeat).
 %file(retract).        This is never going to work
-%file(set_prolog_flag).  Requires parser to read in double-quoted strings
+file(set_prolog_flag).
 file(setof).
 file(sub_atom).
 file(term_diff).

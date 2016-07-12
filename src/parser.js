@@ -22,6 +22,7 @@ var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
 var Errors = require('./errors.js');
 var Operators = require('./operators.js');
+var Term = require('./term.js');
 var CharConversionTable = require('./char_conversion.js');
 var util = require('util');
 
@@ -30,10 +31,17 @@ function ExplicitFloat(s)
     this.value = parseFloat(s);
 }
 
+function PrologString(s)
+{
+    this.value = s;
+}
+
+
 var ListOpenToken = {toString: function() {return "<list-open>";}};
 var ListCloseToken = {toString: function() {return "<list-close>";}};
 var CurlyOpenToken = {toString: function() {return "<curly-open>";}};
 var CurlyCloseToken = {toString: function() {return "<curly-close>";}};
+var DoubleQuoteToken = {toString: function() {return "<double-quote>";}};
 var BarToken = {toString: function() {return "<bar>";}};
 
 
@@ -84,6 +92,27 @@ function atomicToken(token)
         if (number != null)
         {
             return number;
+        }
+    }
+    if (token instanceof PrologString)
+    {
+        if (PrologFlag.values.double_quotes == "codes")
+        {
+            var list = [];
+            for (var i = 0; i < token.value.length; i++)
+                list.push(new IntegerTerm(token.value.charCodeAt(i)));
+            return Term.from_list(list);
+        }
+        else if (PrologFlag.values.double_quotes == "chars")
+        {
+            var list = [];
+            for (var i = 0; i < token.value.length; i++)
+                list.push(new AtomTerm(token.value.charAt(i)));
+            return Term.from_list(list);
+        }
+        else if (PrologFlag.values.double_quotes == "atom")
+        {
+            return new AtomTerm(token.value);
         }
     }
     return new AtomTerm(token);
@@ -528,8 +557,9 @@ function lex(s)
         // In all cases, first we have to read an atom
         var buffer = "";
         var is_escape = false;
-        if (c == "'")
+        if (c == "'" || c == '"')
         {
+            var matcher = c;
             // Easy. The atom is quoted!
             while(true)
             {
@@ -572,10 +602,10 @@ function lex(s)
                     is_escape = false;
                     continue;
                 }
-                if (c == "'" && !is_escape)
+                if (c == matcher && !is_escape)
                 {
                     // This happens if we read something like '''' which is a valid encoding for a single quote
-                    if (peek_raw_char_with_conversion(s) == "'")
+                    if (peek_raw_char_with_conversion(s) == matcher)
                     {
                         get_raw_char_with_conversion(s);
                     }
@@ -584,6 +614,8 @@ function lex(s)
                 }
                 buffer += c;
             }
+            if (matcher == '"')
+                return new PrologString(buffer);
         }
         else // Not so simple. Have to read an atom using rules, which are actually available only for a fee from ISO...
         {
