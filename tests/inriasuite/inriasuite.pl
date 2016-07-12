@@ -727,8 +727,8 @@ file(cut).
 file(findall).
 file(float).
 file(functor).
-%file('if-then').       % Miscompiled
-%file('if-then-else').  % Miscompiled
+file('if-then').
+file('if-then-else').
 file(integer).
 file(is).
 file(nonvar).

@@ -446,7 +446,6 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
 
         else if (term.functor.equals(Constants.localCutFunctor))
         {
-            // FIXME: Check that reservedContext.nextReserved < reservedContext.maxReserved
             var cutPoint = reservedContext.nextReserved++;
             instructions.push({opcode: Instructions.cIfThen,
                                slot:cutPoint});
@@ -454,6 +453,8 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext)
             instructions.push({opcode: Instructions.cCut,
                                slot: cutPoint});
             compileBody(term.args[1], variables, instructions, false, reservedContext);
+            if (isTailGoal)
+                instructions.push({opcode: Instructions.iExit});
         }
         else if (term.functor.equals(Constants.notUnifiableFunctor))
         {

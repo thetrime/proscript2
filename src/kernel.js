@@ -228,7 +228,7 @@ function pad(pad, str)
 function print_instruction(env, current_opcode)
 {
     //console.log("Choicepoints: " + env.choicepoints.length);
-    //console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
+    console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 
 var debugger_steps = 0;
@@ -250,7 +250,7 @@ function execute(env)
         next_opcode = undefined;
         debugger_steps ++;
         //if (debugger_steps == 50) throw(0);
-        print_instruction(env, current_opcode);
+        //print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
             case "i_fail":
