@@ -484,46 +484,6 @@ function lex(s)
         {
             return new BigInteger(token);
         }
-        /*
-        var negate = false;
-        if (c == '-')
-        {
-            token = '';
-            negate = true;
-        }
-        else
-            token = c - '0';
-        var decimal_places = 0;
-        var seen_decimal = false;
-        while (true)
-        {
-            c = peek_raw_char_with_conversion(s);       
-            if (seen_decimal)
-                decimal_places++;
-            if ((c >= '0' && c <= '9'))
-            {
-                token = token * 10 + (get_raw_char_with_conversion(s) - '0');
-            }
-            else if (c == '.' && !seen_decimal)
-            {
-                // Fixme: Also must check that the next char is actually a number. Otherwise 'X = 3.' will confuse things somewhat.
-                seen_decimal = true;
-                get_raw_char_with_conversion(s);
-                continue;
-            }
-            else if (is_char(c))
-		throw syntax_error("illegal number" + token + ": " + c);
-            else
-            {
-                if (seen_decimal)
-                {
-                    for (var i = 1; i < decimal_places; i++)
-                        token = token / 10;
-                }
-		return negate?(-token):token;
-            }
-        }
-        */
     }
     else 
     {
@@ -534,21 +494,37 @@ function lex(s)
         // In all cases, first we have to read an atom
         var buffer = "";
         var state = 0;
-        if (c == '\'')
+        if (c == "'")
         {
             // Easy. The atom is quoted!
             while(true)
             {
                 c = get_raw_char_with_conversion(s);
                 if (c == '\\')
+                {
+                    if (state == 1)
+                        buffer += "\\";
                     state = (state + 1) % 2;
+                    continue;
+                }
+                else if (state == 1)
+                {
+                    // control character like \n
+                }
                 if (c == -1)
 		    throw syntax_error("end of file in atom");
-                if (c == '\'' && state == 0)
-                    break;
+                if (c == "'" && state == 0)
+                {
+                    // This happens if we read something like '''' which is a valid encoding for a single quote
+                    if (peek_raw_char_with_conversion(s) == "'")
+                    {
+                        get_raw_char_with_conversion(s);
+                    }
+                    else
+                        break;
+                }
                 buffer += c;
             }
-            
         }
         else // Not so simple. Have to read an atom using rules, which are actually available only for a fee from ISO...
         {
