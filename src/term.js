@@ -21,6 +21,15 @@ module.exports.must_be_atom = function(t)
         Errors.typeError(Constants.atomAtom, t);
 }
 
+module.exports.must_be_atomic = function(t)
+{
+    module.exports.must_be_bound(t);
+    if (!((t instanceof AtomTerm) ||
+          (t instanceof IntegerTerm) ||
+          (t instanceof FloatTerm)))
+        Errors.typeError(Constants.atomicAtom, t);
+}
+
 module.exports.must_be_integer = function(t)
 {
     module.exports.must_be_bound(t);

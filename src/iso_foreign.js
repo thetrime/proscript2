@@ -143,13 +143,17 @@ module.exports.functor = function(term, name, arity)
         // Construct a term
         Term.must_be_positive_integer(arity);
         Term.must_be_bound(name);
+        if (arity.value == 0)
+        {
+            return this.unify(term, name);
+        }
         var args = new Array(arity.value);
         for (var i = 0; i < args.length; i++)
             args[i] = new VariableTerm();
-        if (name instanceof AtomTerm)
-            return this.unify(term, new CompoundTerm(name, args));
-        else if ((name instanceof IntegerTerm) || (name instanceof FloatTerm))
-            return this.unify(term, new CompoundTerm(new AtomTerm(String(name.value)), args));
+        if (name instanceof CompoundTerm)
+            Errors.typeError(Constants.atomicAtom, name);
+        Term.must_be_atom(name);
+        return this.unify(term, new CompoundTerm(name, args));
     }
     if (term instanceof AtomTerm)
     {
