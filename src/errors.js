@@ -14,6 +14,7 @@ var permissionErrorFunctor = new Functor(new AtomTerm("permission_error"), 3);
 var evaluationErrorFunctor = new Functor(new AtomTerm("evaluation_error"), 1);
 var syntaxErrorFunctor = new Functor(new AtomTerm("syntax_error"), 1);
 var ioErrorFunctor = new Functor(new AtomTerm("io_error"), 2);
+var systemErrorFunctor = new AtomTerm("system_error");
 var instantiationErrorAtom = new AtomTerm("instantiation_error");
 var integerOverflowAtom = new AtomTerm("integer_overflow");
 var floatOverflowAtom = new AtomTerm("float_overflow");
@@ -22,6 +23,11 @@ var zeroDivisorAtom = new AtomTerm("zero_divisor");
 module.exports.instantiationError = function()
 {
     throw new CompoundTerm(errorFunctor, [instantiationErrorAtom, new VariableTerm()]);
+}
+
+module.exports.systemError = function(t)
+{
+    throw new CompoundTerm(errorFunctor, [systemErrorFunctor, t]);
 }
 
 module.exports.typeError = function(expected, actual)

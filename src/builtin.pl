@@ -20,7 +20,7 @@ bagof(Template, Generator, Bag) :-
 	!,
 	Key =.. [.|Vars],
 	functor(Key, ., N),
-	save_instances(Key-Template, Generator),
+        save_instances(Key-Template, Generator),
 	list_instances(Key, N, [], OmniumGatherum),
 	keysort(OmniumGatherum, Gamut), !,
 	concordant_subset(Gamut, Key, Answer),
@@ -30,6 +30,12 @@ bagof(Template, Generator, Bag) :-
 	list_instances([], Bag),
 	Bag \== [].
 
+save_instances(_Template, Generator) :-
+        var(Generator),
+        throw(error(instantiation_error, _)).
+save_instances(Template, _^Generator) :-
+        !,
+        save_instances(Template, Generator).
 save_instances(Template, Generator) :-
 	recorda(., -, _),
 	call(Generator),

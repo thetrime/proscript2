@@ -711,10 +711,9 @@ file(atom_codes).
 file(atom_concat).
 file(atom_length).
 file(atomic).
-/*
-%file(bagof).
+file(bagof).
 %file(call).
-file('catch-and-throw').
+%file('catch-and-throw').  This works but isnt very good
 file(char_code).
 %file(clause).
 file(compound).
@@ -724,27 +723,27 @@ file(current_output).
 file(current_predicate).
 file(current_prolog_flag).
 file(cut).
-%file(file_manip).  % needs complete rewite.
-%file(findall).
+%%file(file_manip).  % needs complete rewite.
+file(findall).
 file(float).
-file(functor).
+%file(functor).
 %file('if-then').
 %file('if-then-else').
 file(integer).
 file(is).
 file(nonvar).
-%file(not_provable).
+% file(not_provable).  Does not halt
 file(not_unify).
 file(number).
-file(number_chars).
-file(number_codes).
+%file(number_chars).   Parser failures probably
+%file(number_codes).   Parser failures probably
 %file(once).
 file(or).
 file(repeat).
-file(retract).
-%file(set_prolog_flag).
-%file(setof).
-file(sub_atom).
+%file(retract).        This is never going to work
+%file(set_prolog_flag).   This should be easy to fix
+file(setof).
+%file(sub_atom).      Not sure
 file(term_diff).
 file(term_eq).
 file(term_gt).
@@ -753,7 +752,6 @@ file(term_lt).
 file('term_lt=').
 file(true).
 %file(unify).
-*/
 
        
 %%%%%%%%%%%

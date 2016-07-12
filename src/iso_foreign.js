@@ -44,65 +44,6 @@ function acyclic_term(t)
     return true;
 }
 
-// Computes a-b, so that if a is bigger than b, the result is positive
-function term_difference(a, b)
-{
-    if (a.equals(b))
-    {
-        return 0;
-    }
-    if (a instanceof VariableTerm)
-    {
-        if (b instanceof VariableTerm)
-            return a.index - b.index;
-        return -1;
-    }
-    if (a instanceof FloatTerm)
-    {
-        if (b instanceof VariableTerm)
-            return 1;
-        else if (b instanceof FloatTerm)
-            return a.value - b.value;
-        return -1;
-    }
-    if (a instanceof IntegerTerm)
-    {
-        if ((b instanceof VariableTerm) || (b instanceof FloatTerm))
-            return 1;
-        else if (b instanceof IntegerTerm)
-            return a.value - b.value;
-        return -1;
-    }
-    if (a instanceof AtomTerm)
-    {
-        if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm))
-            return 1;
-        else if (b instanceof AtomTerm)
-            return (a.value > b.value)?1:-1;
-        return -1;
-    }
-    if (a instanceof CompoundTerm)
-    {
-        if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm) || (b instanceof AtomTerm))
-            return 1;
-        if (b instanceof CompoundTerm)
-        {
-            if (a.functor.arity != b.functor.arity)
-                return a.functor.arity - b.functor.arity;
-            if (a.functor.name.value != b.functor.name.value)
-                return a.functor.name.value>b.functor.name.value?1:-1;
-            for (var i = 0; i < a.functor.arity; i++)
-            {
-                var d = term_difference(a.args[i], b.args[i]);
-                if (d != 0)
-                    return d;
-            }
-            return 0;
-        }
-        return -1;
-    }
-    // FIXME: Other types here?
-}
 
 
 // ISO built-in predicates
@@ -172,27 +113,27 @@ module.exports.number = function(a)
 // 8.4.1 term-comparison
 module.exports["@=<"] = function(a, b)
 {
-    return term_difference(a, b) <= 0;
+    return Term.difference(a, b) <= 0;
 }
 module.exports["=="] = function(a, b)
 {
-    return term_difference(a, b) == 0;
+    return Term.difference(a, b) == 0;
 }
 module.exports["\\=="] = function(a, b)
 {
-    return term_difference(a, b) != 0;
+    return Term.difference(a, b) != 0;
 }
 module.exports["@<"] = function(a, b)
 {
-    return term_difference(a, b) < 0;
+    return Term.difference(a, b) < 0;
 }
 module.exports["@>"] = function(a, b)
 {
-    return term_difference(a, b) > 0;
+    return Term.difference(a, b) > 0;
 }
 module.exports["@>="] = function(a, b)
 {
-    return term_difference(a, b) >= 0;
+    return Term.difference(a, b) >= 0;
 }
 // 8.5.1 functor/3
 module.exports.functor = function(term, name, arity)
@@ -228,16 +169,29 @@ module.exports.functor = function(term, name, arity)
 // 8.5.2 arg/3
 module.exports.arg = function(n, term, arg)
 {
-    // NB: ISO only requires the +,+,? mode
+    // ISO only requires the +,+,? mode
+    // We also support -,+,? since the bagof implementation requires it
     Term.must_be_bound(term);
-    Term.must_be_integer(n);
-    if (n.value < 0)
-        Errors.domainError(Constants.notLessThanZeroAtom, n);
     if (!(term instanceof CompoundTerm))
         Errors.typeError(Constants.compoundAtom, term);
-    if (term.args[n.value-1] === undefined)
-        return false; // N is too big
-    return this.unify(term.args[n.value-1], arg);
+    if (n instanceof VariableTerm)
+    {
+        // -,+,? mode
+        var index = this.foreign || 0;
+        if (index + 1 < term.functor.arity)
+            this.create_choicepoint(index+1);
+        if (index >= term.functor.arity)
+            return false;
+        return (this.unify(n, new IntegerTerm(index+1)) && // arg is 1-based, but all our terms are 0-based
+                this.unify(term.args[index], arg));
+    }
+    else
+    {
+        Term.must_be_positive_integer(n);
+        if (term.args[n.value-1] === undefined)
+            return false; // N is too big
+        return this.unify(term.args[n.value-1], arg);
+    }
 }
 // 8.5.3 (=..)/2
 module.exports["=.."] = function(term, univ)
@@ -291,7 +245,16 @@ module.exports.clause = function(head, body)
 // 8.8.2 current_predicate/2
 module.exports.current_predicate = function(indicator)
 {
-    Term.must_be_pi(indicator);
+    if (!(indicator instanceof VariableTerm))
+    {
+        if (!(indicator instanceof CompoundTerm && indicator.functor.equals(Constants.predicateIndicatorFunctor)))
+            Errors.typeError(Constants.predicateIndicatorAtom, indicator);
+        if (!(indicator.args[0] instanceof VariableTerm) && !(indicator.args[0] instanceof AtomTerm))
+            Errors.typeError(Constants.predicateIndicatorAtom, indicator);
+        if (!(indicator.args[1] instanceof VariableTerm) && !(indicator.args[1] instanceof IntegerTerm))
+            Errors.typeError(Constants.predicateIndicatorAtom, indicator);
+
+    }
     // Now indicator is either unbound or bound to /(A,B)
     // FIXME: Currently only examines the current module
     // FIXME: Should also allow Module:Indicator!
@@ -571,23 +534,25 @@ module.exports.atom_codes = function(atom, codes)
 // 8.16.6
 module.exports.char_code = function(c, code)
 {
+    if ((code instanceof VariableTerm) && (c instanceof VariableTerm))
+    {
+        Errors.instantiationError(code);
+    }
     if (c instanceof AtomTerm)
     {
+        if (!(code instanceof VariableTerm))
+            Term.must_be_positive_integer(code);
         if (c.value.length != 1)
             Errors.typeError(Constants.characterAtom, c);
         if ((code instanceof VariableTerm) || (code instanceof IntegerTerm))
             return this.unify(new IntegerTerm(c.value.charCodeAt(0)), code);
         Errors.representationError(Constants.characterCodeAtom, code);
     }
-    else if (code instanceof IntegerTerm)
-    {
-        return this.unify(new AtomTerm(String.fromCharCode(code.value)), c);
-    }
-    else if ((code instanceof VariableTerm) && (c instanceof VariableTerm))
-    {
-        Errors.instantiationError(code);
-    }
-    Errors.typeError(Constants.characterAtom, c);
+    Term.must_be_bound(code);
+    Term.must_be_integer(code);
+    if (code.value < 0)
+        Errors.representationError(Constants.characterCodeAtom, code);
+    return this.unify(new AtomTerm(String.fromCharCode(code.value)), c);
 }
 // 8.16.7
 module.exports.number_chars = function(number, chars)
@@ -595,6 +560,7 @@ module.exports.number_chars = function(number, chars)
     if (number instanceof VariableTerm)
     {
         // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
+        Term.must_be_bound(chars);
         var head = chars;
         var buffer = '';
         while(true)
@@ -711,6 +677,7 @@ module.exports.current_prolog_flag = function(flag, value)
                 return this.unify(value, PrologFlag.flags[i].fn(false, null));
             }
         }
+        return Errors.domainError(Constants.prologFlagAtom, flag);
     }
     else
         Errors.typeError(Constants.atomAtom, flag);

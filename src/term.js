@@ -122,7 +122,7 @@ module.exports.to_list = function(term)
     while (term instanceof CompoundTerm && term.functor.equals(Constants.listFunctor))
     {
         list.push(term.args[0]);
-        term = term.args[1];
+        term = term.args[1].dereference();
     }
     if (!term.equals(Constants.emptyListAtom))
         Errors.typeError(Constants.listAtom, term);
@@ -134,4 +134,66 @@ module.exports.predicate_indicator = function(term)
     if (term instanceof AtomTerm)
         return new CompoundTerm(Constants.predicateIndicatorFunctor, [term, new IntegerTerm(0)]);
     return new CompoundTerm(Constants.predicateIndicatorFunctor, [term.functor.name, new IntegerTerm(term.functor.arity)]);
+}
+
+module.exports.difference = function(a, b)
+// Computes a-b, so that if a is bigger than b, the result is positive
+{
+    a = a.dereference();
+    b = b.dereference();
+    if (a.equals(b))
+    {
+        return 0;
+    }
+    if (a instanceof VariableTerm)
+    {
+        if (b instanceof VariableTerm)
+            return a.index - b.index;
+        return -1;
+    }
+    if (a instanceof FloatTerm)
+    {
+        if (b instanceof VariableTerm)
+            return 1;
+        else if (b instanceof FloatTerm)
+            return a.value - b.value;
+        return -1;
+    }
+    if (a instanceof IntegerTerm)
+    {
+        if ((b instanceof VariableTerm) || (b instanceof FloatTerm))
+            return 1;
+        else if (b instanceof IntegerTerm)
+            return a.value - b.value;
+        return -1;
+    }
+    if (a instanceof AtomTerm)
+    {
+        if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm))
+            return 1;
+        else if (b instanceof AtomTerm)
+            return (a.value > b.value)?1:-1;
+        return -1;
+    }
+    if (a instanceof CompoundTerm)
+    {
+        if ((b instanceof VariableTerm) || (b instanceof FloatTerm) || (b instanceof IntegerTerm) || (b instanceof AtomTerm))
+            return 1;
+        if (b instanceof CompoundTerm)
+        {
+            if (a.functor.arity != b.functor.arity)
+                return a.functor.arity - b.functor.arity;
+            if (a.functor.name.value != b.functor.name.value)
+                return a.functor.name.value>b.functor.name.value?1:-1;
+            for (var i = 0; i < a.functor.arity; i++)
+            {
+                var d = module.exports.difference(a.args[i], b.args[i]);
+                if (d != 0)
+                    return d;
+            }
+            return 0;
+        }
+        return -1;
+    }
+    // FIXME: Other types here?
 }

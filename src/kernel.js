@@ -11,6 +11,7 @@ var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
 var CompoundTerm = require('./compound_term.js');
 var Choicepoint = require('./choicepoint.js');
+var Errors = require('./errors.js');
 var Instructions = require('./opcodes.js').opcode_map;
 
 /*
@@ -425,7 +426,12 @@ function execute(env)
                     }
                     frame = frame.parent;
                 }
-                throw new Error("unhandled exception:" + exception);
+                if(exception.stack != null)
+                {
+                    console.log(exception.stack);
+                    Errors.systemError(new AtomTerm(exception.toString()));
+                }
+                Errors.systemError(exception);
             }
             case "i_switch_module":
             {
@@ -495,7 +501,17 @@ function execute(env)
                 //console.log("argP:" + env.argP);
                 var goal = env.argP[env.argI].dereference();
                 //console.log("Goal: " + goal);
-                var compiledCode = Compiler.compileQuery(goal);
+                var compiledCode;
+                try
+                {
+                    compiledCode = Compiler.compileQuery(goal);
+                }
+                catch (e)
+                {
+                    exception = e;
+                    next_opcode = "b_throw_foreign";
+                    continue next_instruction;
+                }
                 env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
                 env.nextFrame.code = {opcodes: compiledCode.bytecode,
                                       constants: compiledCode.constants};

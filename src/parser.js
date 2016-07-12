@@ -549,6 +549,8 @@ function lex(s)
                     {
                         // hex code
                         buffer += String.fromCharCode(parseInt(get_raw_char_with_conversion(s) + get_raw_char_with_conversion(s), 16));
+                        if (peek_raw_char_with_conversion(s) == "\\")
+                            get_raw_char_with_conversion(s);
                     }
                     else if (c == "n")
                         buffer += "\n";
@@ -558,6 +560,9 @@ function lex(s)
                     {
                         // unicode point
                         buffer += String.fromCharCode(parseInt(get_raw_char_with_conversion(s) + get_raw_char_with_conversion(s)+get_raw_char_with_conversion(s) + get_raw_char_with_conversion(s), 16));
+                        if (peek_raw_char_with_conversion(s) == "\\")
+                            get_raw_char_with_conversion(s);
+
                     }
                     else
                     {

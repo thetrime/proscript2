@@ -270,6 +270,7 @@ Environment.prototype.backtrack = function()
 
 Environment.prototype.copyTerm = function(t)
 {
+    if (t.stack != undefined) console.log(t.stack);
     t = t.dereference();
     var variables = [];
     Compiler.findVariables(t, variables);

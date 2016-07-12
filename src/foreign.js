@@ -1,8 +1,10 @@
 // This module contains non-ISO extensions
 var Constants = require('./constants');
 var IntegerTerm = require('./integer_term');
+var CompoundTerm = require('./compound_term');
 var Term = require('./term');
 var util = require('util');
+var Errors = require('./errors');
 
 module.exports.term_variables = function(t, vt)
 {
@@ -23,7 +25,47 @@ module.exports["$choicepoint_depth"] = function(t)
     return this.unify(t, new IntegerTerm(this.choicepoints.length));
 }
 
+module.exports.keysort = function(unsorted, sorted)
+{
+    var list = Term.to_list(unsorted);
 
+    for (var i = 0; i < list.length; i++)
+    {
+        if (!(list[i] instanceof CompoundTerm && list[i].functor.equals(Constants.pairFunctor)))
+            Errors.typeError(Constants.pairAtom, list[i]);
+        list[i] = {position: i, value: list[i]};
+    }
+    list.sort(function(a,b)
+              {
+                  var d = Term.difference(a.value.args[0], b.value.args[0]);
+                  // Ensure that the sort is stable
+                  if (d == 0)
+                      return a.position - b.position;
+                  return d;
+              });
+    var result = Constants.emptyListAtom;
+    for (var i = list.length-1; i >= 0; i--)
+        result = new CompoundTerm(Constants.listFunctor, [list[i].value, result]);
+    return this.unify(sorted, result);
+}
+
+module.exports.sort = function(unsorted, sorted)
+{
+    var list = Term.to_list(unsorted);
+    list.sort(Term.difference);
+    var last = null;
+    var result = Constants.emptyListAtom;
+    // remove duplicates as we go. Remember the last thing we saw in variable 'last', then only add the current item to the output if it is different
+    for (var i = list.length-1; i >= 0; i--)
+    {
+        if (last == null || !(list[i].equals(last)))
+        {
+            last = list[i].dereference();
+            result = new CompoundTerm(Constants.listFunctor, [last, result]);
+        }
+    }
+    return this.unify(sorted, result);
+}
 module.exports.qqq = function()
 {
     console.log("xChoicepoints: " + util.inspect(this.choicepoints));
