@@ -1,0 +1,20 @@
+/* file univ */
+
+['=..'(_,1), type_error(list,1)].
+['=..'(_,3.3), type_error(list,3.3)].
+['=..'(_,a), type_error(list,a)].
+['=..'(_,foo(x,y)), type_error(list,foo(x,y))].
+['=..'(_,foo(_,_)), type_error(list,foo(_,_))].
+['=..'(_,[]), domain_error(non_empty_list,[])].
+['=..'(a,[]), failure].
+['=..'(3,[]), failure].
+['=..'(7.7,[]), failure].
+['=..'(foo(x),[]), failure].
+['=..'(a,[A]), [[A <-- a]]].
+['=..'(a,[a]), success].
+['=..'(a,[b]), failure].
+['=..'(6,[A]), [[A <-- 6]]].
+['=..'(3.3,[A]), [[A <-- 3.3]]].
+['=..'(_,[_]), instantiation_error].
+/* end of univ */
+

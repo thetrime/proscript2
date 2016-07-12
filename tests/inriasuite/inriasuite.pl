@@ -615,7 +615,7 @@ test(F, error(R, _)) :- !,
         update_score(F, non_null, non_null).
 
 test(F,[G,Expected]) :-	
-       result(G,R),
+        result(G,R),
         compare_subst_lists(R, Expected, Extra, Missing),
         write_if_wrong(F, G, Expected, Extra, Missing),
         update_score(F, Missing, Extra).
@@ -692,7 +692,7 @@ inerror(F) :-
 %   list all the files 
 %   of tests.
 %
-
+/*
 file(fail).
 file(abolish).
 file(and).
@@ -712,8 +712,8 @@ file(atom_concat).
 file(atom_length).
 file(atomic).
 file(bagof).
-%file(call).               Does not halt
-%file('catch-and-throw').  This works but isnt very good
+file(call).
+file('catch-and-throw').
 file(char_code).
 file(clause).
 file(compound).
@@ -732,18 +732,18 @@ file('if-then-else').
 file(integer).
 file(is).
 file(nonvar).
-% file(not_provable).  Does not halt
+file(not_provable).
 file(not_unify).
 file(number).
 %file(number_chars).   Parser failures probably
 %file(number_codes).   Parser failures probably
-%file(once).
+file(once).
 file(or).
 file(repeat).
 %file(retract).        This is never going to work
-%file(set_prolog_flag).   This should be easy to fix
+%file(set_prolog_flag).  Requires parser to read in double-quoted strings
 file(setof).
-%file(sub_atom).      Not sure
+file(sub_atom).
 file(term_diff).
 file(term_eq).
 file(term_gt).
@@ -752,7 +752,8 @@ file(term_lt).
 file('term_lt=').
 file(true).
 file(unify).
-
+*/
+file(univ).
        
 %%%%%%%%%%%
 %
