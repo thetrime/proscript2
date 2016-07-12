@@ -17,5 +17,5 @@ Bugs:
    builtin.pl is loaded in such a way that \n is translated into a newline, requiring the code to actually have \\n if it wants to get '\n' as the atom
 
 inria-suite:
-   =\\= is not parsed correctly (arith_diff)
-   '''' is not parsed correctly (atom_chars)
+   \+(!, fail) fails.
+   retract doesnt work right. This is going to be one of the last big headaches
