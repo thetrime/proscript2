@@ -150,8 +150,9 @@ recordz(Key, Term):-
 recorded(Key, Term):-
         recorded(Key, Term, _).
 
+call(X):- var(X), throw(error(instantiation_error, _)).
 call(X):- X.
-once(X):- X, !.
+once(X):- call(X), !.
 
 assert(X):- assertz(X).
 
