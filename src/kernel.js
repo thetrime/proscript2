@@ -559,6 +559,14 @@ function execute(env)
                 env.PC+=3;
                 continue;
             }
+            case "c_lcut":
+            {
+                // The task of c_lcut is to pop and discard all choicepoints newer than /one greater than/ the value in the given slot
+                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                cut_to(env, env.currentFrame.reserved_slots[slot]+1);
+                env.PC+=3;
+                continue;
+            }
             case "c_ifthen":
             {
                 var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
