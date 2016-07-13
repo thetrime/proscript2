@@ -57,12 +57,11 @@ var Instructions = require('./opcodes.js').opcode_map;
 
 var nextvar = 0;
 
-function unwind_trail(env)
+function unwind_trail(env, from)
 {
     // Unwind the trail back to env.TR
-    for (var i = env.TR; i < env.trail.length; i++)
+    for (var i = env.TR; i < from; i++)
         env.trail[i].value = null;
-    env.trail = env.trail.slice(0, env.TR);
 }
 
 function link(env, value)
@@ -92,14 +91,16 @@ function backtrack_to(env, choicepoint_index)
     for (var i = env.choicepoints.length-1; i >= choicepoint_index-1; i--)
     {
         //console.log(env.choicepoints[i]);
+        var oldTR = env.TR;
         env.choicepoints[i].apply(env);
-        unwind_trail(env);
+        unwind_trail(env, oldTR);
     }
     env.choicepoints = env.choicepoints.slice(0, choicepoint_index);
 }
 
 function backtrack(env)
 {
+    var oldTR = env.TR;
     while (true)
     {
         if (env.choicepoints.length == 0)
@@ -110,7 +111,7 @@ function backtrack(env)
             // This is a fake choicepoint set up for something like exception handling. We have to keep going
             continue;
         }
-        unwind_trail(env);
+        unwind_trail(env, oldTR);
         return true;
     }
 }
@@ -215,7 +216,7 @@ function pad(pad, str)
 
 function print_instruction(env, current_opcode)
 {
-    console.log("Choicepoints: " + env.choicepoints.length);
+    console.log("Depth: " + env.currentFrame.depth);
     console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 

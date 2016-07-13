@@ -127,7 +127,6 @@ Environment.prototype.reset = function()
     this.currentModule = this.userModule;
     this.currentFrame = undefined;
     this.choicepoints = [];
-    this.trail = [];
     this.TR = 0;
     this.argS = [];
     this.argI = 0;
