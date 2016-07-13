@@ -223,7 +223,13 @@ function compileClause(term, instructions)
         compileHead(term.args[0], variables, instructions);
         instructions.push({opcode: Instructions.iEnter});
         if (!compileBody(term.args[1], variables, instructions, true, {nextReserved:0}, -1))
-            Errors.typeError(Constants.callableAtom, term.args[1]);
+        {
+            var badBody = term.args[1].dereference();
+            if (badBody instanceof CompoundTerm && badBody.functor.equals(Constants.crossModuleCallFunctor))
+                Errors.typeError(Constants.callableAtom, term.args[1].args[1]);
+            else
+                Errors.typeError(Constants.callableAtom, term.args[1]);
+        }
     }
     else
     {

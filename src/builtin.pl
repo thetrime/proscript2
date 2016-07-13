@@ -31,14 +31,20 @@ bagof(Template, Generator, Bag) :-
 bagof(Template, Generator, Bag) :-
 	save_instances(-Template, Generator),
 	list_instances([], Bag),
-	Bag \== [].
-
+        Bag \== [].
 save_instances(_Template, Generator) :-
         var(Generator),
         throw(error(instantiation_error, _)).
+save_instances(_Template, _:Generator) :-
+        var(Generator),
+        throw(error(instantiation_error, _)).
+save_instances(Template, Module:A^Goal) :-
+        !,
+        save_instances(Template, Module:Goal).
 save_instances(Template, _^Generator) :-
         !,
         save_instances(Template, Generator).
+
 save_instances(Template, Generator) :-
 	recorda(., -, _),
 	call(Generator),
@@ -139,13 +145,6 @@ list_is_free_of([Head|Tail], Var) :-
 list_is_free_of([], _).
 
 
-
-
-
-
-
-
-
 recorda(Key, Term):-
         recorda(Key, Term, _).
 recordz(Key, Term):-
@@ -155,6 +154,7 @@ recorded(Key, Term):-
 
 :-meta_predicate(call(0)).
 call(X):- var(X), throw(error(instantiation_error, _)).
+call(_:X):- var(X), throw(error(instantiation_error, _)).
 call(X):- X.
 
 :-meta_predicate(once(0)).
