@@ -11,7 +11,9 @@ var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
 var CompoundTerm = require('./compound_term.js');
 var Choicepoint = require('./choicepoint.js');
+var ClauseChoicepoint = require('./clause_choicepoint.js');
 var Errors = require('./errors.js');
+var Clause = require('./clause.js');
 var Instructions = require('./opcodes.js').opcode_map;
 
 /*
@@ -84,46 +86,33 @@ function set_exception(env, term)
 
 }
 
-function restore_state(env, choicepoint)
-{
-    env.currentFrame = choicepoint.frame;
-    env.PC = choicepoint.retryPC;
-    env.TR = choicepoint.retryTR;
-    env.argP = choicepoint.argP;
-    env.argI = choicepoint.argI;
-    env.argS = choicepoint.argS;
-    env.nextFrame = choicepoint.nextFrame;
-}
-
-function unwind_stack(env, choicepoint)
-{
-    restore_state(env, choicepoint);
-    unwind_trail(env);
-}
-
 function backtrack_to(env, choicepoint_index)
 {
     // Backtracks to the given choicepoint, undoing everything else in between
     for (var i = env.choicepoints.length-1; i >= choicepoint_index-1; i--)
     {
-        //console.log("Unwinding a choicepoint");
-        unwind_stack(env, env.choicepoints[i]);
+        //console.log(env.choicepoints[i]);
+        env.choicepoints[i].apply(env);
+        unwind_trail(env);
     }
     env.choicepoints = env.choicepoints.slice(0, choicepoint_index);
 }
 
 function backtrack(env)
 {
-    if (env.choicepoints.length == 0)
-        return false;
-    var choicepoint = env.choicepoints.pop();
-    unwind_stack(env, choicepoint);
-    if (choicepoint.retryPC == -1)
+    while (true)
     {
-        // This is a fake choicepoint set up for something like exception handling. We have to keep going
-        return backtrack(env);
+        if (env.choicepoints.length == 0)
+            return false;
+        var choicepoint = env.choicepoints.pop();
+        if (!choicepoint.apply(env))
+        {
+            // This is a fake choicepoint set up for something like exception handling. We have to keep going
+            continue;
+        }
+        unwind_trail(env);
+        return true;
     }
-    return true;
 }
 
 function cut_to(env, point)
@@ -146,12 +135,10 @@ function cut_to(env, point)
                     // make a frame with 0 args (since a query has no head)
                     env.currentFrame = new Frame(env);
                     env.currentFrame.functor = new Functor(new AtomTerm("$cleanup"), 0);
-                    env.currentFrame.code = {opcodes: [Instructions.iExitQuery.opcode],
-                                             constants: []};
+                    env.currentFrame.clause = new Clause([Instructions.iExitQuery.opcode], [], ["i_exit_query"]);
                     env.nextFrame.parent = env.currentFrame;
                     env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
-                    env.nextFrame.code = {opcodes: compiledCode.bytecode,
-                                          constants: compiledCode.constants};
+                    env.nextFrame.clause = compiledCode.clause;
                     env.nextFrame.returnPC = 0; // Return to exit_query
 
                     env.currentFrame = env.nextFrame;
@@ -170,7 +157,7 @@ function cut_to(env, point)
                 }
                 finally
                 {
-                    restore_state(env, savedState);
+                    savedState.apply(env);
                 }
             }
         }
@@ -203,15 +190,15 @@ function print_opcode(env, opcode)
             {
                 if (LOOKUP_OPCODE[i].args[j] == "slot")
                 {
-                    s += "(" + ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2])) + ")";
+                    s += "(" + ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2])) + ")";
                 }
                 else if (LOOKUP_OPCODE[i].args[j] == "address")
                 {
-                    s += " " + ((env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC)
+                    s += " " + ((env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC)
                 }
                 else if (LOOKUP_OPCODE[i].args[j] == "functor" || LOOKUP_OPCODE[i].args[j] == "atom")
                 {
-                    s += "(" + env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))] + ")";
+                    s += "(" + env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))] + ")";
                 }
             }
             return s;
@@ -240,13 +227,13 @@ function execute(env)
     next_instruction:
     while (!env.halted)
     {
-        if (next_opcode === undefined && env.currentFrame.code.opcodes[env.PC] === undefined)
+        if (next_opcode === undefined && env.currentFrame.clause.opcodes[env.PC] === undefined)
         {
             console.log(util.inspect(env.currentFrame));
             console.log("Illegal fetch at " + env.PC);
             throw new Error("Illegal fetch");
         }
-        current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label));
+        current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label));
         next_opcode = undefined;
         debugger_steps ++;
         //if (debugger_steps == 50) throw(0);
@@ -279,7 +266,7 @@ function execute(env)
             }
             case "i_exitcatch":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 if (env.currentFrame.reserved_slots[slot] == env.choicepoints.length)
                 {
                     // Goal has exited deterministically, we do not need our backtrack point anymore since there is no way we could
@@ -310,7 +297,7 @@ function execute(env)
                 var rc = false;
                 try
                 {
-                    rc = env.currentFrame.code.constants[0].apply(env, args);
+                    rc = env.currentFrame.clause.constants[0].apply(env, args);
                 }
                 catch (e)
                 {
@@ -349,11 +336,11 @@ function execute(env)
             }
             case "i_depart":
 	    {
-		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+		var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
                 try
                 {
-                    env.nextFrame.code = env.getPredicateCode(functor);
+                    env.nextFrame.clause = env.getPredicateCode(functor);
                 } catch (e)
                 {
                     exception = e;
@@ -437,7 +424,7 @@ function execute(env)
             {
                 // FIXME: We must make sure that when processing b_throw that we pop modules as needed
                 // FIXME: There could also be implications for the cleanup in setup-call-cleanup?
-                var module = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+                var module = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.moduleStack.push(env.currentModule);
                 env.currentModule = Module.get(module.value);
                 env.PC+=3;
@@ -451,11 +438,11 @@ function execute(env)
             }
             case "i_call":
             {
-                var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+                var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
                 try
                 {
-                    env.nextFrame.code = env.getPredicateCode(functor);
+                    env.nextFrame.clause = env.getPredicateCode(functor);
                 } catch (e)
                 {
                     set_exception(env, e);
@@ -476,12 +463,14 @@ function execute(env)
             }
             case "i_catch":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 // i_catch must do a few things:
                 //    * Create a backtrack point at the start of the frame so we can undo anything in the guarded goal if something goes wrong
                 //    * ensure argP[argI-1] points to the goal
                 //    * Jump to i_usercall to call the goal
                 env.choicepoints.push(new Choicepoint(env, -1));
+                //console.log("Created fake choicepoint");
+                //console.log("slots contains " + env.currentFrame.slots.length);
                 // Since catch/3 can never itself contain a cut (the bytecode is fixed at i_catch, i_exitcatch), we can afford to tweak the frame a bit
                 // by moving the frames cut choicepoint to the fake choicepoint we have just created, we can simplify b_throw
                 env.currentFrame.choicepoint = env.choicepoints.length;
@@ -516,8 +505,7 @@ function execute(env)
                     continue next_instruction;
                 }
                 env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
-                env.nextFrame.code = {opcodes: compiledCode.bytecode,
-                                      constants: compiledCode.constants};
+                env.nextFrame.clause = compiledCode.clause;
                 env.nextFrame.returnPC = env.PC+1;
                 env.currentFrame = env.nextFrame;
                 env.currentFrame.choicepoint = env.choicepoints.length;
@@ -554,7 +542,7 @@ function execute(env)
             case "c_cut":
             {
                 // The task of c_cut is to pop and discard all choicepoints newer than the value in the given slot
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 cut_to(env, env.currentFrame.reserved_slots[slot]);
                 env.PC+=3;
                 continue;
@@ -562,22 +550,22 @@ function execute(env)
             case "c_lcut":
             {
                 // The task of c_lcut is to pop and discard all choicepoints newer than /one greater than/ the value in the given slot
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 cut_to(env, env.currentFrame.reserved_slots[slot]+1);
                 env.PC+=3;
                 continue;
             }
             case "c_ifthen":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
                 env.PC+=3;
                 continue;
             }
             case "c_ifthenelse":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-                var address = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
+                var address = (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC;
                 env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
                 env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=7;
@@ -606,7 +594,7 @@ function execute(env)
             }
             case "b_firstvar":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 env.currentFrame.slots[slot] = new VariableTerm();
                 //console.log("firstvar: setting slot " + slot + " to a new variable: " + env.currentFrame.slots[slot]);
                 env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
@@ -615,7 +603,7 @@ function execute(env)
             }
             case "b_argvar":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 //console.log("argvar: getting variable from slot " + slot + ": " + env.currentFrame.slots[slot]);
 		var arg = env.currentFrame.slots[slot];
                 arg = arg.dereference();
@@ -637,7 +625,7 @@ function execute(env)
             }
             case "b_var":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
                 env.argI++;
                 env.PC+=3;
@@ -651,22 +639,22 @@ function execute(env)
             }
             case "b_atom":
 	    {
-		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-		env.argP[env.argI++] = env.currentFrame.code.constants[index];
+		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
+		env.argP[env.argI++] = env.currentFrame.clause.constants[index];
 		env.PC+=3;
                 continue;
             }
             case "b_void":
 	    {
-		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 env.argP[env.argI++] = new VariableTerm();
                 env.PC++;
                 continue;
             }
             case "b_functor":
             {
-		var index = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
-		var functor = env.currentFrame.code.constants[index];
+		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
+		var functor = env.currentFrame.clause.constants[index];
 		var new_term_args = new Array(functor.arity);
 		env.argP[env.argI++] = new CompoundTerm(functor, new_term_args);
 		newArgFrame(env);
@@ -678,10 +666,10 @@ function execute(env)
             case "h_firstvar":
             {
                 // varFrame(FR, *PC++) in SWI-Prolog is the same as
-		// env.currentFrame.slot[(env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2])] in PS2
+		// env.currentFrame.slot[(env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2])] in PS2
                 // basically varFrameP(FR, n) is (((Word)f) + n), which is to say it is a pointer to the nth word in the frame
                 // In PS2 parlance, these are 'slots'
-		var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+		var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 if (env.mode == "write")
 		{
 		    // If in write mode, we must create a variable in the current frame's slot, then bind it to the next arg to be matched
@@ -715,7 +703,7 @@ function execute(env)
             }
             case "h_functor":
             {
-		var functor = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+		var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 var arg = env.argP[env.argI++].dereference();
                 env.PC+=3;
                 // Try to match a functor
@@ -756,7 +744,7 @@ function execute(env)
             }
             case "h_atom":
             {
-		var atom = env.currentFrame.code.constants[((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]))];
+		var atom = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 var arg = env.argP[env.argI++].dereference();
                 env.PC+=3;
 		if (arg.equals(atom))
@@ -784,7 +772,7 @@ function execute(env)
             }
 	    case "h_var":
             {
-                var slot = ((env.currentFrame.code.opcodes[env.PC+1] << 8) | (env.currentFrame.code.opcodes[env.PC+2]));
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 var arg = env.argP[env.argI++].dereference();
                 //console.log("h_var from slot " + slot + ": " +arg+", and " + env.currentFrame.slots[slot])
                 if (!env.unify(arg, env.currentFrame.slots[slot]))
@@ -798,17 +786,20 @@ function execute(env)
 	    }
 	    case "c_jump":
 	    {
-                env.PC = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
+                env.PC = (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC;
 		continue;
 	    }
-	    case "c_or":
-            case "try_me_else":
-            case "retry_me_else":
+            case "c_or":
             {
-                //console.log("retry_me_else. Before putting the 'else' on the stack there are now " + env.choicepoints.length + " choicepoints, and the frame choicepoint on frame " + env.currentFrame.depth + " is " + env.currentFrame.choicepoint);
-                var address = (env.currentFrame.code.opcodes[env.PC+1] << 24) | (env.currentFrame.code.opcodes[env.PC+2] << 16) | (env.currentFrame.code.opcodes[env.PC+3] << 8) | (env.currentFrame.code.opcodes[env.PC+4] << 0) + env.PC;
+                var address = (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC;
                 env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=5;
+                continue;
+            }
+            case "try_me_or_next_clause":
+            {
+                env.choicepoints.push(new ClauseChoicepoint(env));
+                env.PC++;
                 continue;
             }
             case "trust_me":
@@ -818,7 +809,7 @@ function execute(env)
             }
             default:
 	    {
-		throw new Error("illegal instruction: " + LOOKUP_OPCODE[env.currentFrame.code.opcodes[env.PC]].label);
+		throw new Error("illegal instruction: " + LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label);
             }
         }
     }

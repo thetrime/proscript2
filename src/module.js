@@ -19,19 +19,18 @@ Module.prototype.defineForeignPredicate = function(name, fn)
 {
     var functor = new Functor(new AtomTerm(name), fn.length);
     var compiled = Compiler.foreignShim(fn);
-    this.predicates[functor.toString()] = {code: {opcodes: compiled.bytecode,
-                                                  constants: compiled.constants},
+    this.predicates[functor.toString()] = {firstClause: compiled,
+                                           clauses: [],
                                            foreign: true,
-                                           functor: functor,
-                                           instructions: compiled.instructions};
+                                           functor: functor};
     console.log(">>> Defined (foreign) " + this.name + ":" + functor);
 }
 
 Module.prototype.definePredicate = function(functor)
 {
     this.predicates[functor.toString()] = {clauses: [],
-                                           functor: functor,
-                                           code: undefined};
+                                           firstClause: undefined,
+                                           functor: functor};
     console.log(">>> Defined " + this.name + ":" + functor);
 }
 
@@ -49,6 +48,7 @@ Module.prototype.asserta = function(term)
 {
     var functor = Term.clause_functor(term);
     this.makeDynamic(functor);
+    // FIXME: also, compile it and add it to the start of the clauses.
     this.predicates[functor.toString()].clauses.unshift(term);
     this.getPredicateCode(functor);
 }
@@ -57,12 +57,14 @@ Module.prototype.assertz = function(term)
 {
     var functor = Term.clause_functor(term);
     this.makeDynamic(functor);
+    // FIXME: also, compile it and add it to the end of the clauses.
     this.predicates[functor.toString()].clauses.push(term);
     this.getPredicateCode(functor);
 }
 
 Module.prototype.retractClause = function(functor, index)
 {
+    // FIXME: also, cut it out of the middle
     this.predicates[functor.toString()].clauses.splice(index, 1);
     this.getPredicateCode(functor);
 }
@@ -95,24 +97,18 @@ Module.prototype.addClausea = function(functor, clause)
 
 Module.prototype.compilePredicate = function(functor)
 {
-    var compiled = Compiler.compilePredicate(this.predicates[functor.toString()].clauses);
-    this.predicates[functor.toString()].code = {opcodes: compiled.bytecode,
-						constants: compiled.constants};
-    this.predicates[functor.toString()].instructions = compiled.instructions;
+    this.predicates[functor.toString()].firstClause = Compiler.compilePredicate(this.predicates[functor.toString()].clauses);
 }
 
 Module.prototype.getPredicateCode = function(functor)
 {
     //console.log("Looking for " + this.name + ":" + functor);
     if (this.predicates[functor.toString()] === undefined)
-    {
         return undefined;
-    }
-    //console.log("Found: " + util.inspect(this.predicates[functor.toString()]));
-    if (this.predicates[functor.toString()].code === undefined)
+    if (this.predicates[functor.toString()].firstClause === undefined)
         this.compilePredicate(functor);
     //console.log(util.inspect(this.predicates[functor.toString()], {showHidden: false, depth: null}));
-    return this.predicates[functor.toString()].code;
+    return this.predicates[functor.toString()].firstClause;
 }
 
 Module.get = function(name)

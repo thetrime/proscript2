@@ -1,27 +1,31 @@
-function Choicepoint(env, retryPC)
+function ClauseChoicepoint(env)
 {
     this.frame = env.currentFrame;
-    this.retryPC = retryPC;
+    this.retryPC = 0;
     this.retryTR = env.TR;
     this.argP = env.argP;
     this.argI = env.argI;
     this.argS = env.argS;
+    this.code = env.currentFrame.code;
     this.currentModule = env.currentModule;
     this.moduleStack = env.moduleStack;
     this.nextFrame = env.nextFrame;
     this.functor = env.currentFrame.functor;
 }
 
-Choicepoint.prototype.apply = function(env)
+ClauseChoicepoint.prototype.apply = function(env)
 {
     env.currentFrame = this.frame;
-    env.PC = this.retryPC;
+    env.PC = 0;
+    if (env.currentFrame.clause.nextClause == null)
+        return false;
+    env.currentFrame.clause = env.currentFrame.clause.nextClause;
     env.TR = this.retryTR;
     env.argP = this.argP;
     env.argI = this.argI;
     env.argS = this.argS;
     env.nextFrame = this.nextFrame;
-    return (this.retryPC != -1)
+    return true;
 }
 
-module.exports = Choicepoint;
+module.exports = ClauseChoicepoint;

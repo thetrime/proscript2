@@ -21,6 +21,7 @@ var BlobTerm = require('./blob_term');
 var Term = require('./term');
 var ArrayUtils = require('./array_utils');
 var PrologFlag = require('./prolog_flag');
+var Clause = require('./clause');
 
 
 function builtin(module, name)
@@ -216,20 +217,18 @@ Environment.prototype.consultString = function(data)
 
 Environment.prototype.execute = function(queryTerm)
 {
-    var queryCode = Compiler.compileQuery(queryTerm);
+    var compiledQuery = Compiler.compileQuery(queryTerm);
 
     // make a frame with 0 args (since a query has no head)
     var topFrame = new Frame(this);
     topFrame.functor = new Functor(new AtomTerm("$top"), 0);
-    topFrame.code = {opcodes: [Instructions.iExitQuery.opcode],
-		     constants: []};
+    topFrame.clause = new Clause([Instructions.iExitQuery.opcode], [], ["i_exit_query"]);
     this.currentFrame = topFrame;
     var queryFrame = new Frame(this);
     queryFrame.functor = new Functor(new AtomTerm("$query"), 0);
-    queryFrame.code = {opcodes: queryCode.bytecode,
-                       constants: queryCode.constants};
-    for (var i = 0; i < queryCode.variables.length; i++)
-        queryFrame.slots[i] = queryCode.variables[i];
+    queryFrame.clause = compiledQuery.clause;
+    for (var i = 0; i < compiledQuery.variables.length; i++)
+        queryFrame.slots[i] = compiledQuery.variables[i];
     queryFrame.returnPC = 0;
     this.PC = 0;
     this.currentFrame = queryFrame;

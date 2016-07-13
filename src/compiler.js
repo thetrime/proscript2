@@ -8,6 +8,7 @@ var BigIntegerTerm = require('./biginteger_term.js');
 var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
 var Errors = require('./errors.js');
+var Clause = require('./clause.js');
 var Instructions = require('./opcodes.js').opcode_map;
 var util = require('util');
 
@@ -30,38 +31,24 @@ function compilePredicate(clauses)
     var instructions = [];
     if (clauses == [])
     {
-	instructions.push({opcode: Instructions.iFail});
+        return assemble([{opcode: Instructions.iFail}]);
     }
-    else
+    var lastClause = null;
+    var firstClause = null;
+    for (var i = 0; i < clauses.length; i++)
     {
-	var clausePointers = [];
-	for (var i = 0; i < clauses.length; i++)
-	{
-	    // Save room for the try-retry-trust construct
-	    if (clauses.length > 1)
-            {
-                clausePointers[i] = instructions.length;
-                instructions.push({opcode: Instructions.nop});
-            }
-            //console.log("Compiling " + util.inspect(clauses[i], {showHidden: false, depth: null}));
-	    compileClause(dereference_recursive(clauses[i]), instructions);
-	}
-	// Now go back and fill in the try-retry-trust constructs
-	if (clauses.length > 1)
-	{
-	    for (var i = 0; i < clauses.length-1; i++)
-	    {
-		instructions[clausePointers[i]] = {opcode: (i == 0)?(Instructions.tryMeElse):(Instructions.retryMeElse),
-						   address: clausePointers[i+1]}
-	    }
-	    instructions[clausePointers[clauses.length-1]] = {opcode: Instructions.trustMe};
-	}
+        var instructions = [];
+        if (i+1 < clauses.length)
+            instructions.push({opcode: Instructions.tryMeOrNextClause});
+        compileClause(dereference_recursive(clauses[i]), instructions);
+        var assembled = assemble(instructions);
+        if (lastClause != null)
+            lastClause.nextClause = assembled;
+        else
+            firstClause = assembled;
+        lastClause = assembled;
     }
-
-    // Now convert instructions into an array of primitive types and an array of constants
-    var result = assemble(instructions);
-    //console.log(util.inspect(result, {showHidden: false, depth: null}));
-    return result;
+    return firstClause;
 }
 
 function assemble(instructions)
@@ -78,9 +65,7 @@ function assemble(instructions)
 	currentInstruction += assembleInstruction(instructions, i, bytes, currentInstruction, constants);
     }
     //console.log("Compiled: " + util.inspect(instructions, {showHidden: false, depth: null}) + " to " + bytes + " with constants: " + util.inspect(constants, {showHidden: false, depth: null}));
-    return {bytecode: bytes,
-	    constants: constants,
-            instructions:instructions};
+    return new Clause(bytes, constants, instructions);
 }
 
 function instructionSize(i)
@@ -166,10 +151,9 @@ function compileQuery(term)
     findVariables(term, variables);
     //console.log("Variables found in " + term + ":" + util.inspect(variables));
     compileClause(new CompoundTerm(Constants.clauseFunctor, [new CompoundTerm("$query", variables), dereference_recursive(term)]), instructions);
-    var code = assemble(instructions);
-    code.variables = variables;
     //console.log(util.inspect(code, {showHidden: false, depth: null}));
-    return code;
+    return {clause: assemble(instructions),
+            variables: variables};
 }
 
 function findVariables(term, variables)
@@ -653,11 +637,7 @@ function foreignShim(fn)
 
 function failShim()
 {
-    var instructions = [];
-    instructions.push({opcode: Instructions.iFail});
-    var compiled = assemble(instructions);
-    return {opcodes: compiled.bytecode,
-            constants: compiled.constants};
+    return assemble([{opcode: Instructions.iFail}]);
 }
 
 module.exports = {compilePredicate:compilePredicate,

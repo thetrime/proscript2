@@ -11,7 +11,7 @@
 | ...                    |
 | ...                    |
 +------------------------+
-| pointer to code        |
+|pointer to curent clause|
 +------------------------+
 | pointer to parent frame|
 +------------------------+
@@ -28,7 +28,7 @@ function Frame(env)
         this.depth = env.currentFrame.depth + 1;
     this.slots = [];
     this.reserved_slots = [];
-    this.code = undefined;
+    this.clause = undefined;
     this.returnPC = 0;
     //console.log("Created a new frame " + this.depth + ", with choicepoint is set to " + env.choicepoints.length);
     this.choicepoint = env.choicepoints.length;
