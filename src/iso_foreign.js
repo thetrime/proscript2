@@ -303,7 +303,7 @@ module.exports.retract = function(term)
     var index = this.foreign || 0;
     var module = this.currentModule;
     if (module.predicates[functor.toString()].dynamic !== true)
-        Errors.permissionError(Constants.accessAtom, Constants.staticProcedureAtom, term);
+        Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
     if (index >= module.predicates[functor.toString()].clauses.length)
         return false;
     if (index + 1 < module.predicates[functor.toString()].clauses.length)

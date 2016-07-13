@@ -26,9 +26,18 @@ function dereference_recursive(term)
     return term;
 }
 
-function compilePredicate(clauses)
+
+function compilePredicateClause(clause, withChoicepoint)
 {
     var instructions = [];
+    if (withChoicepoint)
+        instructions.push({opcode: Instructions.tryMeOrNextClause});
+    compileClause(dereference_recursive(clause), instructions);
+    return assemble(instructions);
+}
+
+function compilePredicate(clauses)
+{
     if (clauses == [])
     {
         return assemble([{opcode: Instructions.iFail}]);
@@ -37,11 +46,7 @@ function compilePredicate(clauses)
     var firstClause = null;
     for (var i = 0; i < clauses.length; i++)
     {
-        var instructions = [];
-        if (i+1 < clauses.length)
-            instructions.push({opcode: Instructions.tryMeOrNextClause});
-        compileClause(dereference_recursive(clauses[i]), instructions);
-        var assembled = assemble(instructions);
+        var assembled = compilePredicateClause(clauses[i], i+1 < clauses.length);
         if (lastClause != null)
             lastClause.nextClause = assembled;
         else
@@ -641,6 +646,7 @@ function failShim()
 }
 
 module.exports = {compilePredicate:compilePredicate,
+                  compilePredicateClause:compilePredicateClause,
                   compileQuery:compileQuery,
                   findVariables:findVariables,
                   foreignShim: foreignShim,

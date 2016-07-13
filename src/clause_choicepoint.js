@@ -17,14 +17,15 @@ ClauseChoicepoint.prototype.apply = function(env)
 {
     env.currentFrame = this.frame;
     env.PC = 0;
-    if (env.currentFrame.clause.nextClause == null)
-        return false;
-    env.currentFrame.clause = env.currentFrame.clause.nextClause;
     env.TR = this.retryTR;
     env.argP = this.argP;
     env.argI = this.argI;
     env.argS = this.argS;
     env.nextFrame = this.nextFrame;
+
+    if (env.currentFrame.clause.nextClause == null)
+        return false;
+    env.currentFrame.clause = env.currentFrame.clause.nextClause;
     return true;
 }
 

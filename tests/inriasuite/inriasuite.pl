@@ -738,7 +738,7 @@ file(number_codes).
 file(once).
 file(or).
 file(repeat).
-%file(retract).        This is never going to work
+file(retract).
 file(set_prolog_flag).
 file(setof).
 file(sub_atom).

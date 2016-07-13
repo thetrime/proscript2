@@ -18,10 +18,10 @@ function Module(name)
 Module.prototype.defineForeignPredicate = function(name, fn)
 {
     var functor = new Functor(new AtomTerm(name), fn.length);
-    var compiled = Compiler.foreignShim(fn);
-    this.predicates[functor.toString()] = {firstClause: compiled,
+    this.predicates[functor.toString()] = {firstClause: Compiler.foreignShim(fn),
                                            clauses: [],
                                            foreign: true,
+                                           dynamic: false,
                                            functor: functor};
     console.log(">>> Defined (foreign) " + this.name + ":" + functor);
 }
@@ -29,7 +29,9 @@ Module.prototype.defineForeignPredicate = function(name, fn)
 Module.prototype.definePredicate = function(functor)
 {
     this.predicates[functor.toString()] = {clauses: [],
-                                           firstClause: undefined,
+                                           firstClause: null,
+                                           foreign: false,
+                                           dynamic: false,
                                            functor: functor};
     console.log(">>> Defined " + this.name + ":" + functor);
 }
@@ -48,25 +50,49 @@ Module.prototype.asserta = function(term)
 {
     var functor = Term.clause_functor(term);
     this.makeDynamic(functor);
-    // FIXME: also, compile it and add it to the start of the clauses.
+    // Dynamic clauses ALWAYS need the choicepoint since they can change as execution progresses
+    var clause = Compiler.compilePredicateClause(term, true);
+    clause.nextClause = this.predicates[functor.toString()].firstClause;
+    this.predicates[functor.toString()].firstClause = clause;
+    // Also store it in the clauses array so we can find it again later for unification
     this.predicates[functor.toString()].clauses.unshift(term);
-    this.getPredicateCode(functor);
 }
 
 Module.prototype.assertz = function(term)
 {
     var functor = Term.clause_functor(term);
     this.makeDynamic(functor);
-    // FIXME: also, compile it and add it to the end of the clauses.
+
+    // If there are no clauses then assertz is the same as asserta, and the code in asserta is simpler
+    if (this.predicates[functor.toString()].firstClause == null)
+        this.asserta(term);
+
+    var clause = Compiler.compilePredicateClause(term, true);
     this.predicates[functor.toString()].clauses.push(term);
-    this.getPredicateCode(functor);
+    // We only get here if there are at least some clauses
+    for (var c = this.predicates[functor.toString()].firstClause; c != null; c = c.nextClause)
+    {
+        if (c.nextClause == null)
+        {
+            c.nextClause = clause;
+            break;
+        }
+    }
 }
 
 Module.prototype.retractClause = function(functor, index)
 {
-    // FIXME: also, cut it out of the middle
     this.predicates[functor.toString()].clauses.splice(index, 1);
-    this.getPredicateCode(functor);
+    // This is the trickiest operation
+    if (index == 0)
+        this.predicates[functor.toString()].firstClause = this.predicates[functor.toString()].firstClause.nextClause;
+    else
+    {
+        var c = this.predicates[functor.toString()].firstClause;
+        for (var i = 0; i < index-1; i++)
+            c = c.nextClause;
+        c.nextClause = c.nextClause.nextClause;
+    }
 }
 
 Module.prototype.abolish = function(indicator)
@@ -85,13 +111,7 @@ Module.prototype.addClause = function(functor, clause)
         throw new Error("Cannot change ,/2: " + clause);
     if (this.predicates[functor.toString()] === undefined)
         this.definePredicate(functor);
-    this.predicates[functor.toString()].clauses.push(clause);
-}
-
-Module.prototype.addClausea = function(functor, clause)
-{
-    if (this.predicates[functor.toString()] === undefined)
-        this.definePredicate(functor);
+    // FIXME: This should only really happen for static predicates
     this.predicates[functor.toString()].clauses.push(clause);
 }
 
@@ -105,7 +125,7 @@ Module.prototype.getPredicateCode = function(functor)
     //console.log("Looking for " + this.name + ":" + functor);
     if (this.predicates[functor.toString()] === undefined)
         return undefined;
-    if (this.predicates[functor.toString()].firstClause === undefined)
+    if (this.predicates[functor.toString()].firstClause === null)
         this.compilePredicate(functor);
     //console.log(util.inspect(this.predicates[functor.toString()], {showHidden: false, depth: null}));
     return this.predicates[functor.toString()].firstClause;
