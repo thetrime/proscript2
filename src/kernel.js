@@ -88,7 +88,7 @@ function set_exception(env, term)
 
 function backtrack_to(env, choicepoint_index)
 {
-    // Backtracks to the given choicepoint, undoing everything else in between
+    // Undoes to the given choicepoint, undoing everything else in between
     for (var i = env.choicepoints.length-1; i >= choicepoint_index-1; i--)
     {
         //console.log(env.choicepoints[i]);
@@ -237,7 +237,7 @@ function execute(env)
         current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label));
         next_opcode = undefined;
         debugger_steps ++;
-        if (debugger_steps == 500) throw(0);
+        //if (debugger_steps == 500) throw(0);
         //print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
@@ -391,12 +391,14 @@ function execute(env)
                 //console.log(util.inspect(env.choicepoints));
                 while (frame != undefined)
                 {
+                    //console.log(frame.functor);
                     if (frame.functor.equals(Constants.catchFunctor))
                     {
                         // Unwind to the frames choicepoint. Note that this will be set to the fake choicepoint we created in i_catch
                         //console.log("Frame " + frame.functor + " has choicepoint of " + frame.choicepoint);
                         //console.log("Env has " + env.choicepoints.length + " choicepoints");
                         backtrack_to(env, frame.choicepoint);
+                        //console.log("There are now " + env.choicepoints.length + " choicepoints left");
                         // Try to unify (a copy of) the exception with the unifier
                         if (env.unify(env.copyTerm(exception), frame.slots[1]))
                         {
@@ -405,7 +407,9 @@ function execute(env)
                             // it off in a totally different place. We have to reset argP, argI and PC then pretend the next instruction was i_usercall
                             env.argP = env.currentFrame.slots;
                             env.argI = 3;
-                            env.PC = 6; // After we have executed the handler we need to go to the i_exitcatch which chould be at PC=6+1
+
+                            env.PC = 12; // After we have executed the handler we need to go to the i_exitcatch which should be at PC=12+1
+                                         // This is a bit brittle, really :(
 
                             // One final requriement - the handler is actually executing below the catch/3 frame. If we re-throw the exception in the handler
                             // we will end up right back here, which is not the intention. To fix this, replace the functor of this frame with something else
@@ -413,7 +417,7 @@ function execute(env)
 
                             // Javascript doesnt have a goto statement, so this is a bit tricky
                             next_opcode = "i_usercall";
-                            console.log("Handling exception:" + frame.slots[1].dereference());
+                            //console.log("Handling exception:" + frame.slots[1].dereference());
                             continue next_instruction;
                         }
                     }
@@ -431,14 +435,13 @@ function execute(env)
                 // FIXME: We must make sure that when processing b_throw that we pop modules as needed
                 // FIXME: There could also be implications for the cleanup in setup-call-cleanup?
                 var module = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
-                env.moduleStack.push(env.currentModule);
                 env.currentModule = Module.get(module.value);
+                //console.log(env.currentModule);
                 env.PC+=3;
                 continue;
             }
             case "i_exitmodule":
             {
-                env.currentModule = env.moduleStack.pop();
                 env.PC++;
                 continue;
             }

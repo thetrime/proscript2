@@ -125,12 +125,10 @@ Environment.prototype.halt = function(exitcode)
 Environment.prototype.reset = function()
 {
     this.currentModule = this.userModule;
-    this.moduleStack = [this.userModule];
     this.currentFrame = undefined;
     this.choicepoints = [];
     this.trail = [];
     this.TR = 0;
-    this.currentModule = Module.get("user");
     this.argS = [];
     this.argI = 0;
     this.mode = "read";
@@ -211,7 +209,25 @@ Environment.prototype.consultString = function(data)
                 }
                 this.currentModule.makeMeta(functor, args);
             }
-            // FIXME: Process any other special directives here!
+            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.dynamicFunctor))
+            {
+                Term.must_be_pi(directive.args[0]);
+                var functor = new Functor(directive.args[0].args[0], directive.args[0].args[1].value);
+                this.currentModule.makeDynamic(functor);
+            }
+            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.multiFileFunctor))
+            {
+                // FIXME: implement
+            }
+            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.discontiguousFunctor))
+            {
+                // FIXME: implement
+            }
+            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.initializationFunctor))
+            {
+                // FIXME: implement
+            }
+            // char_conversion/2, op/3 and set_prolog_flag/2, include/1 and ensure_loaded/1 are just executed, along with any other directives
             else
             {
                 console.log("Processing directive " + directive);
@@ -254,11 +270,17 @@ Environment.prototype.execute = function(queryTerm)
 
 Environment.prototype.getPredicateCode = function(functor)
 {
+    //console.log("Looking for " + functor + " in " + this.currentModule.name);
     var p = this.currentModule.getPredicateCode(functor);
     if (p === undefined && this.currentModule != this.userModule)
     {
         // Try again in module(user)
         p = this.userModule.getPredicateCode(functor);
+        if (p != undefined)
+        {
+            // Force a context switch to user
+            this.currentModule = this.userModule;
+        }
     }
     if (p === undefined)
     {

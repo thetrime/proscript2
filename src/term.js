@@ -84,17 +84,9 @@ module.exports.must_be_pi = function(t)
         Errors.typeError(Constants.predicateIndicatorAtom, t);
     module.exports.must_be_atom(t.args[0]);
     module.exports.must_be_positive_integer(t.args[1]);
-    /*
-    if (!(t.args[0].dereference() instanceof AtomTerm))
-        Errors.typeError(Constants.predicateIndicatorAtom, t);
-    if (!(t.args[1].dereference() instanceof IntegerTerm))
-        Errors.typeError(Constants.predicateIndicatorAtom, t);
-    if (t.args[1].value < 0)
-        Errors.domainError(Constants.notLessThanZeroAtom, t.args[1]);
-    */
 }
 
-// Given a term, check that is is callabale, and return the functor of the term
+// Given a term, check that is is callable, and return the functor of the term
 // eg foo(a,b) -> foo/2
 //    foo      -> foo/0
 //    3        -> type_error(callable, 3)

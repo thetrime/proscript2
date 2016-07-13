@@ -95,7 +95,7 @@ function formatTerm(options, precedence, term)
         {
             var output = '[';
             var head = term.args[0];
-            var tail = term.args[1];
+            var tail = term.args[1].dereference();
             while (true)
             {
                 output += formatTerm(options, 1200, head);
@@ -103,7 +103,7 @@ function formatTerm(options, precedence, term)
                 {
                     output += ',';
                     head = tail.args[0];
-                    tail = tail.args[1];
+                    tail = tail.args[1].dereference();
                     continue;
                 }
                 else if (tail.equals(Constants.emptyListAtom))

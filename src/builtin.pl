@@ -1,6 +1,9 @@
 % setof/3, bagof/3, findall/3 and findall/4 as implemented by Richard O'Keefe and David Warren.
 % http://www.j-paine.org/prolog/tools/files/setof.pl
 
+:-meta_predicate(findall(?, 0, -)).
+:-meta_predicate(setof(?, ^, -)).
+:-meta_predicate(bagof(?, ^, -)).
 
 findall(Template, Generator, List) :-
 	save_instances(-Template, Generator),
@@ -150,10 +153,16 @@ recordz(Key, Term):-
 recorded(Key, Term):-
         recorded(Key, Term, _).
 
+:-meta_predicate(call(0)).
 call(X):- var(X), throw(error(instantiation_error, _)).
 call(X):- X.
+
+:-meta_predicate(once(0)).
 once(X):- call(X), !.
 
+:-meta_predicate(assert(:)).
+:-meta_predicate(asserta(:)).
+:-meta_predicate(assertz(:)).
 assert(X):- assertz(X).
 
 nl:- put_code(10).
@@ -161,12 +170,15 @@ nl:- put_code(10).
 writeln(X):-
         write(X), nl.
 
+:-meta_predicate(catch(0,?,0)).
 catch(_Goal,_Unifier,_Handler):-
         '$catch'.
 
+:-meta_predicate(setup_call_cleanup(0,0,0)).
 setup_call_cleanup(A,B,C):-
         setup_call_catcher_cleanup(A,B,_,C).
 
+:-meta_predicate(setup_call_catcher_cleanup(0,0,0)).
 setup_call_catcher_cleanup(Setup, Call, Catcher, Cleanup):-
         Setup,
         catch('$call_catcher_cleanup'(Call, Catcher, Cleanup),
@@ -191,14 +203,8 @@ setup_call_catcher_cleanup(Setup, Call, Catcher, Cleanup):-
 
 
 % Directives
-dynamic(_).
-discontiguous(_).
-% op/3
-% char_conversion/2
-initialization(_). % FIXME: implement
 include(_).        % FIXME: implement
 ensure_loaded(_).  % FIXME: implement
-% set_prolog_flag/2
 
 % These are not ISO, but everyone seems to expect them
 
