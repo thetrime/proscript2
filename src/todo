@@ -7,8 +7,3 @@ tidy
    There are at least 2 representations of every instruction(!)
 Checkings
    There are many CHECKME and FIXMEs in the code
-
-
-Bugs:
-   builtin.pl is loaded in such a way that \n is translated into a newline, requiring the code to actually have \\n if it wants to get '\n' as the atom
-   open/4 is hard-coded to load files from the test suite
