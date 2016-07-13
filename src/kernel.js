@@ -137,7 +137,7 @@ function cut_to(env, point)
                     env.currentFrame.functor = new Functor(new AtomTerm("$cleanup"), 0);
                     env.currentFrame.clause = new Clause([Instructions.iExitQuery.opcode], [], ["i_exit_query"]);
                     env.nextFrame.parent = env.currentFrame;
-                    env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
+                    env.nextFrame.functor = new Functor(new AtomTerm("<meta-call>"), 1);
                     env.nextFrame.clause = compiledCode.clause;
                     env.nextFrame.returnPC = 0; // Return to exit_query
 
@@ -148,12 +148,13 @@ function cut_to(env, point)
                         env.currentFrame.slots[i] = compiledCode.variables[i];
                     env.nextFrame = new Frame(env);
                     env.PC = 0; // Start from the beginning of the code in the next frame
-                    console.log("Executing handler " + c.cleanup.goal);
-                    console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
-                    this.execute(env);
+                    //console.log("Executing handler " + c.cleanup.goal);
+                    //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
+                    execute(env);
                 }
                 catch(ignored)
                 {
+                    console.log(ignored);
                 }
                 finally
                 {
@@ -236,7 +237,7 @@ function execute(env)
         current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label));
         next_opcode = undefined;
         debugger_steps ++;
-        //if (debugger_steps == 50) throw(0);
+        if (debugger_steps == 500) throw(0);
         //print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
@@ -362,8 +363,8 @@ function execute(env)
             {
                 // This just leaves a fake choicepoint (one you cannot backtrack onto) with a .cleanup value set to the cleanup handler
                 var c = new Choicepoint(env, -1);
-                console.log("Goal: " + env.argP[env.argI-1]);
-                console.log("Catcher: " + env.argP[env.argI-2]);
+                //console.log("Goal: " + env.argP[env.argI-1]);
+                //console.log("Catcher: " + env.argP[env.argI-2]);
                 c.cleanup = {goal: env.argP[env.argI-1],
                              catcher: env.argP[env.argI-2]};
                 env.argP-=2;
@@ -405,9 +406,14 @@ function execute(env)
                             env.argP = env.currentFrame.slots;
                             env.argI = 3;
                             env.PC = 6; // After we have executed the handler we need to go to the i_exitcatch which chould be at PC=6+1
+
+                            // One final requriement - the handler is actually executing below the catch/3 frame. If we re-throw the exception in the handler
+                            // we will end up right back here, which is not the intention. To fix this, replace the functor of this frame with something else
+                            frame.functor = Constants.caughtFunctor;
+
                             // Javascript doesnt have a goto statement, so this is a bit tricky
                             next_opcode = "i_usercall";
-                            //console.log("Handling exception:" + frame.slots[1].dereference());
+                            console.log("Handling exception:" + frame.slots[1].dereference());
                             continue next_instruction;
                         }
                     }

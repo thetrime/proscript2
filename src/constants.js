@@ -84,6 +84,7 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
                   cleanupChoicepointFunctor: new Functor(new AtomTerm("$cleanup_choicepoint"), 2),
                   curlyFunctor: new Functor(new AtomTerm("{}"), 1),
                   catchFunctor: new Functor(new AtomTerm("catch"), 3),
+                  caughtFunctor: new Functor(new AtomTerm("caught"), 0), // A frame which has already caught an exception. See b_throw_foreign
                   throwFunctor: new Functor(new AtomTerm("throw"), 1),
                   unifyFunctor: new Functor(new AtomTerm("="), 2),
                   notFunctor: new Functor(new AtomTerm("\\+"), 1),

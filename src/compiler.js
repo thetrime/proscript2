@@ -153,6 +153,7 @@ function compileQuery(term)
     // We have to make a fake head with all the variables in the term. Otherwise, when we execute the body, we will get
     // b_firstvar, and the variable passed in will be destroyed
     var variables = [];
+    term = term.dereference();
     findVariables(term, variables);
     //console.log("Variables found in " + term + ":" + util.inspect(variables));
     compileClause(new CompoundTerm(Constants.clauseFunctor, [new CompoundTerm("$query", variables), dereference_recursive(term)]), instructions);
