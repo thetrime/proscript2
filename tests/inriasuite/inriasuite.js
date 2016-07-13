@@ -1,7 +1,6 @@
-var Prolog = require('./core');
+var Prolog = require('../../src/core');
 var env = new Prolog.Environment();
 var test_file = "inriasuite.pl";
-//var test_file = "tests/t.pl";
 env.consultFile(test_file, function()
                {
                    if (!env.execute(new Prolog.AtomTerm("run_all_tests")))

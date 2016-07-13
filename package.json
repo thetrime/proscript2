@@ -14,7 +14,7 @@
       "start": "STATIC_ROOT=./static watchify src/core.js --standalone Prolog -t brfs -v -o build/proscript.js",
       "install": "STATIC_ROOT=./static browserify --standalone Prolog -t brfs src/core.js | uglifyjs -cm > build/proscript.js",
       "build-debug": "STATIC_ROOT=./static browserify -t brfs src/core.js -v -o build/proscript.js",
-      "test": "echo \"Error: no tests exist\" && exit 1"
+      "test": "cd tests/inriasuite && node inriasuite.js"
   },
   "repository": {
     "type": "git",

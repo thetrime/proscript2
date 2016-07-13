@@ -138,8 +138,7 @@ module.exports.open = [
         Term.must_be_atom(mode);
         if (mode.value != "read" && mode.value != "write" && mode.value != "append") // These are the three IO modes required in 7.10.1.1
             Errors.domainError(Constants.ioModeAtom, mode);
-        // FIXME: Path is hard coded
-        return this.unify(stream, new BlobTerm("stream", fsOpen("tests/inriasuite/" + file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
+        return this.unify(stream, new BlobTerm("stream", fsOpen(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
     }];
 
 // 8.11.6

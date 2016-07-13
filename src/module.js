@@ -25,7 +25,7 @@ Module.prototype.defineForeignPredicate = function(name, fn)
                                            foreign: true,
                                            dynamic: false,
                                            functor: functor};
-    console.log(">>> Defined (foreign) " + this.name + ":" + functor);
+    //console.log(">>> Defined (foreign) " + this.name + ":" + functor);
 }
 
 Module.prototype.definePredicate = function(functor)
@@ -36,7 +36,7 @@ Module.prototype.definePredicate = function(functor)
                                            dynamic: false,
                                            meta: false,
                                            functor: functor};
-    console.log(">>> Defined " + this.name + ":" + functor);
+    //console.log(">>> Defined " + this.name + ":" + functor);
 }
 
 Module.prototype.makeDynamic = function(functor)
