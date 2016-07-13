@@ -29,6 +29,7 @@ function Frame(env)
     this.slots = [];
     this.reserved_slots = [];
     this.clause = undefined;
+    this.contextModule = env.currentModule;
     this.returnPC = 0;
     //console.log("Created a new frame " + this.depth + ", with choicepoint is set to " + env.choicepoints.length);
     this.choicepoint = env.choicepoints.length;

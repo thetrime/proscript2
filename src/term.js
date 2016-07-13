@@ -21,6 +21,13 @@ module.exports.must_be_atom = function(t)
         Errors.typeError(Constants.atomAtom, t);
 }
 
+module.exports.must_be_compound = function(t)
+{
+    module.exports.must_be_bound(t);
+    if (!(t instanceof CompoundTerm))
+        Errors.typeError(Constants.compoundAtom, t);
+}
+
 module.exports.must_be_atomic = function(t)
 {
     module.exports.must_be_bound(t);

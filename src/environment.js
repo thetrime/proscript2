@@ -195,6 +195,22 @@ Environment.prototype.consultString = function(data)
                 }
                 this.currentModule = Module.get(directive.args[0].value)
             }
+            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.metaPredicateFunctor))
+            {
+                Term.must_be_compound(directive.args[0]);
+                var functor = directive.args[0].functor;
+                var args = new Array(directive.args[0].functor.arity);
+                for (var i = 0; i < directive.args[0].functor.arity; i++)
+                {
+                    if (directive.args[0].args[i] instanceof AtomTerm)
+                        args[i] = directive.args[0].args[i].value;
+                    else if (directive.args[0].args[i] instanceof IntegerTerm)
+                        args[i] = directive.args[0].args[i].value;
+                    else
+                        Errors.typeError(Constants.metaArgumentSpecifierAtom, directive.args[0].args[i]);
+                }
+                this.currentModule.makeMeta(functor, args);
+            }
             // FIXME: Process any other special directives here!
             else
             {

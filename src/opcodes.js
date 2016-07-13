@@ -125,7 +125,11 @@ var opcodes =
          args: []},
 	{key: "nop",
 	 label: "nop",
-	 args: []}
+         args: []},
+        {key: "sQualify",
+         label: "s_qualify",
+         args: ["slot"]}
+
     ];
 
 var map = {};

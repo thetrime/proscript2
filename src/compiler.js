@@ -27,16 +27,26 @@ function dereference_recursive(term)
 }
 
 
-function compilePredicateClause(clause, withChoicepoint)
+function compilePredicateClause(clause, withChoicepoint, meta)
 {
     var instructions = [];
+    if (meta !== false)
+    {
+        for (var i = 0; i < meta.length; i++)
+        {
+            if (meta[i] == "+" || meta[i] == "?" || meta[i] == "-")
+                continue;
+            instructions.push({opcode: Instructions.sQualify,
+                               slot: [i]});
+        }
+    }
     if (withChoicepoint)
         instructions.push({opcode: Instructions.tryMeOrNextClause});
     compileClause(dereference_recursive(clause), instructions);
     return assemble(instructions);
 }
 
-function compilePredicate(clauses)
+function compilePredicate(clauses, meta)
 {
     if (clauses == [])
     {
@@ -46,7 +56,7 @@ function compilePredicate(clauses)
     var firstClause = null;
     for (var i = 0; i < clauses.length; i++)
     {
-        var assembled = compilePredicateClause(clauses[i], i+1 < clauses.length);
+        var assembled = compilePredicateClause(clauses[i], i+1 < clauses.length, i==0?meta:false);
         if (lastClause != null)
             lastClause.nextClause = assembled;
         else

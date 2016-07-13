@@ -813,6 +813,15 @@ function execute(env)
                 env.PC++;
                 continue;
             }
+            case "s_qualify":
+            {
+                var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
+                var value = env.currentFrame.slots[slot].dereference();
+                if (!(value instanceof CompoundTerm && value.functor.equals(Constants.crossModuleCallFunctor)))
+                    env.currentFrame.slots[slot] = new CompoundTerm(Constants.crossModuleCallFunctor, [env.currentFrame.contextModule.term, value]);
+                env.PC+=3;
+                continue;
+            }
             default:
 	    {
 		throw new Error("illegal instruction: " + LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label);

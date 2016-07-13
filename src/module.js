@@ -12,6 +12,7 @@ var util = require('util');
 function Module(name)
 {
     this.name = name;
+    this.term = new AtomTerm(name);
     this.predicates = {};
 }
 
@@ -20,6 +21,7 @@ Module.prototype.defineForeignPredicate = function(name, fn)
     var functor = new Functor(new AtomTerm(name), fn.length);
     this.predicates[functor.toString()] = {firstClause: Compiler.foreignShim(fn),
                                            clauses: [],
+                                           meta: false,
                                            foreign: true,
                                            dynamic: false,
                                            functor: functor};
@@ -32,6 +34,7 @@ Module.prototype.definePredicate = function(functor)
                                            firstClause: null,
                                            foreign: false,
                                            dynamic: false,
+                                           meta: false,
                                            functor: functor};
     console.log(">>> Defined " + this.name + ":" + functor);
 }
@@ -46,12 +49,22 @@ Module.prototype.makeDynamic = function(functor)
     this.predicates[functor.toString()].dynamic = true;
 }
 
+Module.prototype.makeMeta = function(functor, args)
+{
+    if (this.predicates[functor.toString()] === undefined)
+        this.definePredicate(functor);
+    this.predicates[functor.toString()].meta = args;
+    // Recompile if there are already clauses
+    if (this.predicates[functor.toString()].clauses.length > 0)
+        this.compilePredicate(functor);
+}
+
 Module.prototype.asserta = function(term)
 {
     var functor = Term.clause_functor(term);
     this.makeDynamic(functor);
     // Dynamic clauses ALWAYS need the choicepoint since they can change as execution progresses
-    var clause = Compiler.compilePredicateClause(term, true);
+    var clause = Compiler.compilePredicateClause(term, true, this.predicates[functor.toString()].meta);
     clause.nextClause = this.predicates[functor.toString()].firstClause;
     this.predicates[functor.toString()].firstClause = clause;
     // Also store it in the clauses array so we can find it again later for unification
@@ -67,7 +80,7 @@ Module.prototype.assertz = function(term)
     if (this.predicates[functor.toString()].firstClause == null)
         this.asserta(term);
 
-    var clause = Compiler.compilePredicateClause(term, true);
+    var clause = Compiler.compilePredicateClause(term, true, this.predicates[functor.toString()].meta);
     this.predicates[functor.toString()].clauses.push(term);
     // We only get here if there are at least some clauses
     for (var c = this.predicates[functor.toString()].firstClause; c != null; c = c.nextClause)
@@ -117,7 +130,7 @@ Module.prototype.addClause = function(functor, clause)
 
 Module.prototype.compilePredicate = function(functor)
 {
-    this.predicates[functor.toString()].firstClause = Compiler.compilePredicate(this.predicates[functor.toString()].clauses);
+    this.predicates[functor.toString()].firstClause = Compiler.compilePredicate(this.predicates[functor.toString()].clauses, this.predicates[functor.toString()].meta);
 }
 
 Module.prototype.getPredicateCode = function(functor)
