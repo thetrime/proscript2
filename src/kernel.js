@@ -177,6 +177,7 @@ function popArgFrame(env)
 function print_opcode(env, opcode)
 {
     var s = opcode;
+    var ptr = env.PC+1;
     for (var i = 0; i < LOOKUP_OPCODE.length; i++)
     {
         if (LOOKUP_OPCODE[i].label == opcode)
@@ -185,15 +186,15 @@ function print_opcode(env, opcode)
             {
                 if (LOOKUP_OPCODE[i].args[j] == "slot")
                 {
-                    s += "(" + ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2])) + ")";
+                    s += "(" + ((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++])) + ")";
                 }
                 else if (LOOKUP_OPCODE[i].args[j] == "address")
                 {
-                    s += " " + ((env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC)
+                    s += " " + ((env.currentFrame.clause.opcodes[ptr++] << 24) | (env.currentFrame.clause.opcodes[ptr++] << 16) | (env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++] << 0) + env.PC)
                 }
                 else if (LOOKUP_OPCODE[i].args[j] == "functor" || LOOKUP_OPCODE[i].args[j] == "atom")
                 {
-                    s += "(" + env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))] + ")";
+                    s += "(" + env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++]))] + ")";
                 }
             }
             return s;
@@ -209,7 +210,7 @@ function pad(pad, str)
 
 function print_instruction(env, current_opcode)
 {
-    console.log("Depth: " + env.currentFrame.depth);
+    //console.log("Depth: " + env.currentFrame.depth);
     console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 
@@ -568,7 +569,7 @@ function execute(env)
             case "c_ifthenelse":
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                var address = (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC;
+                var address = (env.currentFrame.clause.opcodes[env.PC+3] << 24) | (env.currentFrame.clause.opcodes[env.PC+4] << 16) | (env.currentFrame.clause.opcodes[env.PC+5] << 8) | (env.currentFrame.clause.opcodes[env.PC+6] << 0) + env.PC;
                 env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
                 env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=7;
@@ -788,8 +789,8 @@ function execute(env)
 		continue;
 	    }
 	    case "c_jump":
-	    {
-                env.PC = (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC;
+            {
+                env.PC +=      (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0);
 		continue;
 	    }
             case "c_or":
