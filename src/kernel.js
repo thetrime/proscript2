@@ -19,12 +19,12 @@ var Instructions = require('./opcodes.js').opcode_map;
 /*
   Overview:
 
-  In general, executing a clause involves two distinct phases. First, we attempt to unify
+  In general, executing a clause involves two distinct phases. In phase 1, we attempt to unify
   arguments in the head with the arguments on the stack. These are the H_ insructions.
-  During this phase, the argP[argI] points to the next cell to be unified. Note that argP might
+  During this phase, argP[argI] points to the next cell to be unified. Note that argP might
   not be a pointer to the previously constructed frame; for example, if we have just tried to
   unify with a compound term, then after matching the functor argP will then point to the
-  arguments of the term, and argI will be set to 0 so that argP[argI] is not the first arg of the
+  arguments of the term, and argI will be set to 0 so that argP[argI] is now the first arg of the
   term we are trying to match. argS is a stack of previous values of argP so that after we are
   done matching the term we can execute an instruction (h_pop) to reset argP back to where it
   was before we detoured.
@@ -37,25 +37,18 @@ var Instructions = require('./opcodes.js').opcode_map;
   by the i_enter instruction. To understand how to execute the body, suppose the body is made up of
   several sub-goals. For each one, we must push the arguments onto a new frame, then switch
   execution to it. This is accomplished via the B_ instructions. During this phase, argP points
-  to the slots array in the next frame, and argI will be set to the nth arg. If we need to push
-  a compound, then again we stash the current context and set argP to be the args of the compound.
+  to the next place to build the argument for the goal. Initially, it points to the next frame's .slots
+  array, but after executing b_functor, it points to the first arg of a constructed term instead. b_pop
+  restores argP to the parent, as with h_pop.
 
-  Binding is complicated. In a traditional WAM, we have a very clear idea of directionality of
-  binding - the address in memory of a variable is strongly related to its cell value. However here,
-  this is not the case.  When binding a value X to a variable V (X may or may not /also/ be a variable
-  - more on that in a moment), we set two properties of V. First, .value is set to X. This is simple
-  enough. But also we set .limit to env.TR, which gives each variable a 'location'.
-
-  There is a complication when X and V are both variables because we have to make explicit which
-  way the binding is happening. bind() always binds the var to the value, so if you want to bind
-  them in reverse, simply reverse the order of the arguments.
-
-  One consequence of this is that we can no longer do things like comparing variable values to find
-  out which way the binding is to happen. See B_ARGVAR
+  Binding is complicated. Currently, *everything* is trailed, which is not incorrect, but very
+  inefficient. Some work needs to be done to determine cases where trailing is not needed. These are
+  any cases where the variable points /backward/ in the call stack. (For example, if a frame contains
+  a local variable, and that local variable is bound to a value in the parent frame, then the binding
+  can be 'undone' just by forgetting about the variable.
 
 */
 
-var nextvar = 0;
 
 function unwind_trail(env, from)
 {
