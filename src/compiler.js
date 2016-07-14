@@ -114,12 +114,13 @@ function assembleInstruction(instructions, iP, bytecode, ptr, constants)
 	var arg = instruction.opcode.args[i];
 	if (arg == "functor")
 	{
-	    rc+=2;
-	    var index = constants.indexOf(instruction.functor);
+            var index = constants.indexOf(instruction.functor);
 	    if (index == -1)
 		index = constants.push(instruction.functor) - 1;
 	    bytecode[ptr+1] = (index >> 8) & 255
-	    bytecode[ptr+2] = (index >> 0) & 255
+            bytecode[ptr+2] = (index >> 0) & 255
+            rc += 2;
+            ptr += 2;
 	}
 	else if (arg == "atom")
 	{
@@ -128,7 +129,8 @@ function assembleInstruction(instructions, iP, bytecode, ptr, constants)
 		index = constants.push(instruction.atom) - 1;
 	    bytecode[ptr+1] = (index >> 8) & 255
 	    bytecode[ptr+2] = (index >> 0) & 255
-	    rc += 2;
+            rc += 2;
+            ptr += 2;
 	}
 	else if (arg == "address")
         {
@@ -140,13 +142,15 @@ function assembleInstruction(instructions, iP, bytecode, ptr, constants)
             bytecode[ptr+2] = (offset >> 16) & 0xff;
             bytecode[ptr+3] = (offset >> 8) & 0xff;
             bytecode[ptr+4] = (offset >> 0) & 0xff;
-	    rc += 4;
+            rc += 4;
+            ptr += 4;
 	}
 	else if (arg == "slot")
-	{
-	    bytecode[ptr+1] = (instruction.slot >> 8) & 255;
-	    bytecode[ptr+2] = (instruction.slot >> 0) & 255;
-	    rc += 2;
+        {
+            bytecode[ptr+1] = (instruction.slot >> 8) & 255;
+            bytecode[ptr+2] = (instruction.slot >> 0) & 255;
+            rc += 2;
+            ptr += 2;
         }
         else if (arg == "foreign_function")
         {
