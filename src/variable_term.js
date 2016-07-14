@@ -1,4 +1,4 @@
-util = require("util");
+var Term = require('./term');
 
 var nextvar = 0;
 
@@ -11,6 +11,8 @@ function VariableTerm(name)
         this.name = name;
     this.value = null;
 }
+
+VariableTerm.prototype = new Term;
 
 VariableTerm.prototype.dereference = function()
 {

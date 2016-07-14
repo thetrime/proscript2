@@ -18,7 +18,7 @@ var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
 var fs = require('fs');
 var BlobTerm = require('./blob_term');
-var Term = require('./term');
+var Utils = require('./utils');
 var ArrayUtils = require('./array_utils');
 var PrologFlag = require('./prolog_flag');
 var Clause = require('./clause');
@@ -43,7 +43,8 @@ var builtinModules = [fs.readFileSync(__dirname + '/builtin.pl', 'utf8')];
 
 function Environment()
 {
-    this.userModule = Module.get("user");
+    this.module_map = [];
+    this.userModule = this.getModule("user");
     // We have to set currentModule here so that we can load the builtins. It will be reset in reset() again to user if it was changed
     this.currentModule = this.userModule;
     for (var i = 0; i < foreignModules.length; i++)
@@ -152,9 +153,18 @@ Environment.prototype.reset = function()
                     current_output: stdout};
 }
 
-Environment.prototype.getModule = function()
+Environment.prototype.predicateExists = function(module, functor)
 {
-    return this.currentModule;
+    if (this.module_map[module] === undefined)
+        return false;
+    return this.module_map[module].predicateExists(functor);
+}
+
+Environment.prototype.getModule = function(name)
+{
+    if (this.module_map[name] === undefined)
+        this.module_map[name] = new Module(name);
+    return this.module_map[name];
 }
 
 Environment.prototype.consultString = function(data)
@@ -175,12 +185,12 @@ Environment.prototype.consultString = function(data)
             var directive = clause.args[0];
             if (directive instanceof CompoundTerm && directive.functor.equals(Constants.moduleFunctor))
             {
-                Term.must_be_atom(directive.args[0]);
+                Utils.must_be_atom(directive.args[0]);
                 // Compile the shims in user
-                var exports = Term.to_list(directive.args[1]);
+                var exports = Utils.to_list(directive.args[1]);
                 for (var i = 0; i < exports.length; i++)
                 {
-                    Term.must_be_pi(exports[i]);
+                    Utils.must_be_pi(exports[i]);
                     // For an export of foo/3, add a clause foo(A,B,C):- Module:foo(A,B,C).  to user
                     var functor = new Functor(exports[i].args[0], exports[i].args[1].value);
                     var args = new Array(exports[i].args[1].value);
@@ -190,11 +200,11 @@ Environment.prototype.consultString = function(data)
                     var shim = new CompoundTerm(Constants.clauseFunctor, [head, new CompoundTerm(Constants.crossModuleCallFunctor, [directive.args[0], head])]);
                     this.userModule.addClause(functor, shim);
                 }
-                this.currentModule = Module.get(directive.args[0].value)
+                this.currentModule = this.getModule(directive.args[0].value)
             }
             else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.metaPredicateFunctor))
             {
-                Term.must_be_compound(directive.args[0]);
+                Utils.must_be_compound(directive.args[0]);
                 var functor = directive.args[0].functor;
                 var args = new Array(directive.args[0].functor.arity);
                 for (var i = 0; i < directive.args[0].functor.arity; i++)
@@ -210,7 +220,7 @@ Environment.prototype.consultString = function(data)
             }
             else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.dynamicFunctor))
             {
-                Term.must_be_pi(directive.args[0]);
+                Utils.must_be_pi(directive.args[0]);
                 var functor = new Functor(directive.args[0].args[0], directive.args[0].args[1].value);
                 this.currentModule.makeDynamic(functor);
             }
@@ -239,7 +249,7 @@ Environment.prototype.consultString = function(data)
         else
         {
             var functor = clauseFunctor(clause);
-            this.getModule().addClause(functor, clause);
+            this.currentModule.addClause(functor, clause);
         }
     }
     // In case this has changed, set it back after consulting any file
@@ -418,7 +428,7 @@ function console_write(stream, count, buffer)
 
 function clauseFunctor(term)
 {
-    Term.must_be_bound(term);
+    Utils.must_be_bound(term);
     if (term instanceof AtomTerm)
         return new Functor(term, 0);
     if (term.functor.equals(Constants.clauseFunctor))

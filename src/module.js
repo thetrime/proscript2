@@ -1,10 +1,9 @@
-var module_map = [];
 var Compiler = require('./compiler.js');
 var Functor = require('./functor.js');
 var Errors = require('./errors.js');
 var AtomTerm = require('./atom_term.js');
 var IntegerTerm = require('./integer_term.js');
-var Term = require('./term.js');
+var Utils = require('./utils.js');
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var util = require('util');
@@ -61,7 +60,7 @@ Module.prototype.makeMeta = function(functor, args)
 
 Module.prototype.asserta = function(term)
 {
-    var functor = Term.clause_functor(term);
+    var functor = Utils.clause_functor(term);
     this.makeDynamic(functor);
     // Dynamic clauses ALWAYS need the choicepoint since they can change as execution progresses
     var clause = Compiler.compilePredicateClause(term, true, this.predicates[functor.toString()].meta);
@@ -73,7 +72,7 @@ Module.prototype.asserta = function(term)
 
 Module.prototype.assertz = function(term)
 {
-    var functor = Term.clause_functor(term);
+    var functor = Utils.clause_functor(term);
     this.makeDynamic(functor);
 
     // If there are no clauses then assertz is the same as asserta, and the code in asserta is simpler
@@ -93,6 +92,11 @@ Module.prototype.assertz = function(term)
     }
 }
 
+Module.prototype.predicateExists = function(functor)
+{
+    return this.predicates[functor.toString()] !== undefined;
+}
+
 Module.prototype.retractClause = function(functor, index)
 {
     this.predicates[functor.toString()].clauses.splice(index, 1);
@@ -110,7 +114,7 @@ Module.prototype.retractClause = function(functor, index)
 
 Module.prototype.abolish = function(indicator)
 {
-    Term.must_be_pi(indicator);
+    Utils.must_be_pi(indicator);
     var functor = new Functor(indicator.args[0], indicator.args[1].value);
     if (this.predicates[functor.toString()] === undefined || this.predicates[functor.toString()].dynamic !== true)
         Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, indicator);
@@ -144,11 +148,6 @@ Module.prototype.getPredicateCode = function(functor)
     return this.predicates[functor.toString()].firstClause;
 }
 
-Module.get = function(name)
-{
-    if (module_map[name] === undefined)
-        module_map[name] = new Module(name);
-    return module_map[name];
-}
+
 
 module.exports = Module;

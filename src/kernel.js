@@ -429,7 +429,7 @@ function execute(env)
                 // FIXME: We must make sure that when processing b_throw that we pop modules as needed
                 // FIXME: There could also be implications for the cleanup in setup-call-cleanup?
                 var module = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
-                env.currentModule = Module.get(module.value);
+                env.currentModule = env.getModule(module.value);
                 //console.log(env.currentModule);
                 env.PC+=3;
                 continue;

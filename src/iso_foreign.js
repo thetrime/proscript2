@@ -12,7 +12,7 @@ var BlobTerm = require('./blob_term.js');
 var FloatTerm = require('./float_term.js');
 var Parser = require('./parser.js');
 var PrologFlag = require('./prolog_flag.js');
-var Term = require('./term.js');
+var Utils = require('./utils.js');
 var Errors = require('./errors.js');
 
 
@@ -113,27 +113,27 @@ module.exports.number = function(a)
 // 8.4.1 term-comparison
 module.exports["@=<"] = function(a, b)
 {
-    return Term.difference(a, b) <= 0;
+    return Utils.difference(a, b) <= 0;
 }
 module.exports["=="] = function(a, b)
 {
-    return Term.difference(a, b) == 0;
+    return Utils.difference(a, b) == 0;
 }
 module.exports["\\=="] = function(a, b)
 {
-    return Term.difference(a, b) != 0;
+    return Utils.difference(a, b) != 0;
 }
 module.exports["@<"] = function(a, b)
 {
-    return Term.difference(a, b) < 0;
+    return Utils.difference(a, b) < 0;
 }
 module.exports["@>"] = function(a, b)
 {
-    return Term.difference(a, b) > 0;
+    return Utils.difference(a, b) > 0;
 }
 module.exports["@>="] = function(a, b)
 {
-    return Term.difference(a, b) >= 0;
+    return Utils.difference(a, b) >= 0;
 }
 // 8.5.1 functor/3
 module.exports.functor = function(term, name, arity)
@@ -141,8 +141,8 @@ module.exports.functor = function(term, name, arity)
     if (term instanceof VariableTerm)
     {
         // Construct a term
-        Term.must_be_positive_integer(arity);
-        Term.must_be_bound(name);
+        Utils.must_be_positive_integer(arity);
+        Utils.must_be_bound(name);
         if (arity.value == 0)
         {
             return this.unify(term, name);
@@ -152,7 +152,7 @@ module.exports.functor = function(term, name, arity)
             args[i] = new VariableTerm();
         if (name instanceof CompoundTerm)
             Errors.typeError(Constants.atomicAtom, name);
-        Term.must_be_atom(name);
+        Utils.must_be_atom(name);
         return this.unify(term, new CompoundTerm(name, args));
     }
     if (term instanceof AtomTerm)
@@ -175,7 +175,7 @@ module.exports.arg = function(n, term, arg)
 {
     // ISO only requires the +,+,? mode
     // We also support -,+,? since the bagof implementation requires it
-    Term.must_be_bound(term);
+    Utils.must_be_bound(term);
     if (!(term instanceof CompoundTerm))
         Errors.typeError(Constants.compoundAtom, term);
     if (n instanceof VariableTerm)
@@ -191,7 +191,7 @@ module.exports.arg = function(n, term, arg)
     }
     else
     {
-        Term.must_be_positive_integer(n);
+        Utils.must_be_positive_integer(n);
         if (term.args[n.value-1] === undefined)
             return false; // N is too big
         return this.unify(term.args[n.value-1], arg);
@@ -208,19 +208,19 @@ module.exports["=.."] = function(term, univ)
         (term instanceof BigIntegerTerm) ||
         (term instanceof RationalTerm))
     {
-        return this.unify(univ, Term.from_list([term]));
+        return this.unify(univ, Utils.from_list([term]));
     }
     if (term instanceof CompoundTerm)
     {
-        return this.unify(univ, Term.from_list([term.functor.name].concat(term.args)));
+        return this.unify(univ, Utils.from_list([term.functor.name].concat(term.args)));
     }
     if (term instanceof VariableTerm)
     {
-        var list = Term.to_list(univ);
+        var list = Utils.to_list(univ);
         if (list.length == 0)
             Errors.domainError(Constants.nonEmptyListAtom, univ);
         var fname = list.shift();
-        Term.must_be_bound(fname);
+        Utils.must_be_bound(fname);
         return this.unify(term, new CompoundTerm(fname, list));
     }
     else
@@ -240,12 +240,12 @@ module.exports.clause = function(head, body)
     if ((body instanceof IntegerTerm) || (body instanceof FloatTerm))
         Errors.typeError(Constants.callableAtom, body);
 
-    var functor = Term.head_functor(head);
+    var functor = Utils.head_functor(head);
     var predicate = this.currentModule.predicates[functor.toString()];
     if (predicate == undefined)
         return false;
     if (predicate.foreign)
-        Errors.permissionError(Constants.accessAtom, Constants.privateProcedureAtom, Term.predicate_indicator(head));
+        Errors.permissionError(Constants.accessAtom, Constants.privateProcedureAtom, Utils.predicate_indicator(head));
     var clauses = predicate.clauses;
     var index = this.foreign || 0;
     if (index > clauses.length)
@@ -299,7 +299,7 @@ module.exports.assertz = function(term)
 module.exports.retract = function(term)
 {
     // FIXME: Does not take modules into account
-    var functor = Term.clause_functor(term);
+    var functor = Utils.clause_functor(term);
     var index = this.foreign || 0;
     var module = this.currentModule;
     if (module.predicates[functor.toString()].dynamic !== true)
@@ -361,11 +361,11 @@ module.exports.atom_concat = function(atom1, atom2, atom12)
         if (atom2 instanceof VariableTerm && atom12 instanceof VariableTerm)
             Errors.instantiationError(atom2);
         if (!(atom1 instanceof VariableTerm))
-            Term.must_be_atom(atom1);
+            Utils.must_be_atom(atom1);
         if (!(atom2 instanceof VariableTerm))
-            Term.must_be_atom(atom2);
+            Utils.must_be_atom(atom2);
         if (!(atom12 instanceof VariableTerm))
-            Term.must_be_atom(atom12);
+            Utils.must_be_atom(atom12);
         if (atom1 instanceof AtomTerm && atom2 instanceof AtomTerm)
         {
             // Deterministic case
@@ -387,16 +387,16 @@ module.exports.atom_concat = function(atom1, atom2, atom12)
 module.exports.sub_atom = function(atom, before, length, after, subatom)
 {
     var index;
-    Term.must_be_bound(atom);
-    Term.must_be_atom(atom);
+    Utils.must_be_bound(atom);
+    Utils.must_be_atom(atom);
     if (!(subatom instanceof VariableTerm))
-        Term.must_be_atom(subatom);
+        Utils.must_be_atom(subatom);
     if (!(before instanceof VariableTerm))
-        Term.must_be_integer(before);
+        Utils.must_be_integer(before);
     if (!(length instanceof VariableTerm))
-        Term.must_be_integer(length);
+        Utils.must_be_integer(length);
     if (!(after instanceof VariableTerm))
-        Term.must_be_integer(after);
+        Utils.must_be_integer(after);
 
     var input = atom.value;
     if (this.foreign === undefined)
@@ -493,10 +493,10 @@ module.exports.atom_chars = function(atom, chars)
         var buffer = '';
         while(true)
         {
-            Term.must_be_bound(head);
+            Utils.must_be_bound(head);
             if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
             {
-                Term.must_be_character(head.args[0]);
+                Utils.must_be_character(head.args[0]);
                 buffer += head.args[0].value;
                 head = head.args[1];
             }
@@ -514,7 +514,7 @@ module.exports.atom_chars = function(atom, chars)
         var list = [];
         for (var i = 0; i < atom.value.length; i++)
             list.push(new AtomTerm(atom.value[i]));
-        return this.unify(Term.from_list(list), chars);
+        return this.unify(Utils.from_list(list), chars);
     }
     Errors.typeError(Constants.atomAtom, atom);
 }
@@ -525,7 +525,7 @@ module.exports.atom_codes = function(atom, codes)
     {
         var head = codes;
         var buffer = '';
-        Term.must_be_bound(codes);
+        Utils.must_be_bound(codes);
         while(true)
         {
             if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
@@ -550,7 +550,7 @@ module.exports.atom_codes = function(atom, codes)
         var list = [];
         for (var i = 0; i < atom.value.length; i++)
             list.push(new IntegerTerm(atom.value.charCodeAt(i)));
-        return this.unify(Term.from_list(list), codes);
+        return this.unify(Utils.from_list(list), codes);
     }
     Errors.typeError(Constants.atomAtom, atom);
 }
@@ -564,15 +564,15 @@ module.exports.char_code = function(c, code)
     if (c instanceof AtomTerm)
     {
         if (!(code instanceof VariableTerm))
-            Term.must_be_positive_integer(code);
+            Utils.must_be_positive_integer(code);
         if (c.value.length != 1)
             Errors.typeError(Constants.characterAtom, c);
         if ((code instanceof VariableTerm) || (code instanceof IntegerTerm))
             return this.unify(new IntegerTerm(c.value.charCodeAt(0)), code);
         Errors.representationError(Constants.characterCodeAtom, code);
     }
-    Term.must_be_bound(code);
-    Term.must_be_integer(code);
+    Utils.must_be_bound(code);
+    Utils.must_be_integer(code);
     if (code.value < 0)
         Errors.representationError(Constants.characterCodeAtom, code);
     return this.unify(new AtomTerm(String.fromCharCode(code.value)), c);
@@ -589,7 +589,7 @@ module.exports.number_chars = function(number, chars)
         while (list instanceof CompoundTerm && list.functor.equals(Constants.listFunctor))
         {
             head = list.args[0].dereference();
-            Term.must_be_character(head);
+            Utils.must_be_character(head);
             string += head.value;
             list = list.args[1].dereference();
         }
@@ -601,7 +601,7 @@ module.exports.number_chars = function(number, chars)
     if (number instanceof VariableTerm)
     {
         // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
-        Term.must_be_bound(chars);
+        Utils.must_be_bound(chars);
         var head = chars;
         var buffer = '';
         while(true)
@@ -634,7 +634,7 @@ module.exports.number_chars = function(number, chars)
         var list = [];
         for (var i = 0; i < string.length; i++)
             list.push(new AtomTerm(string[i]));
-        return this.unify(Term.from_list(list), chars);
+        return this.unify(Utils.from_list(list), chars);
     }
     Errors.typeError(Constants.numberAtom, number);
 }
@@ -650,7 +650,7 @@ module.exports.number_codes = function(number, codes)
         while (list instanceof CompoundTerm && list.functor.equals(Constants.listFunctor))
         {
             head = list.args[0].dereference();
-            Term.must_be_character_code(head);
+            Utils.must_be_character_code(head);
             string += String.fromCharCode(head.value);
             list = list.args[1].dereference();
         }
@@ -662,7 +662,7 @@ module.exports.number_codes = function(number, codes)
     {
         var head = codes;
         var buffer = '';
-        Term.must_be_bound(codes);
+        Utils.must_be_bound(codes);
         while(true)
         {
             if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
@@ -693,16 +693,16 @@ module.exports.number_codes = function(number, codes)
         var list = [];
         for (var i = 0; i < string.length; i++)
             list.push(new IntegerTerm(string.charCodeAt(i)));
-        return this.unify(Term.from_list(list), codes);
+        return this.unify(Utils.from_list(list), codes);
     }
     Errors.typeError(Constants.numberAtom, number);
 }
 // 8.17.1
 module.exports.set_prolog_flag = function(flag, value)
 {
-    Term.must_be_bound(flag);
-    Term.must_be_bound(value);
-    Term.must_be_atom(flag);
+    Utils.must_be_bound(flag);
+    Utils.must_be_bound(value);
+    Utils.must_be_atom(flag);
     for (var i = 0; i < PrologFlag.flags.length; i++)
     {
         if (PrologFlag.flags[i].name == flag.value)
@@ -753,8 +753,8 @@ module.exports.halt = [function()
 // 8.17.4
                        function(a)
                        {
-                           Term.must_be_bound(a);
-                           Term.must_be_integer(a);
+                           Utils.must_be_bound(a);
+                           Utils.must_be_integer(a);
                            this.halt(a.value);
                        }];
 

@@ -12,7 +12,7 @@ var NumericTerm = require('./numeric_term');
 var Rational = require('./rational.js');
 var RationalTerm = require('./rational_term.js');
 var Errors = require('./errors.js');
-var Term = require('./term.js');
+var Utils = require('./utils.js');
 var util = require('util');
 
 
@@ -495,7 +495,7 @@ function evaluate_expression(a)
         }
     }
     //console.log("Could not evaluate: " + util.inspect(a));
-    Errors.typeError(Constants.evaluableAtom, Term.predicate_indicator(a));
+    Errors.typeError(Constants.evaluableAtom, Utils.predicate_indicator(a));
 }
 
 var type_names = ["int", "bigint", "float", "rational"];

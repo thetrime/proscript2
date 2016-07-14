@@ -1,12 +1,11 @@
+var Term = require('./term');
+
 function FloatTerm(value)
 {
     this.value = value;
 }
 
-FloatTerm.prototype.dereference = function()
-{
-    return this;
-}
+FloatTerm.prototype = new Term;
 
 FloatTerm.prototype.equals = function(o)
 {

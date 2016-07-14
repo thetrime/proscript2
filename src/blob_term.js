@@ -4,11 +4,12 @@ var id = 0;
 
 function BlobTerm(type, value)
 {
-    AtomTerm.call(this);
     this.value = value;
     this.id = id++;
     this.type = type;
 }
+
+BlobTerm.prototype = new AtomTerm;
 
 BlobTerm.prototype.toString = function()
 {

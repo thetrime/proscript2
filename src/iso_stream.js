@@ -3,7 +3,7 @@ var AtomTerm = require('./atom_term');
 var IntegerTerm = require('./integer_term');
 var Options = require('./options');
 var Stream = require('./stream');
-var Term = require('./term');
+var Utils = require('./utils');
 var CompoundTerm = require('./compound_term');
 var Errors = require('./errors');
 var Constants = require('./constants');
@@ -15,7 +15,7 @@ var fs = require('fs');
 
 function get_stream(s)
 {
-    Term.must_be_bound(s);
+    Utils.must_be_bound(s);
     if (s instanceof BlobTerm)
     {
         if (s.type == "stream")
@@ -134,8 +134,8 @@ module.exports.open = [
     function(file, mode, stream, options)
     {
         // FIXME: Options we must support for open/4 are given in 7.10.2.11
-        Term.must_be_atom(file);
-        Term.must_be_atom(mode);
+        Utils.must_be_atom(file);
+        Utils.must_be_atom(mode);
         if (mode.value != "read" && mode.value != "write" && mode.value != "append") // These are the three IO modes required in 7.10.1.1
             Errors.domainError(Constants.ioModeAtom, mode);
         return this.unify(stream, new BlobTerm("stream", fsOpen(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
@@ -196,7 +196,7 @@ module.exports.at_end_of_stream = [
 // 8.11.9
 module.exports.set_stream_position = function(stream, position)
 {
-    Term.must_be_integer(position);
+    Utils.must_be_integer(position);
     stream = get_stream(stream);
     if (stream.seek == null)
         Errors.permissionError(Constants.repositionAtom, Constants.streamAtom, stream.term);
@@ -261,7 +261,7 @@ module.exports.put_char = [
     },
     function(stream, c)
     {
-        Term.must_be_character(c);
+        Utils.must_be_character(c);
         stream = get_stream(stream);
         stream.putch(c.value.charCodeAt(0));
         return true;
@@ -273,7 +273,7 @@ module.exports.put_code = [
     },
     function(stream, c)
     {
-        Term.must_be_integer(c);
+        Utils.must_be_integer(c);
         stream = get_stream(stream);
         stream.putch(c.value);
         return true;
@@ -309,7 +309,7 @@ module.exports.put_byte = [
     },
     function(stream, c)
     {
-        Term.must_be_integer(c);
+        Utils.must_be_integer(c);
         stream = get_stream(stream);
         stream.putb(c.value);
         return true;
@@ -376,9 +376,9 @@ module.exports.write_canonical = [
 module.exports.op = function(priority, fixity, op)
 {
     // FIXME: Should support a list as op, apparently
-    Term.must_be_atom(fixity);
-    Term.must_be_atom(op);
-    Term.must_be_integer(priority);
+    Utils.must_be_atom(fixity);
+    Utils.must_be_atom(op);
+    Utils.must_be_integer(priority);
     var new_op;
     if (priority.value == 0)
         new_op = undefined;
@@ -458,8 +458,8 @@ module.exports.current_op = function(priority, fixity, op)
 // 8.14.5 char_conversion/2
 module.exports.char_conversion = function(in_char, out_char)
 {
-    Term.must_be_character(in_char);
-    Term.must_be_character(out_char);
+    Utils.must_be_character(in_char);
+    Utils.must_be_character(out_char);
     CharConversionTable[in_char.value] = out_char.value;
 }
 

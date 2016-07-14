@@ -1,12 +1,11 @@
+var Term = require('./term');
+
 function IntegerTerm(value)
 {
     this.value = value;
 }
 
-IntegerTerm.prototype.dereference = function()
-{
-    return this;
-}
+IntegerTerm.prototype = new Term;
 
 IntegerTerm.prototype.equals = function(o)
 {

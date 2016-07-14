@@ -2,14 +2,14 @@
 var Constants = require('./constants');
 var IntegerTerm = require('./integer_term');
 var CompoundTerm = require('./compound_term');
-var Term = require('./term');
+var Utils = require('./utils');
 var util = require('util');
 var Errors = require('./errors');
 
 module.exports.term_variables = function(t, vt)
 {
     // FIXME: term_variables is not defined!
-    return this.unify(Term.term_from_list(term_variables(t), Constants.emptyListAtom), vt);
+    return this.unify(Utils.term_from_list(term_variables(t), Constants.emptyListAtom), vt);
 }
 
 module.exports["$det"] = function()
@@ -27,7 +27,7 @@ module.exports["$choicepoint_depth"] = function(t)
 
 module.exports.keysort = function(unsorted, sorted)
 {
-    var list = Term.to_list(unsorted);
+    var list = Utils.to_list(unsorted);
 
     for (var i = 0; i < list.length; i++)
     {
@@ -37,7 +37,7 @@ module.exports.keysort = function(unsorted, sorted)
     }
     list.sort(function(a,b)
               {
-                  var d = Term.difference(a.value.args[0], b.value.args[0]);
+                  var d = Utils.difference(a.value.args[0], b.value.args[0]);
                   // Ensure that the sort is stable
                   if (d == 0)
                       return a.position - b.position;
@@ -51,8 +51,8 @@ module.exports.keysort = function(unsorted, sorted)
 
 module.exports.sort = function(unsorted, sorted)
 {
-    var list = Term.to_list(unsorted);
-    list.sort(Term.difference);
+    var list = Utils.to_list(unsorted);
+    list.sort(Utils.difference);
     var last = null;
     var result = Constants.emptyListAtom;
     // remove duplicates as we go. Remember the last thing we saw in variable 'last', then only add the current item to the output if it is different

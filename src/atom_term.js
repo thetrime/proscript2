@@ -1,12 +1,11 @@
+var Term = require('./term');
+
 function AtomTerm(value)
 {
     this.value = value;
 }
 
-AtomTerm.prototype.dereference = function()
-{
-    return this;
-}
+AtomTerm.prototype = new Term;
 
 AtomTerm.prototype.toString = function()
 {

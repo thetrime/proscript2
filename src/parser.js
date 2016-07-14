@@ -15,7 +15,7 @@ var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
 var Errors = require('./errors.js');
 var Operators = require('./operators.js');
-var Term = require('./term.js');
+var Utils = require('./utils.js');
 var CharConversionTable = require('./char_conversion.js');
 var util = require('util');
 
@@ -94,14 +94,14 @@ function atomicToken(token)
             var list = [];
             for (var i = 0; i < token.value.length; i++)
                 list.push(new IntegerTerm(token.value.charCodeAt(i)));
-            return Term.from_list(list);
+            return Utils.from_list(list);
         }
         else if (PrologFlag.values.double_quotes == "chars")
         {
             var list = [];
             for (var i = 0; i < token.value.length; i++)
                 list.push(new AtomTerm(token.value.charAt(i)));
-            return Term.from_list(list);
+            return Utils.from_list(list);
         }
         else if (PrologFlag.values.double_quotes == "atom")
         {

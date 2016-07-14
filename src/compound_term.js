@@ -1,5 +1,6 @@
 var Functor = require('./functor.js');
 var AtomTerm = require('./atom_term.js');
+var Term = require('./term');
 
 function CompoundTerm(functor_name, args)
 {
@@ -17,10 +18,7 @@ function CompoundTerm(functor_name, args)
     this.args = args;
 }
 
-CompoundTerm.prototype.dereference = function()
-{
-    return this;
-}
+CompoundTerm.prototype = new Term;
 
 CompoundTerm.prototype.dereference_recursive = function()
 {
