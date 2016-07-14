@@ -49,7 +49,7 @@ function Environment()
     this.currentModule = this.userModule;
     for (var i = 0; i < foreignModules.length; i++)
     {
-        predicate_names = Object.keys(foreignModules[i]);
+        var predicate_names = Object.keys(foreignModules[i]);
         for (var p = 0; p < predicate_names.length; p++)
         {
             // Each export may either a be a function OR a list of functions
