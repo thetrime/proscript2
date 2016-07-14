@@ -1,12 +1,5 @@
 /* Term reading */
 // See http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
-// Parsers return either:
-// 1) An string, in case of an atom
-// 2) An integer, in case of an integer
-// 3) An object with .list and .tail if a list (because apparently it is not easy to determine if the type of something is a list at runtime!?)
-//      If it is a proper list, .tail == NIL
-// 4) An object with .variable_name, if a variable
-// 5) An object with .functor (a string) and .args (an array) defined if a term
 
 var Stream = require('./stream.js');
 var IO = require('./io.js');
@@ -139,6 +132,17 @@ function read_expression(s, precedence, isarg, islist, vars)
     var peeked_token = peek_token(s);
     if (peeked_token == ']' || peeked_token == ')' || peeked_token == ',') // Maybe others? This is a bit ugly :(
         op = undefined;
+    if (peeked_token == '(')
+    {
+        var q = read_token(s);
+        var pp = peek_token(s);
+        unread_token(s, '(');
+        if (pp != '(')
+        {
+            // for example -(a,b) is not -/1 but -/2. To have -( and still get -/1 we need to see -(( I think
+            op = undefined;
+        }
+    }
     if (op === undefined)
     {
         if (token == "\"")
@@ -184,17 +188,23 @@ function read_expression(s, precedence, isarg, islist, vars)
         }
         else if (token == ListOpenToken || token == CurlyOpenToken)
         {
-            // The principle for both of these is very similar
+            // The principle for both of these conis very similar
             var args = [];
             var next = {};
             while(true)
             {
                 var t = read_expression(s, Infinity, true, true, vars);
-                if (t == ListCloseToken)
+                if (t == ListCloseToken && token == ListOpenToken)
                 {
                     lhs = Constants.emptyListAtom;
                     break;
                     // Special case for the empty list, since the first argument is ']'
+                }
+                if (t == CurlyCloseToken && token == CurlyOpenToken)
+                {
+                    // Special case for the empty curly which is an atom
+                    lhs = Constants.curlyAtom;
+                    break;
                 }
                 args.push(t);
 		var next = read_token(s);
@@ -227,8 +237,8 @@ function read_expression(s, precedence, isarg, islist, vars)
         else if (token == "(")
         {
             // Is this right? () just increases the precedence to infinity and reads another term?
-	    var lhs = read_expression(s, Infinity, false, false, vars)
-	    var next = read_token(s);
+            var lhs = read_expression(s, Infinity, false, false, vars)
+            var next = read_token(s);
             if (next != ")")
                 return syntax_error("mismatched ( at " + next);
 	}
@@ -243,7 +253,11 @@ function read_expression(s, precedence, isarg, islist, vars)
                     vars[token.variable_name] = new VariableTerm(token.variable_name);
                 lhs = vars[token.variable_name];
             }
-	}
+        }
+        else if (token == CurlyCloseToken)
+        {
+            lhs = token;
+        }
         else
         {
             // It is an atomic term
@@ -261,11 +275,11 @@ function read_expression(s, precedence, isarg, islist, vars)
 	lhs = new CompoundTerm(token, [arg]);
     }
     else
-        return false; // Parse error    
+        return false; // Parse error
     while (true)
     {
-	infix_operator = peek_token(s);
-	if (typeof(infix_operator) == "number" && infix_operator <= 0)
+        infix_operator = peek_token(s);
+        if (typeof(infix_operator) == "number" && infix_operator <= 0)
         {
             // Yuck. This is when we read something like X is A-1. Really the - is -/2 in this case
 	    read_token(s);
@@ -278,13 +292,13 @@ function read_expression(s, precedence, isarg, islist, vars)
             // We are reading a term. Keep reading expressions: After each one we should
             // either get , or )
             // First though, consume the (
-	    read_token(s);
+            read_token(s);
             var args = [];
             var next = {};
             while (true)
             {
-		var arg = read_expression(s, Infinity, true, false, vars);
-		args.push(arg);
+                var arg = read_expression(s, Infinity, true, false, vars);
+                args.push(arg);
 		var next = read_token(s);
 		if (next == ')')
                     break;
@@ -357,13 +371,13 @@ function read_expression(s, precedence, isarg, islist, vars)
 
 function peek_token(s)
 {
-    if (s.peek_tokens === undefined || s.peeked_tokens.length == 0 )
+    if (s.peeked_tokens === undefined || s.peeked_tokens.length == 0 )
     {
         var tt = {};
 	var tt = read_token(s);
 	s.peeked_tokens = [tt];
     }
-    return s.peeked_tokens[0];
+    return s.peeked_tokens[s.peeked_tokens.length-1];
 }
 
 function unread_token(s, t)

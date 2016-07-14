@@ -2,6 +2,7 @@ var AtomTerm = require('./atom_term.js');
 var Functor = require('./functor.js');
 
 module.exports = {emptyListAtom: new AtomTerm("[]"),
+                  curlyAtom: new AtomTerm("{}"),
 		  cutAtom: new AtomTerm("!"),
 		  failAtom: new AtomTerm("fail"),
                   trueAtom: new AtomTerm("true"),
