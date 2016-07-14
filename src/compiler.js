@@ -217,7 +217,7 @@ function compileClause(term, instructions)
         // slot:  0..N (the location of the variable)
         var variables = {};
         var localCutSlots = getReservedEnvironmentSlots(term.args[1])
-        context = {nextSlot:argSlots + localCutSlots};
+        var context = {nextSlot:argSlots + localCutSlots};
         analyzeVariables(term.args[0], true, 0, variables, context);
         analyzeVariables(term.args[1], false, 1, variables, context);
         compileHead(term.args[0], variables, instructions);
@@ -238,7 +238,7 @@ function compileClause(term, instructions)
             argSlots = term.functor.arity;
         else
             argSlots = 0;
-        context = {nextSlot:argSlots};
+        var context = {nextSlot:argSlots};
         var variables = {};
         analyzeVariables(term, true, 0, variables, context);
         compileHead(term, variables, instructions);
@@ -583,19 +583,19 @@ function getReservedEnvironmentSlots(term)
     {
 	if (term.functor.equals(Constants.conjunctionFunctor))
 	{
-            slots += getReservedEnvironmentSlots(term.args[0], context);
-	    slots += getReservedEnvironmentSlots(term.args[1], context);
+            slots += getReservedEnvironmentSlots(term.args[0]);
+            slots += getReservedEnvironmentSlots(term.args[1]);
 	}
 	else if (term.functor.equals(Constants.disjunctionFunctor))
         {
-	    slots += getReservedEnvironmentSlots(term.args[0], context);
-	    slots += getReservedEnvironmentSlots(term.args[1], context);
+            slots += getReservedEnvironmentSlots(term.args[0]);
+            slots += getReservedEnvironmentSlots(term.args[1]);
 	}
 	else if (term.functor.equals(Constants.localCutFunctor))
 	{
             slots++;
-	    slots += getReservedEnvironmentSlots(term.args[0], context);
-	    slots += getReservedEnvironmentSlots(term.args[1], context);
+            slots += getReservedEnvironmentSlots(term.args[0]);
+            slots += getReservedEnvironmentSlots(term.args[1]);
         }
     }
     return slots;
