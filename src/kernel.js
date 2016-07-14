@@ -335,7 +335,7 @@ function execute(env)
                 env.nextFrame.functor = functor;
                 try
                 {
-                    env.nextFrame.clause = env.getPredicateCode(functor);
+                    env.nextFrame.clause = env.getPredicateCode(functor, env.currentFrame.contextModule);
                 } catch (e)
                 {
                     exception = e;
@@ -445,7 +445,7 @@ function execute(env)
                 env.nextFrame.functor = functor;
                 try
                 {
-                    env.nextFrame.clause = env.getPredicateCode(functor);
+                    env.nextFrame.clause = env.getPredicateCode(functor, env.currentFrame.contextModule);
                 } catch (e)
                 {
                     set_exception(env, e);

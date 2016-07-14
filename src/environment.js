@@ -277,11 +277,12 @@ Environment.prototype.execute = function(queryTerm)
     return Kernel.execute(this);
 }
 
-Environment.prototype.getPredicateCode = function(functor)
+Environment.prototype.getPredicateCode = function(functor, optionalContextModule)
 {
     //console.log("Looking for " + functor + " in " + this.currentModule.name);
-    var p = this.currentModule.getPredicateCode(functor);
-    if (p === undefined && this.currentModule != this.userModule)
+    var m = optionalContextModule || this.currentModule;
+    var p = m.getPredicateCode(functor);
+    if (p === undefined && m != this.userModule)
     {
         // Try again in module(user)
         p = this.userModule.getPredicateCode(functor);
