@@ -290,8 +290,11 @@ Environment.prototype.getPredicateCode = function(functor, optionalContextModule
         {
             // Force a context switch to user
             this.currentModule = this.userModule;
+            p.module = this.userModule;
         }
     }
+    else if (p !== undefined)
+        p.module = m;
     if (p === undefined)
     {
         if (PrologFlag.values.unknown == "error")

@@ -210,8 +210,11 @@ function pad(pad, str)
 
 function print_instruction(env, current_opcode)
 {
+    var module = env.currentFrame.contextModule;
+    if (module === undefined)
+        module = {name:"<undefined>"};
     //console.log("Depth: " + env.currentFrame.depth);
-    console.log(pad("                                                            ", ("@ " + env.currentModule.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
+    console.log(pad("                                                            ", ("@ " + module.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 
 var debugger_steps = 0;
@@ -337,6 +340,7 @@ function execute(env)
                 try
                 {
                     env.nextFrame.clause = env.getPredicateCode(functor, env.currentFrame.contextModule);
+                    env.nextFrame.contextModule = env.nextFrame.clause.module;
                 } catch (e)
                 {
                     exception = e;
@@ -431,6 +435,7 @@ function execute(env)
                 // FIXME: There could also be implications for the cleanup in setup-call-cleanup?
                 var module = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.currentModule = env.getModule(module.value);
+                env.currentFrame.contextModule = env.currentModule;
                 //console.log(env.currentModule);
                 env.PC+=3;
                 continue;
@@ -447,6 +452,7 @@ function execute(env)
                 try
                 {
                     env.nextFrame.clause = env.getPredicateCode(functor, env.currentFrame.contextModule);
+                    env.nextFrame.contextModule = env.nextFrame.clause.module;
                 } catch (e)
                 {
                     set_exception(env, e);
@@ -630,6 +636,16 @@ function execute(env)
             case "b_var":
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
+                // It MAY be that the variable is not yet initialized. This can happen if we have code like
+                // (foo(X) ; true), bar(X).
+                // which compiles to
+                //        c_or(else), b_firstvar(0), i_call(foo), c_jump(end),
+                // else:
+                // end:   b_var(0), i_call(bar)
+                //
+                // The status of X depends on which branch in the disjunction we took
+                if (env.currentFrame.slots[slot] == undefined)
+                    env.currentFrame.slots[slot] = new VariableTerm();
                 env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
                 env.argI++;
                 env.PC+=3;
@@ -815,9 +831,11 @@ function execute(env)
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 var value = env.currentFrame.slots[slot].dereference();
+                //console.log(env.currentFrame.functor + ": Qualifying " + value);
                 if (!(value instanceof CompoundTerm && value.functor.equals(Constants.crossModuleCallFunctor)))
-                    env.currentFrame.slots[slot] = new CompoundTerm(Constants.crossModuleCallFunctor, [env.currentFrame.contextModule.term, value]);
+                    env.currentFrame.slots[slot] = new CompoundTerm(Constants.crossModuleCallFunctor, [env.currentFrame.parent.contextModule.term, value]);
                 env.PC+=3;
+                //console.log("Arg is now: " + env.currentFrame.slots[slot]);
                 continue;
             }
             default:
