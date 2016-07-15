@@ -284,6 +284,10 @@ function execute(env)
             {
                 env.foreign = env.currentFrame.reserved_slots[0];
                 // FIXME: Why do we sometimes get things on the currentFrame for a foreign predicate that are wrong?!
+                // I think it can happen if we backtrack to a previous goal - we only create the nextFrame once and then just keep reusing it on i_exit
+                // So: foo:- goal_with_choicepoint(A,B,C,D), foreign_predicate.
+                // So that explains why slots is the wrong /length/ but not how one of the values in slots[] is undefined
+                // The test case is to click the 'top' button on the Demo proactive app and change the next line to var args = env.currentFrame.slots.slice(0)
                 var args = env.currentFrame.slots.slice(0, env.currentFrame.functor.arity);
                 for (var i = 0; i < args.length; i++)
                 {
