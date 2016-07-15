@@ -2,6 +2,7 @@
 % http://www.j-paine.org/prolog/tools/files/setof.pl
 
 :-meta_predicate(findall(?, 0, -)).
+:-meta_predicate(findall(?, 0, -, ?)).
 :-meta_predicate(setof(?, ^, -)).
 :-meta_predicate(bagof(?, ^, -)).
 
