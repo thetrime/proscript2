@@ -16,6 +16,7 @@ var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
+var HardChoicepoint = require('./hard_choicepoint.js');
 var fs = require('fs');
 var BlobTerm = require('./blob_term');
 var Utils = require('./utils');
@@ -70,14 +71,41 @@ function Environment()
     {
         this.consultString(builtinModules[i]);
     }
+    this.stdout = new Stream(null,
+                            console_write,
+                            null,
+                            null,
+                            null,
+                            []);
+    this.stdout.do_buffer = false;
+    this.stdin = new Stream(null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            []);
+
     this.reset();
 }
 
 Environment.prototype.create_choicepoint = function(data)
 {
+    // FIXME: If this is a foreign meta-predicate then 1 is not correct here!
     this.choicepoints.push(new Choicepoint(this, 1));
     this.currentFrame.reserved_slots[0] = data;
     return this.choicepoints.length;
+}
+
+Environment.prototype.openForeignFrame = function()
+{
+    this.choicepoints.push(new HardChoicepoint(this));
+    return this.choicepoints.length;
+}
+
+Environment.prototype.discardForeignFrame = function(b)
+{
+    while (this.choicepoints.length > b)
+        Kernel.backtrack(this, true);
 }
 
 Environment.prototype.unify = function(a, b)
@@ -135,22 +163,8 @@ Environment.prototype.reset = function()
     this.trail = [];
     this.halted = false;
     this.exitcode = -1;
-    var stdout = new Stream(null,
-                            console_write,
-                            null,
-                            null,
-                            null,
-                            []);
-    stdout.do_buffer = false;
-    var null_stream = new Stream(null,
-                                 null,
-                                 null,
-                                 null,
-                                 null,
-                                 []);
-
-    this.streams = {current_input: null_stream,
-                    current_output: stdout};
+    this.streams = {current_input: this.stdin,
+                    current_output: this.stdout};
 }
 
 Environment.prototype.predicateExists = function(module, functor)
@@ -315,6 +329,7 @@ Environment.prototype.getPredicateCode = function(functor, optionalContextModule
 
 Environment.prototype.backtrack = function()
 {
+    console.log("Backtracking...");
     return Kernel.backtrack(this) && Kernel.execute(this);
 }
 

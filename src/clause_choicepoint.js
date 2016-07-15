@@ -6,11 +6,15 @@ function ClauseChoicepoint(env)
     this.argP = env.argP;
     this.argI = env.argI;
     this.argS = env.argS;
-    this.code = env.currentFrame.code;
     this.currentModule = env.currentModule;
     this.moduleStack = env.moduleStack;
     this.nextFrame = env.nextFrame;
     this.functor = env.currentFrame.functor;
+}
+
+ClauseChoicepoint.prototype.canApply = function()
+{
+    return true;
 }
 
 ClauseChoicepoint.prototype.apply = function(env)

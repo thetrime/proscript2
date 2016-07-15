@@ -57,6 +57,7 @@ module.exports = {emptyListAtom: new AtomTerm("[]"),
                   accessAtom: new AtomTerm("access"),
                   metaArgumentSpecifierAtom: new AtomTerm("meta_argument_specifier"),
 
+                  undefinedPredicateFunctor: new Functor(new AtomTerm("$undefined_predicate"), 0),
                   metaPredicateFunctor: new Functor(new AtomTerm("meta_predicate"), 1),
                   multiFileFunctor: new Functor(new AtomTerm("multi_file"), 1),
                   dynamicFunctor: new Functor(new AtomTerm("dynamic"), 1),

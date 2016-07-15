@@ -83,7 +83,6 @@ function backtrack_to(env, choicepoint_index)
     // Undoes to the given choicepoint, undoing everything else in between
     for (var i = env.choicepoints.length-1; i >= choicepoint_index-1; i--)
     {
-        //console.log(env.choicepoints[i]);
         var oldTR = env.TR;
         env.choicepoints[i].apply(env);
         unwind_trail(env, oldTR);
@@ -91,7 +90,7 @@ function backtrack_to(env, choicepoint_index)
     env.choicepoints = env.choicepoints.slice(0, choicepoint_index);
 }
 
-function backtrack(env)
+function backtrack(env, discardForeign)
 {
     var oldTR = env.TR;
     while (true)
@@ -99,6 +98,11 @@ function backtrack(env)
         if (env.choicepoints.length == 0)
             return false;
         var choicepoint = env.choicepoints.pop();
+        if (!choicepoint.canApply(discardForeign))
+        {
+            env.choicepoints.push(choicepoint);
+            return false;
+        }
         if (!choicepoint.apply(env))
         {
             // This is a fake choicepoint set up for something like exception handling. We have to keep going
@@ -293,6 +297,7 @@ function execute(env)
                 }
 
                 // Set the foreign info to undefined
+                console.log("Calling " + env.currentFrame.clause.constants[0]);
                 var rc = false;
                 try
                 {
@@ -304,7 +309,7 @@ function execute(env)
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
                 }
-                //console.log("Foreign result: " + rc);
+                console.log("Foreign result: " + rc);
                 if (rc == 0)
                 {
                     // CHECKME: Does this undo any partial bindings that happen in a failed foreign frame?

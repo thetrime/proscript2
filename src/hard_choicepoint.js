@@ -1,7 +1,9 @@
-function Choicepoint(env, retryPC)
+var Constants = require('./constants');
+
+function HardChoicepoint(env)
 {
     this.frame = env.currentFrame;
-    this.retryPC = retryPC;
+    this.retryPC = 0;
     this.retryTR = env.TR;
     this.argP = env.argP;
     this.argI = env.argI;
@@ -9,24 +11,28 @@ function Choicepoint(env, retryPC)
     this.currentModule = env.currentModule;
     this.moduleStack = env.moduleStack;
     this.nextFrame = env.nextFrame;
-    this.functor = env.currentFrame.functor;
+    if (env.currentFrame != null)
+        this.functor = env.currentFrame.functor;
+    else
+        this.functor = Constants.undefinedPredicateFunctor;
 }
 
-Choicepoint.prototype.canApply = function()
+HardChoicepoint.prototype.canApply = function(discardForeign)
 {
-    return true;
+    return discardForeign;
 }
 
-Choicepoint.prototype.apply = function(env)
+
+HardChoicepoint.prototype.apply = function(env)
 {
     env.currentFrame = this.frame;
-    env.PC = this.retryPC;
+    env.PC = 0;
     env.TR = this.retryTR;
     env.argP = this.argP;
     env.argI = this.argI;
     env.argS = this.argS;
     env.nextFrame = this.nextFrame;
-    return (this.retryPC != -1)
+    return true;
 }
 
-module.exports = Choicepoint;
+module.exports = HardChoicepoint;
