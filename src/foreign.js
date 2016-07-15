@@ -66,8 +66,20 @@ module.exports.sort = function(unsorted, sorted)
     }
     return this.unify(sorted, result);
 }
+
+module.exports.is_list = function(t)
+{
+    while (t instanceof CompoundTerm)
+    {
+        if (t.functor.equals(Constants.listFunctor))
+            t = t.args[1].dereference();
+    }
+    return Constants.emptyListAtom.equals(t);
+}
+
 module.exports.qqq = function()
 {
     console.log("xChoicepoints: " + util.inspect(this.choicepoints));
     return true;
 }
+
