@@ -303,7 +303,7 @@ function execute(env)
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
                 }
-                console.log("Foreign result: " + rc);
+                //console.log("Foreign result: " + rc);
                 if (rc == 0)
                 {
                     // CHECKME: Does this undo any partial bindings that happen in a failed foreign frame?
