@@ -12,10 +12,6 @@ function ClauseChoicepoint(env)
     this.functor = env.currentFrame.functor;
 }
 
-ClauseChoicepoint.prototype.canApply = function()
-{
-    return true;
-}
 
 ClauseChoicepoint.prototype.apply = function(env)
 {

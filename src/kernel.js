@@ -90,7 +90,7 @@ function backtrack_to(env, choicepoint_index)
     env.choicepoints = env.choicepoints.slice(0, choicepoint_index);
 }
 
-function backtrack(env, discardForeign)
+function backtrack(env)
 {
     var oldTR = env.TR;
     while (true)
@@ -98,11 +98,6 @@ function backtrack(env, discardForeign)
         if (env.choicepoints.length == 0)
             return false;
         var choicepoint = env.choicepoints.pop();
-        if (!choicepoint.canApply(discardForeign))
-        {
-            env.choicepoints.push(choicepoint);
-            return false;
-        }
         if (!choicepoint.apply(env))
         {
             // This is a fake choicepoint set up for something like exception handling. We have to keep going
@@ -297,7 +292,6 @@ function execute(env)
                 }
 
                 // Set the foreign info to undefined
-                console.log("Calling " + env.currentFrame.clause.constants[0]);
                 var rc = false;
                 try
                 {

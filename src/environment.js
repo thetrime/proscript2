@@ -16,7 +16,6 @@ var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
-var HardChoicepoint = require('./hard_choicepoint.js');
 var fs = require('fs');
 var BlobTerm = require('./blob_term');
 var Utils = require('./utils');
@@ -45,6 +44,7 @@ var builtinModules = [fs.readFileSync(__dirname + '/builtin.pl', 'utf8')];
 function Environment()
 {
     this.module_map = [];
+    this.savedContexts = [];
     this.userModule = this.getModule("user");
     // We have to set currentModule here so that we can load the builtins. It will be reset in reset() again to user if it was changed
     this.currentModule = this.userModule;
@@ -96,16 +96,36 @@ Environment.prototype.create_choicepoint = function(data)
     return this.choicepoints.length;
 }
 
-Environment.prototype.openForeignFrame = function()
+Environment.prototype.pushContext = function()
 {
-    this.choicepoints.push(new HardChoicepoint(this));
-    return this.choicepoints.length;
+    this.savedContexts.push({currentModule: this.currentModule,
+                             currentFrame: this.currentFrame,
+                             choicepoints: this.choicepoints,
+                             TR: this.TR,
+                             argS: this.argS,
+                             argP: this.argP,
+                             argI: this.argI,
+                             trail: this.trail,
+                             PC: this.PC,
+                             mode: this.mode,
+                             stream: this.streams});
+    this.reset();
 }
 
-Environment.prototype.discardForeignFrame = function(b)
+Environment.prototype.popContext = function()
 {
-    while (this.choicepoints.length > b)
-        Kernel.backtrack(this, true);
+    var saved = this.savedContexts.pop();
+    this.currentModule = saved.currentModule;
+    this.currentFrame = saved.currentFrame;
+    this.choicepoints = saved.choicepoints;
+    this.TR = saved.TR;
+    this.argS = saved.argS;
+    this.argP = saved.argP;
+    this.argI = saved.argI;
+    this.trail = saved.trail;
+    this.PC = saved.PC;
+    this.mode = saved.mode;
+    this.streams = saved.stream;
 }
 
 Environment.prototype.unify = function(a, b)

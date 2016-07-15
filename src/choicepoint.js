@@ -12,11 +12,6 @@ function Choicepoint(env, retryPC)
     this.functor = env.currentFrame.functor;
 }
 
-Choicepoint.prototype.canApply = function()
-{
-    return true;
-}
-
 Choicepoint.prototype.apply = function(env)
 {
     env.currentFrame = this.frame;
