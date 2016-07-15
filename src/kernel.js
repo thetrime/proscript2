@@ -283,7 +283,8 @@ function execute(env)
             case "i_foreignretry":
             {
                 env.foreign = env.currentFrame.reserved_slots[0];
-                var args = env.currentFrame.slots.slice(0);
+                // FIXME: Why do we sometimes get things on the currentFrame for a foreign predicate that are wrong?!
+                var args = env.currentFrame.slots.slice(0, env.currentFrame.functor.arity);
                 for (var i = 0; i < args.length; i++)
                 {
                     args[i] = args[i].dereference();
