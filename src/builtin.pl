@@ -10,7 +10,7 @@ findall(Template, Generator, List) :-
 	save_instances(-Template, Generator),
 	list_instances([], List).
 
-findall(Template, Generator, SoFar, List) :-
+findall(Template, Generator, List, SoFar) :-
 	save_instances(-Template, Generator),
 	list_instances(SoFar, List).
 
@@ -26,7 +26,7 @@ bagof(Template, Generator, Bag) :-
 	functor(Key, ., N),
         save_instances(Key-Template, Generator),
 	list_instances(Key, N, [], OmniumGatherum),
-	keysort(OmniumGatherum, Gamut), !,
+        keysort(OmniumGatherum, Gamut), !,
 	concordant_subset(Gamut, Key, Answer),
 	Bag = Answer.
 bagof(Template, Generator, Bag) :-
