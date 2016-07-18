@@ -123,13 +123,12 @@ function read_expression(s, precedence, isarg, islist, vars)
     }
     if (token == ListCloseToken) // end of list
         return token;
-
     var lhs;
     // Either the token is an operator, or it must be an atom (or the start of a list or curly-list)
     var op = (Operators[token] || {}).prefix;
     // There are some caveats here. For example, when reading [-] or foo(is, is) the thing is not actually an operator.
     var peeked_token = peek_token(s);
-    if (peeked_token == ']' || peeked_token == ')' || peeked_token == ',') // Maybe others? This is a bit ugly :(
+    if (peeked_token == ListCloseToken || peeked_token == ')' || peeked_token == ',') // Maybe others? This is a bit ugly :(
         op = undefined;
     if (peeked_token == '(')
     {
@@ -206,12 +205,12 @@ function read_expression(s, precedence, isarg, islist, vars)
                     break;
                 }
                 args.push(t);
-		var next = read_token(s);
+                var next = read_token(s);
                 if (next == ',')
                     continue;
                 else if (next == ListCloseToken && token == ListOpenToken)
 		{
-		    lhs = make_list(args, Constants.emptyListAtom);
+                    lhs = make_list(args, Constants.emptyListAtom);
 		    break;
                 }
                 else if (next == CurlyCloseToken && token == CurlyOpenToken)
