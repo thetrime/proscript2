@@ -1,7 +1,6 @@
 LRU cache for atoms/integers/floats
 documenting the design
 directives
-Convert stream code to use buffers everywhere
 
 tidy
    There are at least 2 representations of every instruction(!)

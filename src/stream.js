@@ -1,5 +1,13 @@
+"use strict";
+
 var BlobTerm = require('./blob_term');
-var STREAM_BUFFER_SIZE = 256;
+var STREAM_BUFFER_SIZE = 2048;
+
+// read(stream, ptr, size, buffer)
+//    Request to read (up to) size bytes to buffer[ptr]
+// write(stream, ptr, size, buffer)
+//    Request to write (up to) size bytes from buffer[ptr]
+
 
 function Stream(read, write, seek, close, tell, userdata)
 {
@@ -9,8 +17,9 @@ function Stream(read, write, seek, close, tell, userdata)
     this.close = close;
     this.tell = tell;
     this.data = userdata;
-    this.buffer = [];
-    this.buffer_size = 0;
+    this.buffer = Buffer(STREAM_BUFFER_SIZE);
+    this.filled_buffer_size = 0;
+    this.buffer_ptr = 0;
     this.do_buffer = true;
     this.term = new BlobTerm("stream", this);
 }
@@ -19,7 +28,23 @@ Stream.prototype.flush = function()
 {
     if (this.write == null)
         Errors.permissionError(Constants.outputAtom, Constants.streamAtom, this.term);
-    return this.buffer_size == this.write(this, this.buffer_size, this.buffer);
+    var bytesAvailableToFlush = this.filled_buffer_size - this.buffer_ptr;
+    if (bytesAvailableToFlush > 0)
+    {
+        var flushed =  this.write(this, this.buffer_ptr, bytesAvailableToFlush, this.buffer);
+        if (flushed < 0)
+            return false;
+        if (flushed == bytesAvailableToFlush)
+        {
+            this.buffer_ptr = 0;
+            this.filled_buffer_size = 0;
+            return true;
+        }
+        else
+            abort("Failed to flush buffer");
+    }
+
+    return true; // Nothing to write
 }
 
 Stream.prototype.get_raw_char = function()
@@ -81,15 +106,15 @@ Stream.prototype.peekch = function()
         return b;
     ch = 0; 
     var mask = 0x20;
-    var i = 0;
+    var i = this.buffer.buffer_ptr;
     for (var mask = 0x20; mask != 0; mask >>=1 )
-    {        
-        var next = this.buffer[i+1];
-        if (next == undefined)
+    {
+        if (i > this.buffer.filled_buffer_size)
         {
             // This is a problem. We need to buffer more data! But we must also not lose the existing buffer since we are peeking.
             abort("Unicode break in peekch. This is a bug");
         }
+        var next = this.buffer.readUInt8(i+1);
         if (next == -1)
             return -1;
         ch = (ch << 6) ^ (next & 0x3f);
@@ -103,75 +128,76 @@ Stream.prototype.peekch = function()
 
 Stream.prototype.getb = function()
 {
-    if (this.buffer_size == 0)
+    if (this.buffer_ptr == this.filled_buffer_size)
     {
-        //debug_msg("Buffering...");
-        this.buffer_size = this.read(this, STREAM_BUFFER_SIZE, this.buffer);
-        //debug_msg("Buffer now contains " + this.buffer_size + " elements");
+        //console.log("Buffering...");
+        this.filled_buffer_size = 0;
+        this.buffer_ptr = 0;
+        this.filled_buffer_size = this.read(this, 0, STREAM_BUFFER_SIZE, this.buffer);
+        //console.log("Buffer now contains " + this.filled_buffer_size + " elements");
     }
-    if (this.buffer_size < 0)
-        return this.buffer_size;
+    if (this.filled_buffer_size < 0) // Error condition
+        return this.filled_buffer_size;
     // FIXME: Can this STILL be 0?
-    if (this.buffer_size == 0)
+    if (this.filled_buffer_size == 0)
         return -1;
-    // At this point the buffer has some data in it
-    this.buffer_size--;
-    return this.buffer.shift();
+    // At this point the buffer has some data in it. Return the next byte
+    return this.buffer.readUInt8(this.buffer_ptr++);
 }
 
 Stream.prototype.putch = function(c)
 {
-    if (this.buffer_size < 0)
+    if (this.filled_buffer_size < 0) // Error condition
         Errors.ioError(Constants.writeAtom, this.term);
-    this.buffer.push(c);
-    this.buffer_size++;
-    if (this.do_buffer == false)
-        this.flush();
+    this.buffer.writeUInt8(c, this.filled_buffer_size++);
+    if (this.filled_buffer_size == STREAM_BUFFER_SIZE || this.do_buffer == false)
+        return this.flush();
     return true;
 }
 
 Stream.prototype.putb = function(c)
 {
-    if (this.buffer_size < 0)
+    if (this.filled_buffer_size < 0) // Error condition
         Errors.ioError(Constants.writeAtom, this.term);
-    this.buffer.push(c);
-    this.buffer_size++;
-    if (this.do_buffer == false)
-        this.flush();
+    this.buffer.writeUInt8(c, this.filled_buffer_size++);
+    if (this.filled_buffer_size == STREAM_BUFFER_SIZE || this.do_buffer == false)
+        return this.flush();
     return true;
 }
 
 Stream.prototype.peekb = function()
 {
-    if (this.buffer_size == 0)
+    if (this.buffer_ptr == this.filled_buffer_size)
     {
         //debug_msg("Buffering...");
-        this.buffer_size = this.read(this, STREAM_BUFFER_SIZE, this.buffer);
+        this.filled_buffer_size = 0;
+        this.buffer_ptr = 0;
+        this.filled_buffer_size = this.read(this, 0, STREAM_BUFFER_SIZE, this.buffer);
         //debug_msg("Buffer now contains " + s.buffer_size + " elements");
     }
-    if (this.buffer_size < 0)
-        return this.buffer_size;
+    if (this.filled_buffer_size < 0) // Error condition
+        return this.filled_buffer_size;
     // FIXME: Can this STILL be 0?
-    if (this.buffer_size == 0)
+    if (this.filled_buffer_size == 0)
         return -1;
-    // At this point the buffer has some data in it
-    return this.buffer[0];
+    // At this point the buffer has some data in it. Return the next byte
+    return this.buffer.readUInt8(this.buffer_ptr);
 }
 
-Stream.string_read = function(stream, count, buffer)
+Stream.string_read = function(stream, offset, length, buffer)
 {
-    var bytes_read = 0;
-    var records_read;
-    for (records_read = 0; records_read < count; records_read++)
-    {
-        t = stream.data.shift();
-        if (t === undefined)
-        {
-            return records_read;
-        }
-        buffer[bytes_read++] = t;
-    }
-    return records_read;
+    var bytesToRead = length;
+    if (stream.data.buffer.length < stream.data.ptr + length)
+        bytesToRead = stream.data.buffer.length - stream.data.ptr;
+    stream.data.buffer.copy(buffer, offset, stream.data.ptr, stream.data.ptr+bytesToRead);
+    stream.data.ptr += bytesToRead;
+    return bytesToRead;
+}
+
+Stream.stringBuffer = function(string)
+{
+    return {buffer: new Buffer(string, "utf-8"),
+            ptr: 0};
 }
 
 module.exports = Stream;

@@ -2,7 +2,6 @@
 // See http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
 
 var Stream = require('./stream.js');
-var IO = require('./io.js');
 var PrologFlag = require('./prolog_flag.js');
 var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
@@ -793,21 +792,8 @@ function tokenToNumericTerm(token)
 
 }
 
-function doTest(atom)
-{
-    var s = {peeked_token: undefined,
-             stream: new Stream(parser_test_read,
-                                null,
-                                null,
-                                null,
-                                null,
-                                IO.toByteArray(atom))};
-    return read_expression(s, Infinity, false, false, {});
-}
-
 module.exports = {readTerm: readTerm,
                   numberToken: numberToken,
                   atomicToken: atomicToken,
                   tokenToNumericTerm: tokenToNumericTerm,
-                  test: doTest,
                   is_graphic_char:is_graphic_char};

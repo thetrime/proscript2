@@ -41,27 +41,17 @@ var stream_properties = [get_stream_position];
 
 
 // fs doesnt support seek() or tell(), but readSync and writeSync include position arguments. If we keep track of everything ourselves, we should be OK
-function fsRead(stream, count, buffer)
+function fsRead(stream, offset, length, buffer)
 {
-    // FIXME: This is pretty inefficient. I should probably just use node buffers everywhere
-    var b = new Buffer(count);
-    var bytes = fs.readSync(stream.data.fd, b, 0, count, stream.data.position)
+    var bytes = fs.readSync(stream.data.fd, buffer, offset, length, stream.data.position)
     if (bytes != -1)
-    {
-        for (var i = 0; i < bytes; i++)
-            buffer[i] = b.readUInt8(i);
         stream.data.position += bytes;
-    }
     return bytes;
 }
 
-function fsWrite(stream, count, buffer)
+function fsWrite(stream, offset, length, buffer)
 {
-    // FIXME: This is pretty inefficient. I should probably just use node buffers everywhere
-    var b = new Buffer(count);
-    for (var i = 0; i < count; i++)
-        b.writeUInt8(buffer[i], i);
-    var bytes = fs.writeSync(stream.data.fd, b, 0, count, stream.data.position);
+    var bytes = fs.writeSync(stream.data.fd, buffer, offset, length, stream.data.position);
     if (bytes != -1)
         stream.data.position += bytes;
     return bytes;

@@ -14,7 +14,6 @@ var Frame = require('./frame.js');
 var Instructions = require('./opcodes.js').opcode_map;
 var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
-var IO = require('./io.js');
 var Choicepoint = require('./choicepoint.js');
 var fs = require('fs');
 var BlobTerm = require('./blob_term');
@@ -208,7 +207,7 @@ Environment.prototype.consultString = function(data)
                             null,
                             null,
                             null,
-                            IO.toByteArray(data));
+                            Stream.stringBuffer(data));
     var clause = null;
     var module = this.currentModule;
     while (!((clause = Parser.readTerm(stream, [])).equals(Constants.endOfFileAtom)))
@@ -417,14 +416,14 @@ Environment.prototype.consultFile = function(filename, callback)
 }
 
 
-function fromByteArray(byteArray)
+function fromByteArray(buffer, offset, length)
 {
     var str = '';
-    for (i = 0; i < byteArray.length; i++)
+    for (i = offset; i < length; i++)
     {
-        if (byteArray[i] <= 0x7F)
+        if (buffer.readUInt8(i) <= 0x7F)
         {
-            str += String.fromCharCode(byteArray[i]);
+            str += String.fromCharCode(buffer.readUInt8(i));
         }
         else
         {
@@ -434,7 +433,7 @@ function fromByteArray(byteArray)
             var j = 0;
             for (var mask = 0x20; mask != 0; mask >>=1 )
             {        
-                var next = byteArray[j+1];
+                var next = buffer.readUInt8(j+1);
                 if (next == undefined)
                 {
                     abort("Unicode break in fromByteArray. The input is garbage");
@@ -452,9 +451,9 @@ function fromByteArray(byteArray)
 }
 
 var console_buffer = '';
-function console_write(stream, count, buffer)
+function console_write(stream, offset, length, buffer)
 {
-    var str = console_buffer + fromByteArray(buffer);
+    var str = console_buffer + fromByteArray(buffer, offset, length);
     var lines = str.split('\n');
     for (var i = 0; i < lines.length-1; i++)
     {
@@ -462,7 +461,7 @@ function console_write(stream, count, buffer)
             console.log(" ***************: " + lines[i]);
     }
     console_buffer = lines[lines.length-1];
-    return count;
+    return length;
 }
 
 function clauseFunctor(term)

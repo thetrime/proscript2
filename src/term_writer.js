@@ -8,6 +8,7 @@ var Parser = require('./parser');
 var ArrayUtils = require('./array_utils');
 var Constants = require('./constants');
 var Operators = require('./operators');
+var Stream = require('./stream');
 
 function formatAtom(options, term)
 {
@@ -203,8 +204,8 @@ function formatTerm(options, precedence, term)
 module.exports.writeTerm = function(stream, term, options)
 {
     var text = formatTerm(options, 1200, term);
-    var bytes = ArrayUtils.toByteArray(text.toString());
-    return stream.write(stream, bytes.length, bytes) >= 0;
+    var bufferObject = Stream.stringBuffer(text.toString());
+    return stream.write(stream, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;
 }
 
 module.exports.formatTerm = formatTerm;
