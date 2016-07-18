@@ -1,6 +1,7 @@
 // This module contains non-ISO extensions
 var Constants = require('./constants');
 var IntegerTerm = require('./integer_term');
+var AtomTerm = require('./atom_term');
 var CompoundTerm = require('./compound_term');
 var Utils = require('./utils');
 var util = require('util');
@@ -73,9 +74,187 @@ module.exports.is_list = function(t)
     {
         if (t.functor.equals(Constants.listFunctor))
             t = t.args[1].dereference();
+        else
+            return false;
     }
     return Constants.emptyListAtom.equals(t);
 }
+
+module.exports.upcase_atom = function(t, s)
+{
+    Utils.must_be_atom(t);
+    return this.unify(s, new AtomTerm(t.value.toUpperCase()));
+}
+
+module.exports.downcase_atom = function(t, s)
+{
+    Utils.must_be_atom(t);
+    return this.unify(s, new AtomTerm(t.value.toLowerCase()));
+}
+
+function format(sink, formatString, formatArgs)
+{
+    Utils.must_be_atom(formatString);
+    var a = 0;
+    var input = formatString.value;
+    var output = '';
+    var radix = 0;
+    var nextArg = function()
+    {
+        if (formatArgs instanceof CompoundTerm && formatArgs.functor.equals(Constants.listFunctor))
+        {
+            var nextArg = formatArgs.args[0].dereference();
+            formatArgs = formatArgs.args[1].dereference();
+            return nextArg;
+        }
+        Errors.formatError(new AtomTerm("not enough arguments"));
+    }
+    for (i = 0; i < input.length; i++)
+    {
+        if (input.charAt(i) == '~')
+        {
+            if (input.charAt(i+1) == '~')
+                output += "~";
+            else
+            {
+                i++;
+                while(true)
+                {
+                    switch(input.charAt(i))
+                    {
+                        case 'a': // atom
+                        {
+                            var atom = nextArg();
+                            Utils.must_be_atom(atom);
+                            output += atom.value;
+                            break;
+                        }
+                        case 'c': // character code
+                        {
+                        }
+                        case 'd': // decimal
+                        {
+                        }
+                        case 'D': // decimal with separators
+                        {
+                        }
+                        case 'e': // floating point as exponential
+                        {
+                        }
+                        case 'E': // floating point as exponential in upper-case
+                        {
+                        }
+                        case 'f': // floating point as non-exponential
+                        {
+                        }
+                        case 'g': // shorter of e or f
+                        {
+                        }
+                        case 'G': // shorter of E or f
+                        {
+                        }
+                        case 'i': // ignore
+                        {
+                            nextArg();
+                            continue;
+                        }
+                        case 'I': // integer with _ separator
+                        {
+                        }
+                        case 'n': // Newline
+                        {
+                            output += "\n";
+                            break;
+                        }
+                        case 'N': // Soft newline
+                        {
+                            if (!output.charAt(output.length-1) == "\n")
+                                output += "\n";
+                            break;
+                        }
+                        case 'p': // print
+                        {
+                        }
+                        case 'q': // writeq
+                        {
+                        }
+                        case 'r': // radix
+                        {
+                        }
+                        case 'R': // radix in uppercase
+                        {
+                        }
+                        case 's': // string
+                        {
+                        }
+                        case '@': // execute
+                        {
+                        }
+                        case 't': // tab
+                        {
+                        }
+                        case '|': // tab-stop
+                        {
+                        }
+                        case '+': // tab-stop
+                        {
+                        }
+                        case 'w': // write
+                        {
+                        }
+                        // These things relate to parsing arguments
+                        case '*':
+                        {
+                            var v = nextArg();
+                            Utils.must_be_integer(v);
+                            radix = v.value;
+                            continue;
+                        }
+                        case '0':
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                        case '8':
+                        case '9':
+                        {
+                            radix = input.charAt(i) - '0';
+                            while (input.charAt(i) >= '0' && input.charAt(i) <= '9')
+                                radix = 10 * radix + input.charAt(i++) - '0';
+                            continue;
+                        }
+                        default:
+                        {
+                        }
+
+                    }
+                    break;
+                }
+
+            }
+        }
+        else
+            output += input.charAt(i);
+    }
+    if (sink instanceof CompoundTerm && sink.functor.equals(Constants.atomFunctor))
+        return this.unify(sink.args[0], new AtomTerm(output));
+    var bufferObject = Stream.stringBuffer(output.toString());
+    return sink.value.write(stream, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;
+}
+
+module.exports.format = [
+    function(sink, formatString, formatArgs)
+    {
+        return format(sink, formatString, formatArgs);
+    },
+    function(formatString, formatArgs)
+    {
+        return format(this.streams.current_output, formatString, formatArgs);
+    }];
+
 
 module.exports.qqq = function()
 {

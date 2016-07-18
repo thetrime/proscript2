@@ -13,6 +13,7 @@ var existenceErrorFunctor = new Functor(new AtomTerm("existence_error"), 2);
 var permissionErrorFunctor = new Functor(new AtomTerm("permission_error"), 3);
 var evaluationErrorFunctor = new Functor(new AtomTerm("evaluation_error"), 1);
 var syntaxErrorFunctor = new Functor(new AtomTerm("syntax_error"), 1);
+var formatErrorFunctor = new Functor(new AtomTerm("format_error"), 1);
 var ioErrorFunctor = new Functor(new AtomTerm("io_error"), 2);
 var systemErrorFunctor = new AtomTerm("system_error");
 var instantiationErrorAtom = new AtomTerm("instantiation_error");
@@ -81,4 +82,9 @@ module.exports.syntaxError = function(message)
 module.exports.ioError = function(what, where) // Non-ISO
 {
     throw new CompoundTerm(errorFunctor, [new CompoundTerm(ioErrorFunctor, [what, where]), new VariableTerm()]);
+}
+
+module.exports.formatError = function(message) // Non-ISO
+{
+    throw new CompoundTerm(errorFunctor, [new CompoundTerm(formatErrorFunctor, [message]), new VariableTerm()]);
 }
