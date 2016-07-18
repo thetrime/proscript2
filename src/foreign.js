@@ -259,6 +259,11 @@ module.exports.format = [
 module.exports.qqq = function()
 {
     console.log("xChoicepoints: " + util.inspect(this.choicepoints));
-    return true;
+    var resume = this.yield_control();
+    setTimeout(function()
+               {
+                   resume(true);
+               }, 2000);
+    return "yield";
 }
 

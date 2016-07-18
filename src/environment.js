@@ -87,6 +87,12 @@ function Environment()
     this.reset();
 }
 
+Environment.prototype.yield_control = function()
+{
+    var that = this;
+    return function(success) { Kernel.resume(that, success)};
+}
+
 Environment.prototype.create_choicepoint = function(data)
 {
     // FIXME: If this is a foreign meta-predicate then 1 is not correct here!
@@ -272,11 +278,13 @@ Environment.prototype.consultString = function(data)
             // char_conversion/2, op/3 and set_prolog_flag/2, include/1 and ensure_loaded/1 are just executed, along with any other directives
             else
             {
+                // FIXME: in /theory/ this could block and we should not assume that just because this.execute() has returned that the goal has completed.
+                //        In /practise/ if a directive executes a blocking predicate, then it is probably a terrible directive.
                 console.log("Processing directive " + directive);
-                if (this.execute(directive))
-                    console.log("    Directive succeeded");
-                else
-                    console.log("    Directive failed");
+                this.execute(directive,
+                             function(){console.log("    Directive succeeded");},
+                             function(){console.log("    Directive failed");},
+                             function(error){console.log("    Directive raised an exception: " + error.toString());});
             }
         }
         else
@@ -289,7 +297,7 @@ Environment.prototype.consultString = function(data)
     this.currentModule = this.userModule;
 }
 
-Environment.prototype.execute = function(queryTerm)
+Environment.prototype.execute = function(queryTerm, onSuccess, onFailure, onError)
 {
     var compiledQuery = Compiler.compileQuery(queryTerm);
 
@@ -307,7 +315,7 @@ Environment.prototype.execute = function(queryTerm)
     this.PC = 0;
     this.currentFrame = queryFrame;
     this.argP = queryFrame.slots;
-    return Kernel.execute(this);
+    return Kernel.execute(this, onSuccess, onFailure, onError);
 }
 
 Environment.prototype.getPredicateCode = function(functor, optionalContextModule)
@@ -346,10 +354,10 @@ Environment.prototype.getPredicateCode = function(functor, optionalContextModule
     return p;
 }
 
-Environment.prototype.backtrack = function()
+Environment.prototype.backtrack = function(onSuccess, onFailure, onError)
 {
     console.log("Backtracking...");
-    return Kernel.backtrack(this) && Kernel.execute(this);
+    return Kernel.backtrack(this) && Kernel.execute(this, onSuccess, onFailure, onError);
 }
 
 Environment.prototype.copyTerm = function(t)

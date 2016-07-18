@@ -108,7 +108,13 @@ function backtrack(env)
     }
 }
 
-function cut_to(env, point)
+function resume(env, savedState)
+{
+    return function() { savedState.apply(env);
+                        redo_execute(env);}
+}
+
+function cut_to(env, point, yieldInfo)
 {
     while (env.choicepoints.length > point)
     {
@@ -143,19 +149,23 @@ function cut_to(env, point)
                     env.PC = 0; // Start from the beginning of the code in the next frame
                     //console.log("Executing handler " + c.cleanup.goal);
                     //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
-                    execute(env);
+                    // Yikes. This is a bit complicated :(
+                    var resumeFn = resume(env, savedState, yieldInfo);
+                    execute(env, resumeFn, resumeFn, resumeFn);
+                    // So at this point we have basically forked and should immediately exit. Once the cleanup goal has run it
+                    // will re-enter via a call from resumeFn to redo_execute()
+                    // Since the kernel will resume from the cut again, we have more opportunities here to cut further choicepoints if need be
+                    return false;
                 }
                 catch(ignored)
                 {
                     console.log(ignored);
                 }
-                finally
-                {
-                    savedState.apply(env);
-                }
             }
         }
     }
+    // If we get here then we did NOT run any handler and we can return and continue executing the (old) machine
+    return true;
 }
 
 function newArgFrame(env)
@@ -219,9 +229,20 @@ function print_instruction(env, current_opcode)
 var debugger_steps = 0;
 var next_opcode = undefined;
 var exception = undefined;
-function execute(env)
+
+function execute(env, successHandler, onFail, onError)
+{
+    env.yieldInfo = {initial_choicepoint_depth: env.choicepoints.length,
+                     onSuccess:successHandler,
+                     onFailure:onFail,
+                     onError:onError};
+    redo_execute(env);
+}
+
+function redo_execute(env)
 {
     var current_opcode;
+
     next_instruction:
     while (!env.halted)
     {
@@ -242,6 +263,7 @@ function execute(env)
             {
                 if (backtrack(env))
                     continue;
+                env.yieldInfo.onFail();
                 return false;
             }
             case "i_true":
@@ -260,7 +282,8 @@ function execute(env)
             }
             case "i_exitquery":
             {
-                return true;
+                env.yieldInfo.onSuccess(env.choicepoints.length != env.yieldInfo.initial_choicepoint_depth);
+                return;
             }
             case "i_exitcatch":
             {
@@ -309,15 +332,23 @@ function execute(env)
                     continue next_instruction;
                 }
                 //console.log("Foreign result: " + rc);
-                if (rc == 0)
+                if (rc == false)
                 {
                     // CHECKME: Does this undo any partial bindings that happen in a failed foreign frame?
                     if (backtrack(env))
                         continue;
+                    env.yieldInfo.onFail();
                     return false;
                 }
-                next_opcode = "i_exit";
-                continue next_instruction;
+                else if (rc == true)
+                {
+                    next_opcode = "i_exit";
+                    continue next_instruction;
+                }
+                else if (rc == "yield")
+                {
+                    return false;
+                }
             }
             case "i_exit":
 	    {
@@ -431,7 +462,15 @@ function execute(env)
                     console.log(exception.stack);
                     Errors.systemError(new AtomTerm(exception.toString()));
                 }
-                Errors.systemError(exception);
+                try
+                {
+                    Errors.systemError(exception);
+                }
+                catch(systemError)
+                {
+                    env.yieldInfo.onError(systemError);
+                }
+                return;
             }
             case "i_switch_module":
             {
@@ -547,17 +586,19 @@ function execute(env)
                 // If we want to support cleanup, we cannot just do this:
                 //env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
                 //console.log("Cut to " + env.currentFrame.choicepoint);
-                cut_to(env, env.currentFrame.choicepoint);
-                //console.log("Choicepoints after cut: " + env.choicepoints.length);
+                if (!cut_to(env, env.currentFrame.choicepoint, yieldInfo))
+                    return false;
                 env.currentFrame.choicepoint = env.choicepoints.length;
                 env.PC++;
+                //console.log("Choicepoints after cut: " + env.choicepoints.length);
                 continue;
             }
             case "c_cut":
             {
                 // The task of c_cut is to pop and discard all choicepoints newer than the value in the given slot
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                cut_to(env, env.currentFrame.reserved_slots[slot]);
+                if (!cut_to(env, env.currentFrame.reserved_slots[slot], yieldInfo))
+                    return false;
                 env.PC+=3;
                 continue;
             }
@@ -565,7 +606,8 @@ function execute(env)
             {
                 // The task of c_lcut is to pop and discard all choicepoints newer than /one greater than/ the value in the given slot
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                cut_to(env, env.currentFrame.reserved_slots[slot]+1);
+                if (!cut_to(env, env.currentFrame.reserved_slots[slot]+1, yieldInfo))
+                    return false;
                 env.PC+=3;
                 continue;
             }
@@ -603,6 +645,7 @@ function execute(env)
                 //console.log("iUnify: Failed to unify " + util.inspect(arg1) + " and " + util.inspect(arg2));
                 if (backtrack(env))
                     continue;
+                env.yieldInfo.onFail();
                 return false;
 
             }
@@ -758,6 +801,7 @@ function execute(env)
 
                 if (backtrack(env))
                     continue;
+                env.yieldInfo.onFail();
                 return false;
             }
             case "h_pop":
@@ -784,6 +828,7 @@ function execute(env)
                     //console.log("Failed to unify " + util.inspect(arg) + " with the atom " + util.inspect(atom));
                     if (backtrack(env))
                         continue;
+                    env.yieldInfo.onFail();
                     return false;
                 }
                 continue;
@@ -803,6 +848,7 @@ function execute(env)
                 {
                     if (backtrack(env))
                         continue;
+                    env.yieldInfo.onFail();
                     return false;
                 }
                 env.PC+=3;
@@ -850,5 +896,19 @@ function execute(env)
     }
 }
 
+function resume(env, success)
+{
+    if (success == false)
+    {
+        if (backtrack(env))
+            redo_execute(env);
+        env.yieldInfo.onFail();
+        return false;
+    }
+    next_opcode = "i_exit";
+    redo_execute(env);
+}
+
 module.exports = {execute: execute,
+                  resume: resume,
                   backtrack: backtrack};
