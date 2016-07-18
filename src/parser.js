@@ -31,6 +31,9 @@ function PrologString(s)
 
 var ListOpenToken = {toString: function() {return "<list-open>";}};
 var ListCloseToken = {toString: function() {return "<list-close>";}};
+var ParenOpenToken = {toString: function() {return "<paren-open>";}};
+var ParenCloseToken = {toString: function() {return "<paren-close>";}};
+
 var CurlyOpenToken = {toString: function() {return "<curly-open>";}};
 var CurlyCloseToken = {toString: function() {return "<curly-close>";}};
 var DoubleQuoteToken = {toString: function() {return "<double-quote>";}};
@@ -128,14 +131,14 @@ function read_expression(s, precedence, isarg, islist, vars)
     var op = (Operators[token] || {}).prefix;
     // There are some caveats here. For example, when reading [-] or foo(is, is) the thing is not actually an operator.
     var peeked_token = peek_token(s);
-    if (peeked_token == ListCloseToken || peeked_token == ')' || peeked_token == ',') // Maybe others? This is a bit ugly :(
+    if (peeked_token == ListCloseToken || peeked_token == ParenCloseToken || peeked_token == ',') // Maybe others? This is a bit ugly :(
         op = undefined;
-    if (peeked_token == '(')
+    if (peeked_token == ParenOpenToken)
     {
         var q = read_token(s);
         var pp = peek_token(s);
-        unread_token(s, '(');
-        if (pp != '(')
+        unread_token(s, ParenOpenToken);
+        if (pp != ParenOpenToken)
         {
             // for example -(a,b) is not -/1 but -/2. To have -( and still get -/1 we need to see -(( I think
             op = undefined;
@@ -232,12 +235,12 @@ function read_expression(s, precedence, isarg, islist, vars)
                     return syntax_error("mismatched " + token + " at " + next);
             }
         }
-        else if (token == "(")
+        else if (token == ParenOpenToken)
         {
             // Is this right? () just increases the precedence to infinity and reads another term?
             var lhs = read_expression(s, Infinity, false, false, vars)
             var next = read_token(s);
-            if (next != ")")
+            if (next != ParenCloseToken)
                 return syntax_error("mismatched ( at " + next);
 	}
 	else if (token.variable_name != undefined)
@@ -285,7 +288,7 @@ function read_expression(s, precedence, isarg, islist, vars)
             unread_token(s, "-");
             infix_operator = "-";
         }
-        if (infix_operator == '(')
+        if (infix_operator == ParenOpenToken)
         {
             // We are reading a term. Keep reading expressions: After each one we should
             // either get , or )
@@ -298,7 +301,7 @@ function read_expression(s, precedence, isarg, islist, vars)
                 var arg = read_expression(s, Infinity, true, false, vars);
                 args.push(arg);
 		var next = read_token(s);
-		if (next == ')')
+                if (next == ParenCloseToken)
                     break;
                 else if (next == ',')
                     continue;
@@ -473,6 +476,10 @@ function lex(s)
         }
         return ListOpenToken;
     }
+    if (c == "(")
+        return ParenOpenToken;
+    if (c == ")")
+        return ParenCloseToken;
     if (c == "{")
         return CurlyOpenToken;
     else if (c == "}")
