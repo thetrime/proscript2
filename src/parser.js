@@ -599,6 +599,8 @@ function lex(s)
                     }
                     else if (c == "n")
                         buffer += "\n";
+                    else if (c == "t")
+                        buffer += "\t";
                     else if (c == "'")
                         buffer += "'";
                     else if (c == "u")
