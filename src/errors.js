@@ -28,7 +28,7 @@ module.exports.instantiationError = function()
 
 module.exports.systemError = function(t)
 {
-    throw new CompoundTerm(errorFunctor, [systemErrorFunctor, t]);
+    throw new CompoundTerm(errorFunctor, [new CompoundTerm(systemErrorFunctor, [t]), new VariableTerm()]);
 }
 
 module.exports.typeError = function(expected, actual)
