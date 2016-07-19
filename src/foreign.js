@@ -1,11 +1,15 @@
 // This module contains non-ISO extensions
 var Constants = require('./constants');
+var Stream = require('./stream');
 var IntegerTerm = require('./integer_term');
 var AtomTerm = require('./atom_term');
+var Functor = require('./functor');
 var CompoundTerm = require('./compound_term');
 var Utils = require('./utils');
 var util = require('util');
 var Errors = require('./errors');
+var TermWriter = require('./term_writer');
+var Parser = require('./parser');
 
 module.exports.term_variables = function(t, vt)
 {
@@ -92,7 +96,7 @@ module.exports.downcase_atom = function(t, s)
     return this.unify(s, new AtomTerm(t.value.toLowerCase()));
 }
 
-function format(sink, formatString, formatArgs)
+function format(env, sink, formatString, formatArgs)
 {
     Utils.must_be_atom(formatString);
     var a = 0;
@@ -131,27 +135,71 @@ function format(sink, formatString, formatArgs)
                         }
                         case 'c': // character code
                         {
+                            var code = nextArg();
+                            Utils.must_be_character_code(code);
+                            output += String.fromCharCode(code.value);
+                            break;
                         }
                         case 'd': // decimal
                         {
+                            var d = nextArg();
+                            if (d instanceof IntegerTerm)
+                                output += d.value;
+                            else if (d instanceof BigIntegerTerm)
+                                output += d.value.toString();
+                            else
+                                Errors.typeError(Constants.integerAtom, d);
+                            break;
                         }
                         case 'D': // decimal with separators
                         {
+                            var d = nextArg();
+                            var tmp = ""
+                            if (d instanceof IntegerTerm)
+                                tmp = String(d.value);
+                            else if (d instanceof BigIntegerTerm)
+                                tmp = d.value.toString();
+                            else
+                                Errors.typeError(Constants.integerAtom, d);
+                            var i = tmp.length % 3;
+                            for (var j = 0; j < tmp.length; j+=i)
+                            {
+                                output += tmp.substring(j, j+i);
+                                if (i+3 < tmp.length)
+                                    output += ",";
+                                i = 3;
+                            }
+                            break;
                         }
                         case 'e': // floating point as exponential
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case 'E': // floating point as exponential in upper-case
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case 'f': // floating point as non-exponential
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case 'g': // shorter of e or f
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case 'G': // shorter of E or f
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case 'i': // ignore
                         {
@@ -160,6 +208,23 @@ function format(sink, formatString, formatArgs)
                         }
                         case 'I': // integer with _ separator
                         {
+                            var d = nextArg();
+                            var tmp = ""
+                            if (d instanceof IntegerTerm)
+                                tmp = String(d.value);
+                            else if (d instanceof BigIntegerTerm)
+                                tmp = d.value.toString();
+                            else
+                                Errors.typeError(Constants.integerAtom, d);
+                            var i = tmp.length % 3;
+                            for (var j = 0; j < tmp.length; j+=i)
+                            {
+                                output += tmp.substring(j, j+i);
+                                if (i+3 < tmp.length)
+                                    output += "_";
+                                i = 3;
+                            }
+                            break;
                         }
                         case 'n': // Newline
                         {
@@ -174,33 +239,75 @@ function format(sink, formatString, formatArgs)
                         }
                         case 'p': // print
                         {
+                            output += TermWriter.formatTerm({numbervars: true}, 1200, nextArg());
+                            break;
                         }
                         case 'q': // writeq
                         {
+                            output += TermWriter.formatTerm({numbervars: true, quoted:true}, 1200, nextArg());
+                            break;
+
                         }
                         case 'r': // radix
                         {
+                            var d = nextArg();
+                            var tmp = ""
+                            if (d instanceof IntegerTerm)
+                                tmp = d.value.toString(radix);
+                            else if (d instanceof BigIntegerTerm)
+                                tmp = d.value.toString(radix);
+                            else
+                                Errors.typeError(Constants.integerAtom, d);
+                            output += tmp.toLowerCase();
+                            break;
                         }
                         case 'R': // radix in uppercase
                         {
+                            var d = nextArg();
+                            var tmp = ""
+                            if (d instanceof IntegerTerm)
+                                tmp = d.value.toString(radix);
+                            else if (d instanceof BigIntegerTerm)
+                                tmp = d.value.toString(radix);
+                            else
+                                Errors.typeError(Constants.integerAtom, d);
+                            output += tmp.toUpperCase();
+                            break;
                         }
                         case 's': // string
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case '@': // execute
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case 't': // tab
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case '|': // tab-stop
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case '+': // tab-stop
                         {
+                            var d = nextArg();
+                            output += "<not implemented>";
+                            break;
                         }
                         case 'w': // write
                         {
+                            output += TermWriter.formatTerm({numbervars: true}, 1200, nextArg());
+                            break;
                         }
                         // These things relate to parsing arguments
                         case '*':
@@ -228,6 +335,7 @@ function format(sink, formatString, formatArgs)
                         }
                         default:
                         {
+                            Errors.formatError(new AtomTerm("No such format character: " + input.charAt(i)));
                         }
 
                     }
@@ -240,7 +348,9 @@ function format(sink, formatString, formatArgs)
             output += input.charAt(i);
     }
     if (sink instanceof CompoundTerm && sink.functor.equals(Constants.atomFunctor))
-        return this.unify(sink.args[0], new AtomTerm(output));
+    {
+        return env.unify(sink.args[0], new AtomTerm(output));
+    }
     var bufferObject = Stream.stringBuffer(output.toString());
     return sink.value.write(stream, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;
 }
@@ -248,11 +358,11 @@ function format(sink, formatString, formatArgs)
 module.exports.format = [
     function(sink, formatString, formatArgs)
     {
-        return format(sink, formatString, formatArgs);
+        return format(this, sink, formatString, formatArgs);
     },
     function(formatString, formatArgs)
     {
-        return format(this.streams.current_output, formatString, formatArgs);
+        return format(this, this.streams.current_output, formatString, formatArgs);
     }];
 
 
@@ -277,3 +387,81 @@ module.exports.qqq = function()
     return true;
 }
 
+var WebSocket = require('websocket').w3cwebsocket;
+var exceptionFunctor = new Functor(new AtomTerm("exception"), 1);
+var cutFunctor = new Functor(new AtomTerm("cut"), 1);
+
+module.exports["on_server"] = function(goal)
+{
+    this.engine = {goalURI: "ws://localhost:8080/react/goal"};
+
+    // This is quite complicated because we must mix all kinds of paradigms together :(
+
+    // Later we must yield execution. Prepare the resume code
+    var resume = this.yield_control();
+    var ws;
+    if (this.foreign)
+    {
+        // We are backtracking. Try to get another solution by sending a ; and then yielding
+        ws = this.foreign;
+        ws.send(";");
+        return "yield";
+    }
+    // First, create the websocket
+    ws = new WebSocket(this.engine.goalURI);
+    ws.onopen = function()
+    {
+        ws.send(TermWriter.formatTerm({}, 1200, goal) + ".\n");
+        ws.send(";");
+        // This is all we do for now. Either we will get an error, find out that the goal failed, or that it succeeded
+    }
+    ws.onmessage = function(event)
+    {
+        console.log("Got a message: " + util.inspect(event.data));
+        var term = Parser.stringToTerm(event.data);
+        if (term.equals(Constants.failAtom))
+        {
+            ws.close();
+            resume(false);
+        }
+        else if (term instanceof AtomTerm && term.value == "$aborted")
+        {
+            ws.close();
+            resume(false);
+        }
+        else if (term instanceof CompoundTerm)
+        {
+            if (term.functor.equals(exceptionFunctor))
+            {
+                ws.close();
+                resume(term.args[0]);
+            }
+            else if (term.functor.equals(cutFunctor))
+            {
+                ws.close();
+                resume(this.unify(goal, term.args[0]));
+            }
+            else
+            {
+                // OK, we need a backtrack point here so we can retry
+                this.create_choicepoint(ws, function() { ws.close(); });
+                resume(this.unify(goal, term.args[0]));
+            }
+        }
+    }.bind(this);
+    ws.onerror = function(event)
+    {
+        console.log("WS error: " + event);
+        ws.close();
+        try
+        {
+            Errors.systemError(new AtomTerm(event.toString()));
+        }
+        catch(error)
+        {
+            resume(error);
+        }
+    }
+    return "yield";
+
+}

@@ -14,6 +14,14 @@ function VariableTerm(name)
 
 VariableTerm.prototype = new Term;
 
+VariableTerm.prototype.dereference_recursive = function()
+{
+    var deref = this.dereference();
+    if (deref instanceof VariableTerm)
+        return deref;
+    return deref.dereference_recursive();
+}
+
 VariableTerm.prototype.dereference = function()
 {
     var deref = this;
