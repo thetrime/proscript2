@@ -97,7 +97,8 @@ Environment.prototype.create_choicepoint = function(data, cleanup)
 {
     // FIXME: If this is a foreign meta-predicate then 1 is not correct here! Instead maybe this.PC+1?
     var c = new Choicepoint(this, 1);
-    c.cleanup = {foreign: cleanup};
+    if (cleanup != undefined)
+        c.cleanup = {foreign: cleanup};
     this.choicepoints.push(c);
     this.currentFrame.reserved_slots[0] = data;
     return this.choicepoints.length;

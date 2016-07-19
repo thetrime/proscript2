@@ -266,11 +266,11 @@ var debugger_steps = 0;
 var next_opcode = undefined;
 var exception = undefined;
 
-function execute(env, successHandler, onFail, onError)
+function execute(env, successHandler, onFailure, onError)
 {
     env.yieldInfo = {initial_choicepoint_depth: env.choicepoints.length,
                      onSuccess:successHandler,
-                     onFailure:onFail,
+                     onFailure:onFailure,
                      onError:onError};
     redo_execute(env);
 }
@@ -299,7 +299,7 @@ function redo_execute(env)
             {
                 if (backtrack(env))
                     continue;
-                env.yieldInfo.onFail();
+                env.yieldInfo.onFailure();
                 return false;
             }
             case "i_true":
@@ -373,7 +373,7 @@ function redo_execute(env)
                     // CHECKME: Does this undo any partial bindings that happen in a failed foreign frame?
                     if (backtrack(env))
                         continue;
-                    env.yieldInfo.onFail();
+                    env.yieldInfo.onFailure();
                     return false;
                 }
                 else if (rc == true)
@@ -681,7 +681,7 @@ function redo_execute(env)
                 //console.log("iUnify: Failed to unify " + util.inspect(arg1) + " and " + util.inspect(arg2));
                 if (backtrack(env))
                     continue;
-                env.yieldInfo.onFail();
+                env.yieldInfo.onFailure();
                 return false;
 
             }
@@ -837,7 +837,7 @@ function redo_execute(env)
 
                 if (backtrack(env))
                     continue;
-                env.yieldInfo.onFail();
+                env.yieldInfo.onFailure();
                 return false;
             }
             case "h_pop":
@@ -864,7 +864,7 @@ function redo_execute(env)
                     //console.log("Failed to unify " + util.inspect(arg) + " with the atom " + util.inspect(atom));
                     if (backtrack(env))
                         continue;
-                    env.yieldInfo.onFail();
+                    env.yieldInfo.onFailure();
                     return false;
                 }
                 continue;
@@ -884,7 +884,7 @@ function redo_execute(env)
                 {
                     if (backtrack(env))
                         continue;
-                    env.yieldInfo.onFail();
+                    env.yieldInfo.onFailure();
                     return false;
                 }
                 env.PC+=3;
@@ -938,11 +938,20 @@ function resume(env, success)
     {
         if (backtrack(env))
             redo_execute(env);
-        env.yieldInfo.onFail();
+        env.yieldInfo.onFailure();
         return false;
     }
-    next_opcode = "i_exit";
-    redo_execute(env);
+    if (success == true)
+    {
+        next_opcode = "i_exit";
+        redo_execute(env);
+    }
+    else
+    {
+        exception = success;
+        next_opcode = "b_throw_foreign";
+        redo_execute(env);
+    }
 }
 
 module.exports = {execute: execute,
