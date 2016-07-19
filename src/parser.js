@@ -728,24 +728,17 @@ function readTerm(stream, options)
     return v;
 }
 
-function parser_test_read(stream, size, count, buffer)
+function stringToTerm(data)
 {
-    var bytes_read = 0;
-    var records_read;
-    for (records_read = 0; records_read < count; records_read++)
-    {
-        for (var b = 0; b < size; b++)
-        {
-            t = stream.data.shift();
-            if (t === undefined)
-            {                
-                return records_read;
-            }
-            buffer[bytes_read++] = t;
-        }
-    }
-    return records_read;
+    var stream = new Stream(Stream.string_read,
+                            null,
+                            null,
+                            null,
+                            null,
+                            Stream.stringBuffer(data));
+    return readTerm(stream, {});
 }
+
 
 function tokenToNumericTerm(token)
 {
@@ -799,6 +792,7 @@ function tokenToNumericTerm(token)
 }
 
 module.exports = {readTerm: readTerm,
+                  stringToTerm: stringToTerm,
                   numberToken: numberToken,
                   atomicToken: atomicToken,
                   tokenToNumericTerm: tokenToNumericTerm,
