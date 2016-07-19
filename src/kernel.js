@@ -137,57 +137,65 @@ function cut_to(env, point)
         var c = env.choicepoints.pop();
         if (c.cleanup != undefined)
         {
-            // Run the cleanup if the catcher unifies. Basically, since this is SO far outside the normal execution flow,
-            // just run it as if it were a new top-level query
-            if (env.unify(c.cleanup.catcher, Constants.cutAtom))
+            if (c.cleanup.foreign != undefined)
             {
-                // What do we do about exceptions, failures etc? For now, just ignore them
-                // Note that this is different to saveState. In particular, we preserve the trail
-                var savedState = {currentModule: env.currentModule,
-                                  currentFrame: env.currentFrame,
-                                  nextFrame: env.nextFrame,
-                                  choicepoints: env.choicepoints,
-                                  PC: env.PC,
-                                  stream: env.streams,
-                                  yieldInfo: env.yieldInfo};
-                try
+                // This is a foreign cleanup frame. Just execute the code
+                c.cleanup.foreign.call(env);
+            }
+            else
+            {
+                // Run the cleanup if the catcher unifies. Basically, since this is SO far outside the normal execution flow,
+                // just run it as if it were a new top-level query
+                if (env.unify(c.cleanup.catcher, Constants.cutAtom))
                 {
-                    var compiledCode = Compiler.compileQuery(c.cleanup.goal);
+                    // What do we do about exceptions, failures etc? For now, just ignore them
+                    // Note that this is different to saveState. In particular, we preserve the trail
+                    var savedState = {currentModule: env.currentModule,
+                                      currentFrame: env.currentFrame,
+                                      nextFrame: env.nextFrame,
+                                      choicepoints: env.choicepoints,
+                                      PC: env.PC,
+                                      stream: env.streams,
+                                      yieldInfo: env.yieldInfo};
+                    try
+                    {
+                        var compiledCode = Compiler.compileQuery(c.cleanup.goal);
 
-                    // Start afresh with no choicepoints
-                    env.choicepoints = [];
+                        // Start afresh with no choicepoints
+                        env.choicepoints = [];
 
-                    // make a frame with 0 args (since a query has no head)
-                    env.currentFrame = new Frame(env);
-                    env.currentFrame.functor = new Functor(new AtomTerm("$cleanup"), 0);
-                    env.currentFrame.clause = new Clause([Instructions.iExitQuery.opcode], [], ["i_exit_query"]);
-                    env.nextFrame.parent = env.currentFrame;
-                    env.nextFrame.functor = new Functor(new AtomTerm("<meta-call>"), 1);
-                    env.nextFrame.clause = compiledCode.clause;
-                    env.nextFrame.returnPC = 0; // Return to exit_query
+                        // make a frame with 0 args (since a query has no head)
+                        env.currentFrame = new Frame(env);
+                        env.currentFrame.functor = new Functor(new AtomTerm("$cleanup"), 0);
+                        env.currentFrame.clause = new Clause([Instructions.iExitQuery.opcode], [], ["i_exit_query"]);
+                        env.nextFrame.parent = env.currentFrame;
+                        env.nextFrame.functor = new Functor(new AtomTerm("<meta-call>"), 1);
+                        env.nextFrame.clause = compiledCode.clause;
+                        env.nextFrame.returnPC = 0; // Return to exit_query
 
-                    env.currentFrame = env.nextFrame;
-                    env.argP = env.currentFrame.slots;
-                    env.argI = 0;
-                    for (var i = 0; i < compiledCode.variables.length; i++)
-                        env.currentFrame.slots[i] = compiledCode.variables[i];
-                    env.nextFrame = new Frame(env);
-                    env.PC = 0; // Start from the beginning of the code in the next frame
-                    //console.log("Executing handler " + c.cleanup.goal);
-                    //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
-                    // Yikes. This is a bit complicated :(
-                    var resumeFn = resume_cut(env, savedState);
-                    execute(env, resumeFn, resumeFn, resumeFn);
-                    // We cannot just keep going at this point since the execute() might be exiting because of a yield.
-                    // At this point we have basically forked and should immediately exit. Once the cleanup goal has run it
-                    // will re-enter via a call from resumeFn to redo_execute()
-                    // Since the kernel will resume from the cut again, we have more opportunities here to cut further choicepoints if need be
+                        env.currentFrame = env.nextFrame;
+                        env.argP = env.currentFrame.slots;
+                        env.argI = 0;
+                        for (var i = 0; i < compiledCode.variables.length; i++)
+                            env.currentFrame.slots[i] = compiledCode.variables[i];
+                        env.nextFrame = new Frame(env);
+                        env.PC = 0; // Start from the beginning of the code in the next frame
+                        //console.log("Executing handler " + c.cleanup.goal);
+                        //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
+                        // Yikes. This is a bit complicated :(
+                        var resumeFn = resume_cut(env, savedState);
+                        execute(env, resumeFn, resumeFn, resumeFn);
+                        // We cannot just keep going at this point since the execute() might be exiting because of a yield.
+                        // At this point we have basically forked and should immediately exit. Once the cleanup goal has run it
+                        // will re-enter via a call from resumeFn to redo_execute()
+                        // Since the kernel will resume from the cut again, we have more opportunities here to cut further choicepoints if need be
 
-                    return false;
-                }
-                catch(ignored)
-                {
-                    console.log(ignored);
+                        return false;
+                    }
+                    catch(ignored)
+                    {
+                        console.log(ignored);
+                    }
                 }
             }
         }

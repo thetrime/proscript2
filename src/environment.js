@@ -93,10 +93,12 @@ Environment.prototype.yield_control = function()
     return function(success) { Kernel.resume(that, success)};
 }
 
-Environment.prototype.create_choicepoint = function(data)
+Environment.prototype.create_choicepoint = function(data, cleanup)
 {
-    // FIXME: If this is a foreign meta-predicate then 1 is not correct here!
-    this.choicepoints.push(new Choicepoint(this, 1));
+    // FIXME: If this is a foreign meta-predicate then 1 is not correct here! Instead maybe this.PC+1?
+    var c = new Choicepoint(this, 1);
+    c.cleanup = {foreign: cleanup};
+    this.choicepoints.push(c);
     this.currentFrame.reserved_slots[0] = data;
     return this.choicepoints.length;
 }
