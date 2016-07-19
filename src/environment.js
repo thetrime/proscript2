@@ -101,25 +101,30 @@ Environment.prototype.create_choicepoint = function(data)
     return this.choicepoints.length;
 }
 
-Environment.prototype.pushContext = function()
+Environment.prototype.saveState = function()
 {
-    this.savedContexts.push({currentModule: this.currentModule,
-                             currentFrame: this.currentFrame,
-                             choicepoints: this.choicepoints,
-                             TR: this.TR,
-                             argS: this.argS,
-                             argP: this.argP,
-                             argI: this.argI,
-                             trail: this.trail,
-                             PC: this.PC,
-                             mode: this.mode,
-                             stream: this.streams});
+    return {currentModule: this.currentModule,
+            currentFrame: this.currentFrame,
+            choicepoints: this.choicepoints,
+            TR: this.TR,
+            trail: this.trail,
+            PC: this.PC,
+            stream: this.streams,
+            yieldInfo: this.yieldInfo,
+            // In theory, argS, argP and argI need not be saved.
+            // argS SHOULD always be [] at a save point, and argP
+            // can always be restored to this.currentFrame.slots,
+            // and argI to 0. Mode should also always be restored
+            // to ... write?
+            argS: this.argS,
+            argP: this.argP,
+            argI: this.argI,
+            mode: this.mode};
     this.reset();
 }
 
-Environment.prototype.popContext = function()
+Environment.prototype.restoreState = function(saved)
 {
-    var saved = this.savedContexts.pop();
     this.currentModule = saved.currentModule;
     this.currentFrame = saved.currentFrame;
     this.choicepoints = saved.choicepoints;
@@ -131,6 +136,7 @@ Environment.prototype.popContext = function()
     this.PC = saved.PC;
     this.mode = saved.mode;
     this.streams = saved.stream;
+    this.yieldInfo = saved.yieldInfo;
 }
 
 Environment.prototype.unify = function(a, b)

@@ -108,13 +108,29 @@ function backtrack(env)
     }
 }
 
-function resume(env, savedState)
+function resume_cut(env, savedState)
 {
-    return function() { savedState.apply(env);
-                        redo_execute(env);}
+    return function()
+    {
+        // This just retries the same machine instruction that lead us to cut_to in the first place
+        // However, since we first tried it at least one choicepoint would have been popped off, and
+        // eventually the cut_to will just exit and execution can continue in the parent VM
+        env.currentModule = savedState.currentModule;
+        env.currentFrame = savedState.currentFrame;
+        env.nextFrame = savedState.nextFrame;
+        env.choicepoints = savedState.choicepoints;
+        env.argS = [];
+        env.argP = env.nextFrame.slots;
+        env.argI = 0;
+        env.PC = savedState.PC;
+        env.mode = savedState.mode;
+        env.streams = savedState.stream;
+        env.yieldInfo = savedState.yieldInfo;
+        redo_execute(env);
+    }
 }
 
-function cut_to(env, point, yieldInfo)
+function cut_to(env, point)
 {
     while (env.choicepoints.length > point)
     {
@@ -126,10 +142,20 @@ function cut_to(env, point, yieldInfo)
             if (env.unify(c.cleanup.catcher, Constants.cutAtom))
             {
                 // What do we do about exceptions, failures etc? For now, just ignore them
-                var savedState = new Choicepoint(env, env.PC);
+                // Note that this is different to saveState. In particular, we preserve the trail
+                var savedState = {currentModule: env.currentModule,
+                                  currentFrame: env.currentFrame,
+                                  nextFrame: env.nextFrame,
+                                  choicepoints: env.choicepoints,
+                                  PC: env.PC,
+                                  stream: env.streams,
+                                  yieldInfo: env.yieldInfo};
                 try
                 {
                     var compiledCode = Compiler.compileQuery(c.cleanup.goal);
+
+                    // Start afresh with no choicepoints
+                    env.choicepoints = [];
 
                     // make a frame with 0 args (since a query has no head)
                     env.currentFrame = new Frame(env);
@@ -150,11 +176,13 @@ function cut_to(env, point, yieldInfo)
                     //console.log("Executing handler " + c.cleanup.goal);
                     //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
                     // Yikes. This is a bit complicated :(
-                    var resumeFn = resume(env, savedState, yieldInfo);
+                    var resumeFn = resume_cut(env, savedState);
                     execute(env, resumeFn, resumeFn, resumeFn);
-                    // So at this point we have basically forked and should immediately exit. Once the cleanup goal has run it
+                    // We cannot just keep going at this point since the execute() might be exiting because of a yield.
+                    // At this point we have basically forked and should immediately exit. Once the cleanup goal has run it
                     // will re-enter via a call from resumeFn to redo_execute()
                     // Since the kernel will resume from the cut again, we have more opportunities here to cut further choicepoints if need be
+
                     return false;
                 }
                 catch(ignored)
@@ -586,7 +614,7 @@ function redo_execute(env)
                 // If we want to support cleanup, we cannot just do this:
                 //env.choicepoints = env.choicepoints.slice(0, env.currentFrame.choicepoint);
                 //console.log("Cut to " + env.currentFrame.choicepoint);
-                if (!cut_to(env, env.currentFrame.choicepoint, yieldInfo))
+                if (!cut_to(env, env.currentFrame.choicepoint))
                     return false;
                 env.currentFrame.choicepoint = env.choicepoints.length;
                 env.PC++;
@@ -597,7 +625,7 @@ function redo_execute(env)
             {
                 // The task of c_cut is to pop and discard all choicepoints newer than the value in the given slot
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                if (!cut_to(env, env.currentFrame.reserved_slots[slot], yieldInfo))
+                if (!cut_to(env, env.currentFrame.reserved_slots[slot]))
                     return false;
                 env.PC+=3;
                 continue;
@@ -606,7 +634,7 @@ function redo_execute(env)
             {
                 // The task of c_lcut is to pop and discard all choicepoints newer than /one greater than/ the value in the given slot
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                if (!cut_to(env, env.currentFrame.reserved_slots[slot]+1, yieldInfo))
+                if (!cut_to(env, env.currentFrame.reserved_slots[slot]+1))
                     return false;
                 env.PC+=3;
                 continue;
@@ -706,7 +734,7 @@ function redo_execute(env)
             }
             case "b_atom":
 	    {
-		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
+                var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
 		env.argP[env.argI++] = env.currentFrame.clause.constants[index];
 		env.PC+=3;
                 continue;

@@ -256,14 +256,24 @@ module.exports.format = [
     }];
 
 
+module.exports.sleep = function(interval)
+{
+    var i = 0;
+    if (interval instanceof IntegerTerm)
+        i = interval.value * 1000;
+    else if (interval instanceof FloatTerm)
+        i = interval.value * 1000;
+    else
+        Errors.typeError(Constants.numberAtom, interval);
+    if (i < 0)
+        Errors.domainErrorFunctor(Constants.notLessThanZeroAtom, interval);
+    var resume = this.yield_control();
+    setTimeout(function() {resume(true);}, i);
+    return "yield";
+}
+
 module.exports.qqq = function()
 {
-    console.log("xChoicepoints: " + util.inspect(this.choicepoints));
-    var resume = this.yield_control();
-    setTimeout(function()
-               {
-                   resume(true);
-               }, 2000);
-    return "yield";
+    return true;
 }
 
