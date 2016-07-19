@@ -8,4 +8,5 @@ module.exports = {Environment: require('./environment.js'),
                   CompoundTerm: require('./compound_term.js'),
                   Constants: require('./constants.js'),
                   Errors: require('./errors.js'),
+                  Parser: require('./parser.js'),
                   Functor: require('./functor.js')};
