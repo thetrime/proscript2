@@ -516,13 +516,15 @@ function compileTermCreation(term, variables, instructions)
 			       name:term.name,
 			       slot:variables[term.name].slot});
 	    variables[term.name].fresh = false;
-	}
+        }
+        /*
         else if (false) // FIXME: Do we need bArgVar?
 	{
 	    instructions.push({opcode: Instructions.bArgVar,
 			       name:term.name,
 			       slot:variables[term.name].slot});
-	}
+        }
+*/
 	else
 	{
 	    instructions.push({opcode: Instructions.bVar,

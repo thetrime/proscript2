@@ -3,7 +3,6 @@ var VariableTerm = require('./variable_term');
 var FloatTerm = require('./float_term');
 var CompoundTerm = require('./compound_term');
 var IntegerTerm = require('./integer_term');
-var Functor = require('./functor');
 var Parser = require('./parser');
 var ArrayUtils = require('./array_utils');
 var Constants = require('./constants');

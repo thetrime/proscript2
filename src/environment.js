@@ -224,7 +224,6 @@ Environment.prototype.consultString = function(data)
                             null,
                             Stream.stringBuffer(data));
     var clause = null;
-    var module = this.currentModule;
     while (!((clause = Parser.readTerm(stream, [])).equals(Constants.endOfFileAtom)))
     {
         //console.log("Read: " + clause);

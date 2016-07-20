@@ -1,5 +1,4 @@
 var AtomTerm = require('./atom_term');
-var util = require('util');
 
 var global_blob_id = 0;
 
