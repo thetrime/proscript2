@@ -6,6 +6,9 @@ var Constants = require('./constants');
 var Stream = require('./stream');
 var IntegerTerm = require('./integer_term');
 var AtomTerm = require('./atom_term');
+var FloatTerm = require('./float_term');
+var BigIntegerTerm = require('./float_term');
+var RationalTerm = require('./rational_term');
 var Functor = require('./functor');
 var CompoundTerm = require('./compound_term');
 var Utils = require('./utils');
@@ -13,6 +16,7 @@ var util = require('util');
 var Errors = require('./errors');
 var TermWriter = require('./term_writer');
 var Parser = require('./parser');
+var Arithmetic = require('./arithmetic');
 
 module.exports.term_variables = function(t, vt)
 {
@@ -99,13 +103,28 @@ module.exports.downcase_atom = function(t, s)
     return this.unify(s, new AtomTerm(t.value.toLowerCase()));
 }
 
+function toFloat(arg)
+{
+    var v = Arithmetic.evaluate(arg);
+    console.log("Arg: " + v);
+    if (v instanceof IntegerTerm || v instanceof FloatTerm)
+        return Number(v.value);
+    else if (v instanceof BigIntegerTerm)
+        return Number(v.value.valueOf());
+    else if (v instanceof RationalTerm)
+        return v.value.toFloat();
+    else
+        Errors.typeError(Constants.floatAtom, v);
+}
+
+
 function format(env, sink, formatString, formatArgs)
 {
     Utils.must_be_atom(formatString);
     var a = 0;
     var input = formatString.value;
     var output = '';
-    var radix = 0;
+    var radix = -1;
     var nextArg = function()
     {
         if (formatArgs instanceof CompoundTerm && formatArgs.functor.equals(Constants.listFunctor))
@@ -125,6 +144,7 @@ function format(env, sink, formatString, formatArgs)
             else
             {
                 i++;
+                radix = -1;
                 while(true)
                 {
                     switch(input.charAt(i))
@@ -177,31 +197,47 @@ function format(env, sink, formatString, formatArgs)
                         case 'e': // floating point as exponential
                         {
                             var d = nextArg();
-                            output += "<not implemented>";
+                            var f = toFloat(d);
+                            output += f.toExponential(radix == -1?6:radix);
                             break;
                         }
                         case 'E': // floating point as exponential in upper-case
                         {
                             var d = nextArg();
-                            output += "<not implemented>";
-                            break;
+                            var f = toFloat(d);
+                            output += f.toExponential(radix == -1?6:radix).toUpperCase();
+                            break;                            
                         }
                         case 'f': // floating point as non-exponential
                         {
                             var d = nextArg();
-                            output += "<not implemented>";
+                            var f = toFloat(d);
+                            console.log("Radix: " + radix);
+                            output += f.toFixed(radix == -1?6:radix);
                             break;
                         }
                         case 'g': // shorter of e or f
                         {
                             var d = nextArg();
-                            output += "<not implemented>";
+                            var f = toFloat(d);
+                            e = f.toExponential(radix == -1?6:radix);
+                            f = f.toFixed(radix == -1?6:radix);
+                            if (e.length < f.length)
+                                output += e;
+                            else
+                                output += f;
                             break;
                         }
                         case 'G': // shorter of E or f
                         {
                             var d = nextArg();
-                            output += "<not implemented>";
+                            var f = toFloat(d);
+                            e = f.toExponential(radix == -1?6:radix).toUpperCase();
+                            f = f.toFixed(radix == -1?6:radix);
+                            if (e.length < f.length)
+                                output += e;
+                            else
+                                output += f;
                             break;
                         }
                         case 'i': // ignore
@@ -242,6 +278,7 @@ function format(env, sink, formatString, formatArgs)
                         }
                         case 'p': // print
                         {
+                            // For now just treat this as write/1
                             output += TermWriter.formatTerm({numbervars: true}, 1200, nextArg());
                             break;
                         }
@@ -331,9 +368,10 @@ function format(env, sink, formatString, formatArgs)
                         case '8':
                         case '9':
                         {
-                            radix = input.charAt(i) - '0';
+                            radix = '';
                             while (input.charAt(i) >= '0' && input.charAt(i) <= '9')
-                                radix = 10 * radix + input.charAt(i++) - '0';
+                                radix = radix + input.charAt(i++);
+                            radix = Number(radix);
                             continue;
                         }
                         default:
