@@ -11,17 +11,99 @@ var Constants = require('./constants');
 var Operators = require('./operators');
 var Stream = require('./stream');
 
+function needsQuote(s)
+{
+    if (s.length == 0)
+        return true;
+    var ch = s.charAt(0);
+    if (ch == '%')         // Things that look like comments need to be quoted
+        return true;
+    if (solo.indexOf(ch) != -1)
+        return s.length != 1;
+    if (Parser.is_graphic_char(ch))
+    {
+        // Things that look like comments need to be quoted
+        if (s.length >= 2 && s.substring(0, 2) == '/*')
+            return true;
+        // If all characters are graphic, then we are OK. Otherwise we must quote
+        for (var i = 1; i < s.length; i++)
+        {
+            if (!Parser.is_graphic_char(s.charAt(i)))
+                return true;
+        }
+        return false;
+    }
+    else if (isAtomStart(ch))
+    {
+        // If there are only atom_char characters then we are OK. Otherwise we must quote
+        for (var i = 1; i < s.length; i++)
+        {
+            if (!isAtomContinuation(ch))
+                return true;
+        }
+        return false;
+    }
+    return true;
+}
+
+var solo = [';','!','(',')',',','[',']','{','}','%'];
+function isAtomStart(ch)
+{
+    // FIXME: And also anything that unicode considers lower-case, I guess?
+    return ch >= 'a' && ch <= 'z';
+}
+
+function isAtomContinuation(ch)
+{
+    // FIXME: And also anything that unicode considers to be not punctuation? I have no idea.
+    return (ch >= 'a' && ch <= 'z')
+        || (ch >= 'A' && ch <= 'Z')
+        || (ch >= '0' && ch <= '9')
+        || (ch == '_');
+}
+
 function formatAtom(options, term)
 {
     if (options.quoted)
     {
+        if (term.equals(Constants.emptyListAtom))
+            return term.value;
         if (needsQuote(term.value))
             return quoteString(term.value);
-        else
-            return term.value;
+        return term.value;
     }
     else
         return term.value;
+}
+
+function quoteString(s)
+{
+    var out = "'";
+    for (var i = 0; i < s.length; i++)
+    {
+        var ch = s.charAt(i);
+        if (ch == "'")
+            out += "\\'";
+        else if (ch == "\\")
+            out += "\\\\";
+        else if (ch == '\u0007')
+            out += "\\a";
+        else if (ch == '\u0008')
+            out += "\\b";
+        else if (ch == '\u000C')
+            out += "\\f";
+        else if (ch == '\u000A')
+            out += "\\n";
+        else if (ch == '\u0009')
+            out += "\\t";
+        else if (ch == '\u000B')
+            out += "\\v";
+        else if (ch == '\u000D')
+            out += "\\r";
+        else
+            out += ch;
+    }
+    return out + "'";
 }
 
 function getOp(functor, options)
