@@ -1,4 +1,5 @@
 "use strict";
+exports = module.exports;
 
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
