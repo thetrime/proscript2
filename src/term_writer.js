@@ -62,6 +62,10 @@ function formatTerm(options, precedence, term)
     if (term === undefined)
         throw new Error("Undefined term passed to formatTerm");
     term = term.dereference();
+    if (term.formatTerm !== undefined)
+    {
+        return term.formatTerm(options, precedence);
+    }
     if (term instanceof VariableTerm)
     {
         return "_" + term.index;
