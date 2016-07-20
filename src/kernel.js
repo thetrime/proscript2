@@ -569,11 +569,9 @@ function redo_execute(env)
                     frame = frame.parent;
                 }
                 if(exception.stack != null)
-                {
-                    console.log(exception.stack);
-                    Errors.systemError(new AtomTerm(exception.toString()));
-                }
-                env.yieldInfo.onError(Errors.makeSystemError(exception));
+                    env.yieldInfo.onError(Errors.makeSystemError(new AtomTerm(exception.toString())));
+                else
+                    env.yieldInfo.onError(Errors.makeSystemError(exception));
                 return;
             }
             case "i_switch_module":
@@ -649,43 +647,6 @@ function redo_execute(env)
                 env.nextFrame = new Frame(env);
                 env.PC = 0;
                 continue;
-                /*
-                var compiledCode;
-                try
-                {
-                    // It is DEFINITELY worth checking that the goal is bound!
-                    if (goal instanceof VariableTerm)
-                        Errors.instantiationError();
-                    compiledCode = Compiler.compileQuery(goal);
-                }
-                catch (e)
-                {
-                    exception = e;
-                    next_opcode = "b_throw_foreign";
-                    continue next_instruction;
-                }
-                env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
-                env.nextFrame.clause = compiledCode.clause;
-                env.nextFrame.returnPC = env.PC+1;
-                env.currentFrame = env.nextFrame;
-                env.currentFrame.choicepoint = env.choicepoints.length;
-                env.argP = env.currentFrame.slots;
-                env.argI = 0;
-                // Now the arguments need to be filled in. This takes a bit of thought.
-                // What we have REALLY done is taken Goal and created a new, local predicate '$query'/N like this:
-                //     '$query'(A, B, C, ....Z):-
-                //           Goal.
-                // Where the variables of Goal are A, B, C, ...Z. This implies we must now push the arguments of $query/N
-                // onto the stack, and NOT the arguments of Goal, since we are about to 'call' $query.
-                //console.log("Vars: " + compiledCode.variables);
-                for (var i = 0; i < compiledCode.variables.length; i++)
-                    env.currentFrame.slots[i] = compiledCode.variables[i];
-                env.nextFrame = new Frame(env);
-                env.PC = 0; // Start from the beginning of the code in the next frame
-                //console.log("Executing " + goal);
-                //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
-                continue;
-                */
             }
             case "i_cut":
             {
