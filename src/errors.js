@@ -31,7 +31,7 @@ module.exports.systemError = function(t)
     throw new CompoundTerm(errorFunctor, [new CompoundTerm(systemErrorFunctor, [t]), new VariableTerm()]);
 }
 
-module.exports.makeSystemError = function(message)
+module.exports.makeSystemError = function(t)
 {
     return new CompoundTerm(errorFunctor, [new CompoundTerm(systemErrorFunctor, [t]), new VariableTerm()]);
 }
