@@ -31,6 +31,11 @@ module.exports.systemError = function(t)
     throw new CompoundTerm(errorFunctor, [new CompoundTerm(systemErrorFunctor, [t]), new VariableTerm()]);
 }
 
+module.exports.makeSystemError = function(message)
+{
+    return new CompoundTerm(errorFunctor, [new CompoundTerm(systemErrorFunctor, [t]), new VariableTerm()]);
+}
+
 module.exports.typeError = function(expected, actual)
 {
     //console.log(new Error().stack);

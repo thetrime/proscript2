@@ -262,7 +262,6 @@ function print_instruction(env, current_opcode)
     console.log(pad("                                                            ", ("@ " + module.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 
-var debugger_steps = 0;
 var next_opcode = undefined;
 var exception = undefined;
 
@@ -274,6 +273,67 @@ function execute(env, successHandler, onFailure, onError)
                      onError:onError};
     redo_execute(env);
 }
+
+function execute_foreign(env, args)
+{
+    try
+    {
+        return env.currentFrame.clause.constants[0].apply(env, args);
+    }
+    catch(e)
+    {
+        set_exception(env, e);
+        return "exception";
+    }
+}
+
+function get_code(env, functor)
+{
+    try
+    {
+        env.nextFrame.clause = env.getPredicateCode(functor, env.currentFrame.contextModule);
+        env.nextFrame.contextModule = env.nextFrame.clause.module;
+        return true;
+    }
+    catch(e)
+    {
+        set_exception(env, e);
+        return false;
+    }
+}
+
+function usercall(env, goal)
+{
+    var compiledCode;
+    try
+    {
+        if (goal instanceof VariableTerm)
+            Errors.instantiationError();
+        compiledCode = Compiler.compileQuery(goal);
+    }
+    catch(e)
+    {
+        set_exception(env, e);
+        return false;
+    }
+    env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
+    env.nextFrame.clause = compiledCode.clause;
+    env.nextFrame.returnPC = env.PC+1;
+    env.nextFrame.choicepoint = env.choicepoints.length;
+    env.argP = env.nextFrame.slots;
+    env.argI = 0;
+    // Now the arguments need to be filled in. This takes a bit of thought.
+    // What we have REALLY done is taken Goal and created a new, local predicate '$query'/N like this:
+    //     '$query'(A, B, C, ....Z):-
+    //           Goal.
+    // Where the variables of Goal are A, B, C, ...Z. This implies we must now push the arguments of $query/N
+    // onto the stack, and NOT the arguments of Goal, since we are about to 'call' $query.
+    //console.log("Vars: " + compiledCode.variables);
+    for (var i = 0; i < compiledCode.variables.length; i++)
+        env.nextFrame.slots[i] = compiledCode.variables[i];
+    return true;
+}
+
 
 function redo_execute(env)
 {
@@ -290,9 +350,12 @@ function redo_execute(env)
         }
         current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label));
         next_opcode = undefined;
-        debugger_steps ++;
-        //if (debugger_steps == 500) throw(0);
-        //print_instruction(env, current_opcode);
+        //if (env.debugger_steps >= 50) return;
+        if (env.debugging == true)
+        {
+            env.debugger_steps++;
+            print_instruction(env, current_opcode);
+        }
         switch(current_opcode)
 	{
             case "i_fail":
@@ -336,6 +399,7 @@ function redo_execute(env)
             }
             case "i_foreign":
             {
+                // Set the foreign info to undefined
                 env.currentFrame.reserved_slots[0] = undefined;
                 // FALL-THROUGH
             }
@@ -354,40 +418,56 @@ function redo_execute(env)
                     if (args[i] instanceof CompoundTerm)
                         args[i] = args[i].dereference_recursive();
                 }
-
-                // Set the foreign info to undefined
-                var rc = false;
-                try
-                {
-                    rc = env.currentFrame.clause.constants[0].apply(env, args);
-                }
-                catch (e)
-                {
-                    exception = e;
-                    next_opcode = "b_throw_foreign";
-                    continue next_instruction;
-                }
-                //console.log("Foreign result: " + rc);
+                var qux = env.currentFrame.functor.toString();
+                var rc = execute_foreign(env, args);
+//                if (env.debugging)
+//                    console.log("Foreign return value from " + qux + ": " + rc)
                 if (rc == false)
                 {
-                    // CHECKME: Does this undo any partial bindings that happen in a failed foreign frame?
                     if (backtrack(env))
                         continue;
                     env.yieldInfo.onFailure();
                     return false;
+
                 }
                 else if (rc == true)
                 {
+/*
+                    if (env.debugging)
+                    {
+                        console.log(new Error().stack);
+                        console.log("going to i_exit from executing foreign code:" + env.currentFrame.functor.toString());
+                    }
+*/
                     next_opcode = "i_exit";
                     continue next_instruction;
                 }
                 else if (rc == "yield")
                 {
+                    /*
+                    if (env.debugging)
+                    {
+                        console.log("Yielding");
+                        console.log(new Error().stack);
+                    }
+*/
                     return false;
+                }
+                else if (rc == "exception")
+                {
+                    next_opcode = "b_throw_foreign";
+                    continue next_instruction;
                 }
             }
             case "i_exit":
-	    {
+            {
+                if (env.currentFrame === undefined)
+                {
+                    console.log("The environment has no frame?!");
+                    console.log(env);
+                    console.log(env.currentFrame);
+                    console.log(env.module_map);
+                }
 		env.PC = env.currentFrame.returnPC;
                 env.currentFrame = env.currentFrame.parent;
                 env.nextFrame = new Frame(env);
@@ -408,13 +488,8 @@ function redo_execute(env)
 	    {
 		var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
-                try
+                if (!get_code(env, functor))
                 {
-                    env.nextFrame.clause = env.getPredicateCode(functor, env.currentFrame.contextModule);
-                    env.nextFrame.contextModule = env.nextFrame.clause.module;
-                } catch (e)
-                {
-                    exception = e;
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
                 }
@@ -498,14 +573,7 @@ function redo_execute(env)
                     console.log(exception.stack);
                     Errors.systemError(new AtomTerm(exception.toString()));
                 }
-                try
-                {
-                    Errors.systemError(exception);
-                }
-                catch(systemError)
-                {
-                    env.yieldInfo.onError(systemError);
-                }
+                env.yieldInfo.onError(Errors.makeSystemError(exception));
                 return;
             }
             case "i_switch_module":
@@ -528,13 +596,8 @@ function redo_execute(env)
             {
                 var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
-                try
+                if (!get_code(env, functor))
                 {
-                    env.nextFrame.clause = env.getPredicateCode(functor, env.currentFrame.contextModule);
-                    env.nextFrame.contextModule = env.nextFrame.clause.module;
-                } catch (e)
-                {
-                    set_exception(env, e);
                     next_opcode = "b_throw_foreign";
                     continue next_instruction;
                 }
@@ -576,9 +639,17 @@ function redo_execute(env)
             {
                 // argP[argI-1] is a goal that we want to execute. First, we must compile it
                 env.argI--;
-                //console.log("argP:" + env.argP);
                 var goal = env.argP[env.argI].dereference();
-                //console.log("Goal: " + goal);
+                if (!usercall(env, goal))
+                {
+                    next_opcode = "b_throw_foreign";
+                    continue next_instruction;
+                }
+                env.currentFrame = env.nextFrame;
+                env.nextFrame = new Frame(env);
+                env.PC = 0;
+                continue;
+                /*
                 var compiledCode;
                 try
                 {
@@ -614,6 +685,7 @@ function redo_execute(env)
                 //console.log("Executing " + goal);
                 //console.log("With args: " + util.inspect(env.argP, {showHidden: false, depth: null}));
                 continue;
+                */
             }
             case "i_cut":
             {
@@ -948,7 +1020,7 @@ function resume(env, success)
     }
     else
     {
-        exception = success;
+        set_exception(env, success);
         next_opcode = "b_throw_foreign";
         redo_execute(env);
     }
