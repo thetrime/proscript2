@@ -43,7 +43,7 @@ var builtinModules = [fs.readFileSync(__dirname + '/builtin.pl', 'utf8')];
 function Environment()
 {
     this.module_map = [];
-    this.savedContexts = [];
+    this.debugger_steps = 0;
     this.userModule = this.getModule("user");
     // We have to set currentModule here so that we can load the builtins. It will be reset in reset() again to user if it was changed
     this.currentModule = this.userModule;
@@ -324,7 +324,7 @@ Environment.prototype.execute = function(queryTerm, onSuccess, onFailure, onErro
     this.PC = 0;
     this.currentFrame = queryFrame;
     this.argP = queryFrame.slots;
-    return Kernel.execute(this, onSuccess, onFailure, onError);
+    Kernel.execute(this, onSuccess, onFailure, onError);
 }
 
 Environment.prototype.getPredicateCode = function(functor, optionalContextModule)
@@ -365,8 +365,11 @@ Environment.prototype.getPredicateCode = function(functor, optionalContextModule
 
 Environment.prototype.backtrack = function(onSuccess, onFailure, onError)
 {
-    console.log("Backtracking...");
-    return Kernel.backtrack(this) && Kernel.execute(this, onSuccess, onFailure, onError);
+    //console.log("Backtracking...");
+    if (Kernel.backtrack(this))
+        Kernel.execute(this, onSuccess, onFailure, onError);
+    else
+        onFailure();
 }
 
 Environment.prototype.copyTerm = function(t)
