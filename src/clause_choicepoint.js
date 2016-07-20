@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 function ClauseChoicepoint(env)
 {
     this.frame = env.currentFrame;

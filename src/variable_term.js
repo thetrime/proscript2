@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var Term = require('./term');
 
 var nextvar = 0;

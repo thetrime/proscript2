@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var Compiler = require('./compiler.js');
 var Functor = require('./functor.js');
 var Errors = require('./errors.js');
@@ -6,7 +9,6 @@ var IntegerTerm = require('./integer_term.js');
 var Utils = require('./utils.js');
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
-var util = require('util');
 
 function Module(name)
 {

@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var BigInteger = require('big-integer');
 
 function Rational(numerator, denominator)

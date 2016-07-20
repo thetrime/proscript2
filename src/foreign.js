@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 // This module contains non-ISO extensions
 var Constants = require('./constants');
 var Stream = require('./stream');

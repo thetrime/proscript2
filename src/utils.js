@@ -1,3 +1,5 @@
+"use strict";
+
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var AtomTerm = require('./atom_term.js');

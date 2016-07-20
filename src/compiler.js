@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var VariableTerm = require('./variable_term.js');
@@ -10,7 +13,6 @@ var Functor = require('./functor.js');
 var Errors = require('./errors.js');
 var Clause = require('./clause.js');
 var Instructions = require('./opcodes.js').opcode_map;
-var util = require('util');
 
 
 function dereference_recursive(term)
@@ -524,7 +526,7 @@ function compileTermCreation(term, variables, instructions)
 			       name:term.name,
 			       slot:variables[term.name].slot});
         }
-*/
+        */
 	else
 	{
 	    instructions.push({opcode: Instructions.bVar,
@@ -610,7 +612,7 @@ function getReservedEnvironmentSlots(term)
 // analyzeVariables builds a map of all the variables and returns the number of (unique, nonvoid) variables encountered
 function analyzeVariables(term, isHead, depth, map, context)
 {
-    rc = 0;
+    var rc = 0;
     if (term instanceof VariableTerm)
     {
         if (term.name == "_") // _ is always void

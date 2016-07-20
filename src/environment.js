@@ -1,6 +1,8 @@
+"use strict";
+exports=module.exports;
+
 var Module = require('./module.js');
 var Parser = require('./parser.js');
-var util = require('util');
 var Kernel = require('./kernel.js');
 var AtomTerm = require('./atom_term.js');
 var VariableTerm = require('./variable_term.js');
@@ -16,12 +18,9 @@ var Compiler = require('./compiler.js');
 var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var Choicepoint = require('./choicepoint.js');
 var fs = require('fs');
-var BlobTerm = require('./blob_term');
 var Utils = require('./utils');
-var ArrayUtils = require('./array_utils');
 var PrologFlag = require('./prolog_flag');
 var Clause = require('./clause');
-
 
 function builtin(module, name)
 {
@@ -33,7 +32,6 @@ function builtin(module, name)
 
 var foreignModules = [require('./iso_foreign.js'),
                       require('./iso_arithmetic.js'),
-                      require('./iso_record.js'),
                       require('./iso_stream.js'),
                       require('./record.js'),
                       require('./foreign.js')];
@@ -44,6 +42,7 @@ function Environment()
 {
     this.module_map = [];
     this.debugger_steps = 0;
+    this.debugging = false;
     this.userModule = this.getModule("user");
     // We have to set currentModule here so that we can load the builtins. It will be reset in reset() again to user if it was changed
     this.currentModule = this.userModule;
@@ -123,6 +122,7 @@ Environment.prototype.saveState = function()
             argP: this.argP,
             argI: this.argI,
             mode: this.mode};
+    // FIXME: unreachable!
     this.reset();
 }
 
@@ -438,7 +438,7 @@ Environment.prototype.consultFile = function(filename, callback)
 function fromByteArray(buffer, offset, length)
 {
     var str = '';
-    for (i = offset; i < length; i++)
+    for (var i = offset; i < length; i++)
     {
         if (buffer.readUInt8(i) <= 0x7F)
         {

@@ -1,10 +1,12 @@
+"use strict";
+exports=module.exports;
+
 var Constants = require('./constants');
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var AtomTerm = require('./atom_term.js');
 var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
-var FloatTerm = require('./float_term.js');
 
 module.exports.parseOptions = function(t, domain)
 {

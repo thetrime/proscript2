@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var AtomTerm = require('./atom_term');
 
 var global_blob_id = 0;

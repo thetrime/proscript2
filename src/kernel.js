@@ -1,11 +1,11 @@
 "use strict";
+exports=module.exports;
 
 var Constants = require('./constants.js');
 var LOOKUP_OPCODE = require('./opcodes.js').opcodes;
 var Functor = require('./functor.js');
 var Compiler = require('./compiler.js');
 var Frame = require('./frame.js');
-var Module = require('./module.js');
 var util = require('util');
 var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
@@ -418,7 +418,6 @@ function redo_execute(env)
                     if (args[i] instanceof CompoundTerm)
                         args[i] = args[i].dereference_recursive();
                 }
-                var qux = env.currentFrame.functor.toString();
                 var rc = execute_foreign(env, args);
 //                if (env.debugging)
 //                    console.log("Foreign return value from " + qux + ": " + rc)

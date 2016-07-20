@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 function Clause(bytecode, constants, instructions)
 {
     this.opcodes = bytecode;

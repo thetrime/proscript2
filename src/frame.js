@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 /* A frame looks like this:
 
 

@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var BlobTerm = require('./blob_term');
 var AtomTerm = require('./atom_term');
 var IntegerTerm = require('./integer_term');

@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var Errors = require('./errors.js');
 var Constants = require('./constants.js');
 var AtomTerm = require('./atom_term.js');

@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 /* Term reading */
 // See http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
 
@@ -9,7 +12,6 @@ var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
 var BigInteger = require('big-integer');
 var NumericTerm = require('./numeric_term.js');
-var Functor = require('./functor.js');
 var FloatTerm = require('./float_term.js');
 var Constants = require('./constants.js');
 var Errors = require('./errors.js');
@@ -135,7 +137,7 @@ function read_expression(s, precedence, isarg, islist, vars)
         op = undefined;
     if (peeked_token == ParenOpenToken)
     {
-        var q = read_token(s);
+        read_token(s); // actually read the paren-open. Next we must peek, then put the paren-open back
         var pp = peek_token(s);
         unread_token(s, ParenOpenToken);
         if (pp != ParenOpenToken)
@@ -279,7 +281,7 @@ function read_expression(s, precedence, isarg, islist, vars)
         return false; // Parse error
     while (true)
     {
-        infix_operator = peek_token(s);
+        var infix_operator = peek_token(s);
         if (typeof(infix_operator) == "number" && infix_operator <= 0)
         {
             // Yuck. This is when we read something like X is A-1. Really the - is -/2 in this case
@@ -427,9 +429,10 @@ function lex(s)
         {
 	    return null;
         }
+        var d;
         // Consume any whitespace
         if (c == ' ' || c == '\n' || c == '\t')
-            continue;        
+            continue;
         else if (c == '%')
         {
             do
@@ -642,8 +645,8 @@ function lex(s)
         {
             buffer += c;
             // An unquoted atom may contain either all punctuation or all A-Za-z0-9_. There are probably more complicated rules, but this will do
-            char_atom = is_char(c);
-            punctuation_atom = is_graphic_char(c);
+            var char_atom = is_char(c);
+            var punctuation_atom = is_graphic_char(c);
             while (true)
             {
                 c = peek_raw_char_with_conversion(s);                
@@ -705,7 +708,7 @@ function peek_raw_char_with_conversion(s)
 function make_list(items, tail)
 {
     var result = tail;
-    for (i = items.length-1; i >= 0; i--)
+    for (var i = items.length-1; i >= 0; i--)
 	result = new CompoundTerm(Constants.listFunctor, [items[i], result]);
     return result;
 }
@@ -713,7 +716,7 @@ function make_list(items, tail)
 function make_curly(items)
 {
     var result = items[items.length-1];
-    for (i = items.length-2; i >= 0; i--)
+    for (var i = items.length-2; i >= 0; i--)
         result = new CompoundTerm(Constants.conjunctionFunctor, [items[i], result]);
     return new CompoundTerm(Constants.curlyFunctor, [result]);
 }

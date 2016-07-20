@@ -1,3 +1,7 @@
+"use strict";
+exports=module.exports;
+
+
 var BigInteger = require('big-integer');
 var Rational = require('./rational');
 var IntegerTerm = require('./integer_term');

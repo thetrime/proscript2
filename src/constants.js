@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 var AtomTerm = require('./atom_term.js');
 var Functor = require('./functor.js');
 

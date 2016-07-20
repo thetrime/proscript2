@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 function RationalTerm(value)
 {
     this.value = value;

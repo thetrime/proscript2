@@ -1,6 +1,7 @@
 "use strict";
+exports=module.exports;
 
-var ArrayUtils = require('./array_utils.js');
+
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
 var AtomTerm = require('./atom_term.js');

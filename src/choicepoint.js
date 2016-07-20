@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 function Choicepoint(env, retryPC)
 {
     this.frame = env.currentFrame;

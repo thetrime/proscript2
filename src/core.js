@@ -1,4 +1,5 @@
 "use strict";
+exports=module.exports;
 
 module.exports = {Environment: require('./environment.js'),
                   AtomTerm: require('./atom_term.js'),

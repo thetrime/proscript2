@@ -1,4 +1,5 @@
 "use strict";
+exports=module.exports;
 
 var BlobTerm = require('./blob_term');
 var STREAM_BUFFER_SIZE = 2048;

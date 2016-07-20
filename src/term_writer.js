@@ -1,10 +1,12 @@
+"use strict";
+exports=module.exports;
+
 var AtomTerm = require('./atom_term');
 var VariableTerm = require('./variable_term');
 var FloatTerm = require('./float_term');
 var CompoundTerm = require('./compound_term');
 var IntegerTerm = require('./integer_term');
 var Parser = require('./parser');
-var ArrayUtils = require('./array_utils');
 var Constants = require('./constants');
 var Operators = require('./operators');
 var Stream = require('./stream');
@@ -141,7 +143,6 @@ function formatTerm(options, precedence, term)
         else if (op != null && options.ignore_ops != true)
         {
             var output = '';
-            var next;
             if (op.precedence > precedence)
                 output = '(';
             switch (op.fixity)

@@ -1,9 +1,10 @@
+"use strict";
+exports=module.exports;
+
 var CompoundTerm = require('./compound_term');
 var AtomTerm = require('./atom_term');
-var Constants = require('./constants');
 var VariableTerm = require('./variable_term');
 var Functor = require('./functor');
-var IntegerTerm = require('./integer_term');
 
 var errorFunctor = new Functor(new AtomTerm("error"), 2);
 var typeErrorFunctor = new Functor(new AtomTerm("type_error"), 2);

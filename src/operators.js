@@ -1,3 +1,6 @@
+"use strict";
+exports=module.exports;
+
 // A reminder: yfx means an infix operator f, with precedence p, where the lhs has a precendece <= p and the rhs has a precedence < p.
 
 module.exports = {":-": {prefix:{precedence: 1200, fixity: "fx"},
