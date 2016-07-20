@@ -106,7 +106,6 @@ module.exports.downcase_atom = function(t, s)
 function toFloat(arg)
 {
     var v = Arithmetic.evaluate(arg);
-    console.log("Arg: " + v);
     if (v instanceof IntegerTerm || v instanceof FloatTerm)
         return Number(v.value);
     else if (v instanceof BigIntegerTerm)
@@ -212,7 +211,6 @@ function format(env, sink, formatString, formatArgs)
                         {
                             var d = nextArg();
                             var f = toFloat(d);
-                            console.log("Radix: " + radix);
                             output += f.toFixed(radix == -1?6:radix);
                             break;
                         }
