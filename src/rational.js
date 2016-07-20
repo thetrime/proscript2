@@ -58,7 +58,7 @@ Rational.prototype.sign = function()
 
 Rational.prototype.toFloat = function()
 {
-    return Number(numerator) / Number(denominator);
+    return Number(this.numerator) / Number(this.denominator);
 }
 
 

@@ -393,7 +393,7 @@ function format(env, sink, formatString, formatArgs)
         return env.unify(sink.args[0], new AtomTerm(output));
     }
     var bufferObject = Stream.stringBuffer(output.toString());
-    return sink.value.write(stream, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;
+    return sink.value.write(sink.value, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;
 }
 
 module.exports.format = [
@@ -403,7 +403,7 @@ module.exports.format = [
     },
     function(formatString, formatArgs)
     {
-        return format(this, this.streams.current_output, formatString, formatArgs);
+        return format(this, this.streams.current_output.term, formatString, formatArgs);
     }];
 
 
