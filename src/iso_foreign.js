@@ -358,14 +358,14 @@ module.exports.atom_length = function(atom, length)
         Errors.instantiationError(atom)
     if (TAGOF(atom) != ConstantTag)
         Errors.typeError(Constants.atomAtom, atom)
-    atom = CTable.get(atom);
-    if (!(atom instanceof AtomTerm))
+    var atom_object = CTable.get(atom);
+    if (!(atom_object instanceof AtomTerm))
         Errors.typeError(Constants.atomAtom, atom)
-    if (TAGOF(length) != VariableTag && !(TAGOF(length) ==  ConstantTag && CTable.get(length) instanceof IntegerTerm))
+    if (TAGOF(length) != VariableTag && !(TAGOF(length) == ConstantTag && CTable.get(length) instanceof IntegerTerm))
         Errors.typeError(Constants.integerAtom, length)
-    if ((TAGOF(length) ==  ConstantTag && (CTable.get(length) instanceof IntegerTerm) && CTable.get(length).value < 0))
+    if ((TAGOF(length) == ConstantTag && (CTable.get(length) instanceof IntegerTerm) && CTable.get(length).value < 0))
         Errors.domainError(Constants.notLessThanZeroAtom, length)
-    return this.unify(IntegerTerm.get(CTable.get(atom).value.length), length);
+    return this.unify(IntegerTerm.get(atom_object.value.length), length);
 }
 // 8.16.2
 module.exports.atom_concat = function(atom1, atom2, atom12)
@@ -507,18 +507,21 @@ module.exports.atom_chars = function(atom, chars)
     if (TAGOF(atom) == VariableTag)
     {
         // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
-        var head = chars;
+        var list = chars;
         var buffer = '';
+        var head;
         while(true)
         {
-            Utils.must_be_bound(head);
-            if (TAGOF(head) == CompoundTag && FUNCTOROF(head) == Constants.listFunctor)
+            Utils.must_be_bound(list);
+            if (TAGOF(list) == CompoundTag && FUNCTOROF(list) == Constants.listFunctor)
             {
-                Utils.must_be_character(ARGOF(head, 0));
-                buffer += CTable.get(ARGOF(head, 0)).value;
-                head = ARGOF(head, 1);
+                head = ARGOF(list, 0);
+                Utils.must_be_bound(head);
+                Utils.must_be_character(head);
+                buffer += CTable.get(head).value;
+                list = ARGOF(list, 1);
             }
-            else if (head == Constants.emptyListAtom)
+            else if (list == Constants.emptyListAtom)
             {
                 break;
             }
