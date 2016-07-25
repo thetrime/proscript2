@@ -1,8 +1,9 @@
-"use strict";
+"use asm";
 exports=module.exports;
 
 var Constants = require('./constants.js');
-var LOOKUP_OPCODE = require('./opcodes.js').opcodes;
+var opcodes = require('./opcodes.js').opcodes;
+var LOOKUP_OPCODE = require('./opcodes.js').opcode_map;
 var Functor = require('./functor.js');
 var Compiler = require('./compiler.js');
 var Frame = require('./frame.js');
@@ -92,6 +93,7 @@ function backtrack_to(env, choicepoint_index)
 
 function backtrack(env)
 {
+//    env.debug_backtracks++;
     var oldTR = env.TR;
     while (true)
     {
@@ -223,29 +225,23 @@ function print_opcode(env, opcode)
 {
     var s = opcode;
     var ptr = env.PC+1;
-    for (var i = 0; i < LOOKUP_OPCODE.length; i++)
+    var opcode_info = opcodes[opcode];
+    for (var j = 0; j < opcode_info.args.length; j++)
     {
-        if (LOOKUP_OPCODE[i].label == opcode)
+        if (opcode_info.args[j] == "slot")
         {
-            for (var j = 0; j < LOOKUP_OPCODE[i].args.length; j++)
-            {
-                if (LOOKUP_OPCODE[i].args[j] == "slot")
-                {
-                    s += "(" + ((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++])) + ")";
-                }
-                else if (LOOKUP_OPCODE[i].args[j] == "address")
-                {
-                    s += " " + ((env.currentFrame.clause.opcodes[ptr++] << 24) | (env.currentFrame.clause.opcodes[ptr++] << 16) | (env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++] << 0) + env.PC)
-                }
-                else if (LOOKUP_OPCODE[i].args[j] == "functor" || LOOKUP_OPCODE[i].args[j] == "atom")
-                {
-                    s += "(" + env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++]))] + ")";
-                }
-            }
-            return s;
+            s += "(" + ((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++])) + ")";
+        }
+        else if (opcode_info.args[j] == "address")
+        {
+            s += " " + ((env.currentFrame.clause.opcodes[ptr++] << 24) | (env.currentFrame.clause.opcodes[ptr++] << 16) | (env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++] << 0) + env.PC)
+        }
+        else if (opcode_info.args[j] == "functor" || opcode_info.args[j] == "atom")
+        {
+            s += "(" + env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++]))] + ")";
         }
     }
-    return "??? " + opcode;
+    return s;
 }
 
 function pad(pad, str)
@@ -271,14 +267,16 @@ function execute(env, successHandler, onFailure, onError)
                      onSuccess:successHandler,
                      onFailure:onFailure,
                      onError:onError};
+    //var d0 = new Date().getTime();
     redo_execute(env);
+    //console.log("execute() took " + (new Date().getTime() - d0) + "ms");
 }
 
 function execute_foreign(env, args)
 {
     try
     {
-        return env.currentFrame.clause.constants[0].apply(env, args);
+      return env.currentFrame.clause.constants[0].apply(env, args);
     }
     catch(e)
     {
@@ -337,40 +335,39 @@ function usercall(env, goal)
 
 function redo_execute(env)
 {
-    var current_opcode;
-
+    var current_opcode = 0;
+//    var d0 = new Date().getTime();
     next_instruction:
     while (!env.halted)
     {
+        //env.debug_times[current_opcode] = (env.debug_times[current_opcode] || 0) + new Date().getTime() - d0
+        //d0 = new Date().getTime();
         if (next_opcode === undefined && env.currentFrame.clause.opcodes[env.PC] === undefined)
         {
             console.log(util.inspect(env.currentFrame));
             console.log("Illegal fetch at " + env.PC);
             throw new Error("Illegal fetch");
         }
-        current_opcode = (next_opcode || (next_opcode = LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label));
+        current_opcode = (next_opcode || (next_opcode = env.currentFrame.clause.opcodes[env.PC]));
         next_opcode = undefined;
         //if (env.debugger_steps >= 50) return;
+        //env.debugger_steps++;
+        //env.debug_ops[current_opcode] = (env.debug_ops[current_opcode] || 0) + 1;
         if (env.debugging == true)
         {
-            env.debugger_steps++;
             print_instruction(env, current_opcode);
         }
         switch(current_opcode)
 	{
-            case "i_fail":
+            case 0: // i_fail
             {
                 if (backtrack(env))
                     continue;
+                //env.debug_times[current_opcode] = (env.debug_times[current_opcode] || 0) + new Date().getTime() - d0
                 env.yieldInfo.onFailure();
                 return false;
             }
-            case "i_true":
-            {
-                env.PC++;
-                continue;
-            }
-            case "i_enter":
+            case 1: // i_enter
             {
                 env.nextFrame = new Frame(env);
                 env.argI = 0;
@@ -379,12 +376,13 @@ function redo_execute(env)
                 env.PC++;
                 continue;
             }
-            case "i_exitquery":
+            case 2: // i_exit_query
             {
                 env.yieldInfo.onSuccess(env.choicepoints.length != env.yieldInfo.initial_choicepoint_depth);
+                //env.debug_times[current_opcode] = (env.debug_times[current_opcode] || 0) + new Date().getTime() - d0
                 return;
             }
-            case "i_exitcatch":
+            case 3: // i_exitcatch
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 if (env.currentFrame.reserved_slots[slot] == env.choicepoints.length)
@@ -394,16 +392,16 @@ function redo_execute(env)
                     // Note that it is possible, if we executed the handler, that the fake choicepoint has already been deleted
                     env.choicepoints.pop();
                 }
-                next_opcode = "i_exit";
+                next_opcode = LOOKUP_OPCODE["i_exit"].opcode;
                 continue next_instruction;
             }
-            case "i_foreign":
+            case 4: // i_foreign
             {
                 // Set the foreign info to undefined
                 env.currentFrame.reserved_slots[0] = undefined;
                 // FALL-THROUGH
             }
-            case "i_foreignretry":
+            case 5: //i_foreignretry
             {
                 env.foreign = env.currentFrame.reserved_slots[0];
                 // FIXME: Why do we sometimes get things on the currentFrame for a foreign predicate that are wrong?!
@@ -411,12 +409,10 @@ function redo_execute(env)
                 // So: foo:- goal_with_choicepoint(A,B,C,D), foreign_predicate.
                 // So that explains why slots is the wrong /length/ but not how one of the values in slots[] is undefined
                 // The test case is to click the 'top' button on the Demo proactive app and change the next line to var args = env.currentFrame.slots.slice(0)
-                var args = env.currentFrame.slots.slice(0, env.currentFrame.functor.arity);
-                for (var i = 0; i < args.length; i++)
+                var args = [];
+                for (var i = 0; i < env.currentFrame.functor.arity; i++)
                 {
-                    args[i] = args[i].dereference();
-                    if (args[i] instanceof CompoundTerm)
-                        args[i] = args[i].dereference_recursive();
+                    args[i] = env.currentFrame.slots[i].dereference_recursive();
                 }
                 var rc = execute_foreign(env, args);
 //                if (env.debugging)
@@ -438,7 +434,7 @@ function redo_execute(env)
                         console.log("going to i_exit from executing foreign code:" + env.currentFrame.functor.toString());
                     }
 */
-                    next_opcode = "i_exit";
+                    next_opcode = LOOKUP_OPCODE["i_exit"].opcode;
                     continue next_instruction;
                 }
                 else if (rc == "yield")
@@ -454,11 +450,11 @@ function redo_execute(env)
                 }
                 else if (rc == "exception")
                 {
-                    next_opcode = "b_throw_foreign";
+                    next_opcode = LOOKUP_OPCODE["b_throw_foreign"].opcode;
                     continue next_instruction;
                 }
             }
-            case "i_exit":
+            case 6: // i_exit
             {
                 if (env.currentFrame === undefined)
                 {
@@ -474,7 +470,7 @@ function redo_execute(env)
                 env.argI = 0;
                 continue;
             }
-	    case "i_exitfact":
+            case 7: // i_exitfact
 	    {
 		env.PC = env.currentFrame.returnPC;
                 env.currentFrame = env.currentFrame.parent;
@@ -483,13 +479,13 @@ function redo_execute(env)
                 env.argI = 0;
 		continue;
             }
-            case "i_depart":
+            case 8: // i_depart
 	    {
 		var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
                 if (!get_code(env, functor))
                 {
-                    next_opcode = "b_throw_foreign";
+                    next_opcode = LOOKUP_OPCODE["b_throw_foreign"].opcode;
                     continue next_instruction;
                 }
 		env.nextFrame.PC = env.currentFrame.returnPC;
@@ -503,7 +499,7 @@ function redo_execute(env)
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
-            case "b_cleanup_choicepoint":
+            case 9: // b_cleanup_choicepoint
             {
                 // This just leaves a fake choicepoint (one you cannot backtrack onto) with a .cleanup value set to the cleanup handler
                 var c = new Choicepoint(env, -1);
@@ -517,7 +513,7 @@ function redo_execute(env)
                 continue;
             }
 
-            case "b_throw":
+            case 10: // b_throw
             {
                 // This is the hardest part of the exception handling process.
                 // We have to walk the stack, looking for frames that correspond to calls to catch/3, find the unifier in the frame, and try to unify it with argP[argI-1]
@@ -529,7 +525,7 @@ function redo_execute(env)
                 set_exception(env, env.argP[env.argI-1]);
                 // Fall-through
             }
-            case "b_throw_foreign":
+            case 11: // b_throw_foreign
             {
                 var frame = env.currentFrame;
                 //console.log(util.inspect(env.choicepoints));
@@ -560,7 +556,7 @@ function redo_execute(env)
                             frame.functor = Constants.caughtFunctor;
 
                             // Javascript doesnt have a goto statement, so this is a bit tricky
-                            next_opcode = "i_usercall";
+                            next_opcode = LOOKUP_OPCODE["i_usercall"].opcode;
                             //console.log("Handling exception:" + frame.slots[1].dereference());
                             continue next_instruction;
                         }
@@ -571,9 +567,10 @@ function redo_execute(env)
                     env.yieldInfo.onError(Errors.makeSystemError(new AtomTerm(exception.toString())));
                 else
                     env.yieldInfo.onError(Errors.makeSystemError(exception));
+                //env.debug_times[current_opcode] = (env.debug_times[current_opcode] || 0) + new Date().getTime() - d0
                 return;
             }
-            case "i_switch_module":
+            case 12: // i_switch_module
             {
                 // FIXME: We must make sure that when processing b_throw that we pop modules as needed
                 // FIXME: There could also be implications for the cleanup in setup-call-cleanup?
@@ -584,18 +581,18 @@ function redo_execute(env)
                 env.PC+=3;
                 continue;
             }
-            case "i_exitmodule":
+            case 13: // i_exitmodule
             {
                 env.PC++;
                 continue;
             }
-            case "i_call":
+            case 14: // i_call
             {
                 var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
                 if (!get_code(env, functor))
                 {
-                    next_opcode = "b_throw_foreign";
+                    next_opcode = LOOKUP_OPCODE["b_throw_foreign"].opcode;
                     continue next_instruction;
                 }
                 env.nextFrame.returnPC = env.PC+3;
@@ -610,7 +607,7 @@ function redo_execute(env)
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
             }
-            case "i_catch":
+            case 15: // i_catch
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 // i_catch must do a few things:
@@ -632,14 +629,14 @@ function redo_execute(env)
                 env.PC+=2; // i_usercall will add the third byte in a moment
                 // Fall through to i_usercall
             }
-            case "i_usercall":
+            case 16: // i_usercall
             {
                 // argP[argI-1] is a goal that we want to execute. First, we must compile it
                 env.argI--;
                 var goal = env.argP[env.argI].dereference();
                 if (!usercall(env, goal))
                 {
-                    next_opcode = "b_throw_foreign";
+                    next_opcode = LOOKUP_OPCODE["b_throw_foreign"].opcode;
                     continue next_instruction;
                 }
                 env.currentFrame = env.nextFrame;
@@ -647,7 +644,7 @@ function redo_execute(env)
                 env.PC = 0;
                 continue;
             }
-            case "i_cut":
+            case 17: // i_cut
             {
                 // The task of i_cut is to pop and discard all choicepoints newer than env.currentFrame.choicepoint
                 //console.log("Cutting choicepoints to " + env.currentFrame.choicepoint);
@@ -661,7 +658,7 @@ function redo_execute(env)
                 //console.log("Choicepoints after cut: " + env.choicepoints.length);
                 continue;
             }
-            case "c_cut":
+            case 18: // c_cut
             {
                 // The task of c_cut is to pop and discard all choicepoints newer than the value in the given slot
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
@@ -670,7 +667,7 @@ function redo_execute(env)
                 env.PC+=3;
                 continue;
             }
-            case "c_lcut":
+            case 19: // c_lcut
             {
                 // The task of c_lcut is to pop and discard all choicepoints newer than /one greater than/ the value in the given slot
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
@@ -679,14 +676,14 @@ function redo_execute(env)
                 env.PC+=3;
                 continue;
             }
-            case "c_ifthen":
+            case 20: // c_ifthen
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
                 env.PC+=3;
                 continue;
             }
-            case "c_ifthenelse":
+            case 21: // c_ifthenelse
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 var address = (env.currentFrame.clause.opcodes[env.PC+3] << 24) | (env.currentFrame.clause.opcodes[env.PC+4] << 16) | (env.currentFrame.clause.opcodes[env.PC+5] << 8) | (env.currentFrame.clause.opcodes[env.PC+6] << 0) + env.PC;
@@ -696,7 +693,7 @@ function redo_execute(env)
                 continue;
             }
 
-            case "i_unify":
+            case 22: // i_unify
 	    {
 		// When we get here argI points to the next *free* space in the frame
 		// So first we must reduce it
@@ -717,7 +714,7 @@ function redo_execute(env)
                 return false;
 
             }
-            case "b_firstvar":
+            case 23: // b_firstvar
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 env.currentFrame.slots[slot] = new VariableTerm();
@@ -726,7 +723,7 @@ function redo_execute(env)
                 env.PC+=3;
                 continue;
             }
-            case "b_argvar":
+            case 24: // b_argvar
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 //console.log("argvar: getting variable from slot " + slot + ": " + env.currentFrame.slots[slot]);
@@ -748,7 +745,7 @@ function redo_execute(env)
 		env.PC+=3;
                 continue;
             }
-            case "b_var":
+            case 25: // b_var
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 // It MAY be that the variable is not yet initialized. This can happen if we have code like
@@ -766,27 +763,27 @@ function redo_execute(env)
                 env.PC+=3;
                 continue;
             }
-            case "b_pop":
+            case 26: // b_pop
             {
 		popArgFrame(env);
                 env.PC++;
                 continue;
             }
-            case "b_atom":
+            case 27: // b_atom
 	    {
                 var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
 		env.argP[env.argI++] = env.currentFrame.clause.constants[index];
 		env.PC+=3;
                 continue;
             }
-            case "b_void":
+            case 28: // b_void
 	    {
 		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 env.argP[env.argI++] = new VariableTerm();
                 env.PC++;
                 continue;
             }
-            case "b_functor":
+            case 29: // b_functor
             {
 		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
 		var functor = env.currentFrame.clause.constants[index];
@@ -798,7 +795,7 @@ function redo_execute(env)
 		env.PC+=3;
 		continue;
             }
-            case "h_firstvar":
+            case 30: // h_firstvar
             {
                 // varFrame(FR, *PC++) in SWI-Prolog is the same as
 		// env.currentFrame.slot[(env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2])] in PS2
@@ -836,7 +833,7 @@ function redo_execute(env)
                 env.PC+=3;
                 continue;
             }
-            case "h_functor":
+            case 31: // h_functor
             {
 		var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 var arg = env.argP[env.argI++].dereference();
@@ -872,13 +869,13 @@ function redo_execute(env)
                 env.yieldInfo.onFailure();
                 return false;
             }
-            case "h_pop":
+            case 32: // h_pop
             {
                 popArgFrame(env);
                 env.PC++;
                 continue;
             }
-            case "h_atom":
+            case 33: // h_atom
             {
 		var atom = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 var arg = env.argP[env.argI++].dereference();
@@ -901,13 +898,13 @@ function redo_execute(env)
                 }
                 continue;
             }
-            case "h_void":
+            case 34: // h_void
             {
                 env.argI++;
 	        env.PC++;
 	        continue;
             }
-	    case "h_var":
+            case 35: // h_var
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 var arg = env.argP[env.argI++].dereference();
@@ -922,30 +919,30 @@ function redo_execute(env)
                 env.PC+=3;
 		continue;
 	    }
-	    case "c_jump":
+            case 36: // c_jump
             {
                 env.PC +=      (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0);
 		continue;
 	    }
-            case "c_or":
+            case 37: // c_or
             {
                 var address = (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC;
                 env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=5;
                 continue;
             }
-            case "try_me_or_next_clause":
+            case 38: // try_me_or_next_clause
             {
                 env.choicepoints.push(new ClauseChoicepoint(env));
                 env.PC++;
                 continue;
             }
-            case "trust_me":
+            case 39: // trust_me
             {
                 env.PC++;
                 continue;
             }
-            case "s_qualify":
+            case 40: // s_qualify
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 var value = env.currentFrame.slots[slot].dereference();
@@ -958,7 +955,7 @@ function redo_execute(env)
             }
             default:
 	    {
-		throw new Error("illegal instruction: " + LOOKUP_OPCODE[env.currentFrame.clause.opcodes[env.PC]].label);
+                throw new Error("illegal instruction: " + opcodes[env.currentFrame.clause.opcodes[env.PC]].label);
             }
         }
     }
@@ -970,18 +967,18 @@ function resume(env, success)
     {
         if (backtrack(env))
             redo_execute(env);
-        env.yieldInfo.onFailure();
-        return false;
+        else
+            env.yieldInfo.onFailure();
     }
     if (success == true)
     {
-        next_opcode = "i_exit";
+        next_opcode = LOOKUP_OPCODE["i_exit"].opcode;
         redo_execute(env);
     }
     else
     {
         set_exception(env, success);
-        next_opcode = "b_throw_foreign";
+        next_opcode = LOOKUP_OPCODE["b_throw_foreign"].opcode;
         redo_execute(env);
     }
 }

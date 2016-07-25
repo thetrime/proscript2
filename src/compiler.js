@@ -38,12 +38,12 @@ function compilePredicateClause(clause, withChoicepoint, meta)
         {
             if (meta[i] == "+" || meta[i] == "?" || meta[i] == "-")
                 continue;
-            instructions.push({opcode: Instructions.sQualify,
+            instructions.push({opcode: Instructions.s_qualify,
                                slot: [i]});
         }
     }
     if (withChoicepoint)
-        instructions.push({opcode: Instructions.tryMeOrNextClause});
+        instructions.push({opcode: Instructions.try_me_or_next_clause});
     compileClause(dereference_recursive(clause), instructions);
     return assemble(instructions);
 }
@@ -52,7 +52,7 @@ function compilePredicate(clauses, meta)
 {
     if (clauses == [])
     {
-        return assemble([{opcode: Instructions.iFail}]);
+        return assemble([{opcode: Instructions.i_fail}]);
     }
     var lastClause = null;
     var firstClause = null;
@@ -227,7 +227,7 @@ function compileClause(term, instructions)
         analyzeVariables(term.args[0], true, 0, variables, context);
         analyzeVariables(term.args[1], false, 1, variables, context);
         compileHead(term.args[0], variables, instructions);
-        instructions.push({opcode: Instructions.iEnter});
+        instructions.push({opcode: Instructions.i_enter});
         if (!compileBody(term.args[1], variables, instructions, true, {nextReserved:0}, -1))
         {
             var badBody = term.args[1].dereference();
@@ -248,7 +248,7 @@ function compileClause(term, instructions)
         var variables = {};
         analyzeVariables(term, true, 0, variables, context);
         compileHead(term, variables, instructions);
-	instructions.push({opcode: Instructions.iExitFact});
+        instructions.push({opcode: Instructions.i_exitfact});
     }
 }
 
@@ -269,53 +269,53 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
     {
         if (arg.name == "_")
         {
-            instructions.push({opcode: Instructions.hVoid})
+            instructions.push({opcode: Instructions.h_void})
         }
         else if (variables[arg.name].fresh)
         {
 	    variables[arg.name].fresh = false;
 	    if (embeddedInTerm)
 	    {
-		instructions.push({opcode: Instructions.hFirstVar,
+                instructions.push({opcode: Instructions.h_firstvar,
 				   name: arg.name,
 				   slot:variables[arg.name].slot});
 	    }
 	    else
 	    {
-		instructions.push({opcode: Instructions.hVoid});
+                instructions.push({opcode: Instructions.h_void});
 	    }
 	}
 	else
-	    instructions.push({opcode: Instructions.hVar,
+            instructions.push({opcode: Instructions.h_var,
 			       slot: variables[arg.name].slot});
     }
     else if (arg instanceof AtomTerm)
     {
-        instructions.push({opcode: Instructions.hAtom,
+        instructions.push({opcode: Instructions.h_atom,
 			   atom: arg});
     }
     else if (arg instanceof IntegerTerm)
     {
-        instructions.push({opcode: Instructions.hAtom,
+        instructions.push({opcode: Instructions.h_atom,
                            atom: arg});
     }
     else if (arg instanceof FloatTerm)
     {
-        instructions.push({opcode: Instructions.hAtom,
+        instructions.push({opcode: Instructions.h_atom,
                            atom: arg});
     }
     else if (arg instanceof BigIntegerTerm)
     {
-        instructions.push({opcode: Instructions.hAtom,
+        instructions.push({opcode: Instructions.h_atom,
                            atom: arg});
     }
     else if (arg instanceof CompoundTerm)
     {
-	instructions.push({opcode: Instructions.hFunctor,
+        instructions.push({opcode: Instructions.h_functor,
 			   functor: arg.functor});
 	for (var i = 0; i < arg.functor.arity; i++)
 	    compileArgument(arg.args[i], variables, instructions, true);
-	instructions.push({opcode: Instructions.hPop});
+        instructions.push({opcode: Instructions.h_pop});
     }
 }
 
@@ -325,40 +325,40 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
     if (term instanceof VariableTerm)
     {
         compileTermCreation(term, variables, instructions);
-        instructions.push({opcode: Instructions.iUserCall})
+        instructions.push({opcode: Instructions.i_usercall})
         if (isTailGoal)
-            instructions.push({opcode: Instructions.iExit});
+            instructions.push({opcode: Instructions.i_exit});
     }
     else if (term.equals(Constants.cutAtom))
     {
         if (localCutPoint != -1)
-            instructions.push({opcode: Instructions.cLCut,
+            instructions.push({opcode: Instructions.c_lcut,
                                slot: localCutPoint});
         else
-            instructions.push({opcode: Instructions.iCut});
+            instructions.push({opcode: Instructions.i_cut});
         if (isTailGoal)
-            instructions.push({opcode: Instructions.iExit});
+            instructions.push({opcode: Instructions.i_exit});
     }
     else if (term.equals(Constants.trueAtom))
     {
         if (isTailGoal)
-            instructions.push({opcode: Instructions.iExit});
+            instructions.push({opcode: Instructions.i_exit});
     }
     else if (term.equals(Constants.catchAtom))
     {
         var slot = reservedContext.nextReserved++;
-        instructions.push({opcode: Instructions.iCatch,
+        instructions.push({opcode: Instructions.i_catch,
                            slot: slot});
-        instructions.push({opcode: Instructions.iExitCatch,
+        instructions.push({opcode: Instructions.i_exitcatch,
                            slot: slot});
     }
     else if (term.equals(Constants.failAtom))
     {
-	instructions.push({opcode: Instructions.iFail});
+        instructions.push({opcode: Instructions.i_fail});
     }
     else if (term instanceof AtomTerm)
     {
-	instructions.push({opcode: isTailGoal?Instructions.iDepart:Instructions.iCall,
+        instructions.push({opcode: isTailGoal?Instructions.i_depart:Instructions.i_call,
 			   functor: new Functor(term, 0)});
     }
     else if (term instanceof CompoundTerm)
@@ -375,19 +375,19 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
                 // If-then-else
                 var ifThenElseInstruction = instructions.length;
                 var cutPoint = reservedContext.nextReserved++;
-                instructions.push({opcode: Instructions.cIfThenElse,
+                instructions.push({opcode: Instructions.c_ifthenelse,
                                    slot:cutPoint,
                                    address: -1});
                 // If
                 rc &= compileBody(term.args[0].args[0], variables, instructions, false, reservedContext, cutPoint);
                 // (Cut)
-                instructions.push({opcode: Instructions.cCut,
+                instructions.push({opcode: Instructions.c_cut,
                                    slot: cutPoint});
                 // Then
                 rc &= compileBody(term.args[0].args[1], variables, instructions, false, reservedContext, localCutPoint);
                 // (and now jump out before the Else)
                 var jumpInstruction = instructions.length;
-                instructions.push({opcode: Instructions.cJump,
+                instructions.push({opcode: Instructions.c_jump,
                                    address: -1});
                 // Else - we resume from here if the 'If' doesnt work out
                 instructions[ifThenElseInstruction].address = instructions.length;
@@ -398,11 +398,11 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
             {
                 // Ordinary disjunction
                 var orInstruction = instructions.length;
-                instructions.push({opcode: Instructions.cOr,
+                instructions.push({opcode: Instructions.c_or,
                                    address: -1});
                 rc &= compileBody(term.args[0], variables, instructions, false, reservedContext, localCutPoint);
                 var jumpInstruction = instructions.length;
-                instructions.push({opcode: Instructions.cJump,
+                instructions.push({opcode: Instructions.c_jump,
                                    address: -1});
                 instructions[orInstruction].address = instructions.length;
                 rc &= compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext, localCutPoint);
@@ -411,7 +411,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
             // Finally, we need to make sure that the c_jump has somewhere to go,
             // so if this was otherwise the tail goal, throw in an i_exit
             if (isTailGoal)
-                instructions.push({opcode: Instructions.iExit});
+                instructions.push({opcode: Instructions.i_exit});
         }
         else if (term.functor.equals(Constants.notFunctor))
         {
@@ -424,7 +424,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
             // N: (rest of the clause)
             var ifThenElseInstruction = instructions.length;
             var cutPoint = reservedContext.nextReserved++;
-            instructions.push({opcode: Instructions.cIfThenElse,
+            instructions.push({opcode: Instructions.c_ifthenelse,
                                slot:cutPoint,
                                address: -1});
             // If
@@ -432,48 +432,48 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
                 Errors.typeError(Constants.callableAtom, term.args[0]);
 
             // (Cut)
-            instructions.push({opcode: Instructions.cCut,
+            instructions.push({opcode: Instructions.c_cut,
                                slot: cutPoint});
             // Then
-            instructions.push({opcode: Instructions.iFail});
+            instructions.push({opcode: Instructions.i_fail});
             // Else - we resume from here if the 'If' doesnt work out
             instructions[ifThenElseInstruction].address = instructions.length;
             if (isTailGoal)
-                instructions.push({opcode: Instructions.iExit});
+                instructions.push({opcode: Instructions.i_exit});
         }
 	else if (term.functor.equals(Constants.throwFunctor))
         {
 	    compileTermCreation(term.args[0], variables, instructions);
-            instructions.push({opcode: Instructions.bThrow});
+            instructions.push({opcode: Instructions.b_throw});
 	}
         else if (term.functor.equals(Constants.crossModuleCallFunctor))
         {
-            instructions.push({opcode: Instructions.iSwitchModule,
+            instructions.push({opcode: Instructions.i_switch_module,
                                atom: term.args[0]});
             rc &= compileBody(term.args[1], variables, instructions, false, reservedContext, localCutPoint);
-            instructions.push({opcode: Instructions.iExitModule});
+            instructions.push({opcode: Instructions.i_exitmodule});
             if (isTailGoal)
-                instructions.push({opcode: Instructions.iExit});
+                instructions.push({opcode: Instructions.i_exit});
 
         }
         else if (term.functor.equals(Constants.cleanupChoicepointFunctor))
         {
             compileTermCreation(term.args[0], variables, instructions);
             compileTermCreation(term.args[1], variables, instructions);
-            instructions.push({opcode: Instructions.bCleanupChoicepoint});
+            instructions.push({opcode: Instructions.b_cleanup_choicepoint});
 	}
 
         else if (term.functor.equals(Constants.localCutFunctor))
         {
             var cutPoint = reservedContext.nextReserved++;
-            instructions.push({opcode: Instructions.cIfThen,
+            instructions.push({opcode: Instructions.c_ifthen,
                                slot:cutPoint});
             rc &= compileBody(term.args[0], variables, instructions, false, reservedContext, cutPoint);
-            instructions.push({opcode: Instructions.cCut,
+            instructions.push({opcode: Instructions.c_cut,
                                slot: cutPoint});
             rc &= compileBody(term.args[1], variables, instructions, false, reservedContext, localCutPoint);
             if (isTailGoal)
-                instructions.push({opcode: Instructions.iExit});
+                instructions.push({opcode: Instructions.i_exit});
         }
         else if (term.functor.equals(Constants.notUnifiableFunctor))
         {
@@ -484,15 +484,15 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
         {
 	    compileTermCreation(term.args[0], variables, instructions);
 	    compileTermCreation(term.args[1], variables, instructions);
-	    instructions.push({opcode: Instructions.iUnify});
+            instructions.push({opcode: Instructions.i_unify});
 	    if (isTailGoal)
-		instructions.push({opcode: Instructions.iExit});
+                instructions.push({opcode: Instructions.i_exit});
 	}
 	else
         {
 	    for (var i = 0; i < term.functor.arity; i++)
 		compileTermCreation(term.args[i], variables, instructions);
-	    instructions.push({opcode: isTailGoal?Instructions.iDepart:Instructions.iCall,
+            instructions.push({opcode: isTailGoal?Instructions.i_depart:Instructions.i_call,
                                functor: term.functor});
 	}
     }
@@ -510,11 +510,11 @@ function compileTermCreation(term, variables, instructions)
     {
         if (term.name == "_")
         {
-            instructions.push({opcode: Instructions.bVoid});
+            instructions.push({opcode: Instructions.b_void});
         }
         else if (variables[term.name].fresh)
 	{
-	    instructions.push({opcode: Instructions.bFirstVar,
+            instructions.push({opcode: Instructions.b_firstvar,
 			       name:term.name,
 			       slot:variables[term.name].slot});
 	    variables[term.name].fresh = false;
@@ -522,14 +522,14 @@ function compileTermCreation(term, variables, instructions)
         /*
         else if (false) // FIXME: Do we need bArgVar?
 	{
-	    instructions.push({opcode: Instructions.bArgVar,
+            instructions.push({opcode: Instructions.b_argvar,
 			       name:term.name,
 			       slot:variables[term.name].slot});
         }
         */
 	else
 	{
-	    instructions.push({opcode: Instructions.bVar,
+            instructions.push({opcode: Instructions.b_var,
 			       name:term.name,
 			       slot:variables[term.name].slot});
 
@@ -537,38 +537,43 @@ function compileTermCreation(term, variables, instructions)
     }
     else if (term instanceof CompoundTerm)
     {
-	instructions.push({opcode: Instructions.bFunctor,
+        instructions.push({opcode: Instructions.b_functor,
 			   functor:term.functor});
 	for (var i = 0; i < term.functor.arity; i++)
             compileTermCreation(term.args[i], variables, instructions);
-	instructions.push({opcode: Instructions.bPop});
+        instructions.push({opcode: Instructions.b_pop});
     }
     else if (term instanceof AtomTerm)
     {
-	instructions.push({opcode: Instructions.bAtom,
+        instructions.push({opcode: Instructions.b_atom,
 			   atom:term});
     }
     else if (term instanceof IntegerTerm)
     {
-        instructions.push({opcode: Instructions.bAtom,
+        instructions.push({opcode: Instructions.b_atom,
                            atom:term});
 
     }
     else if (term instanceof FloatTerm)
     {
-        instructions.push({opcode: Instructions.bAtom,
+        instructions.push({opcode: Instructions.b_atom,
                            atom:term});
 
     }
     else if (term instanceof BigIntegerTerm)
     {
-        instructions.push({opcode: Instructions.bAtom,
+        instructions.push({opcode: Instructions.b_atom,
+                           atom:term});
+    }
+    else if (term instanceof RationaLTerm)
+    {
+        instructions.push({opcode: Instructions.b_atom,
                            atom:term});
     }
     else if (term instanceof BlobTerm)
     {
         // CHECKME: This is a bit suspicious, but what do we do about open(foo, read, S), assert(bar(S)) ?
-        instructions.push({opcode: Instructions.bAtom,
+        instructions.push({opcode: Instructions.b_atom,
                            atom:term});
     }
     else
@@ -659,15 +664,15 @@ function analyzeVariables(term, isHead, depth, map, context)
 function foreignShim(fn)
 {
     var instructions = [];
-    instructions.push({opcode: Instructions.iForeign,
+    instructions.push({opcode: Instructions.i_foreign,
                        foreign_function: fn});
-    instructions.push({opcode: Instructions.iForeignRetry});
+    instructions.push({opcode: Instructions.i_foreignretry});
     return assemble(instructions);
 }
 
 function failShim()
 {
-    return assemble([{opcode: Instructions.iFail}]);
+    return assemble([{opcode: Instructions.i_fail}]);
 }
 
 module.exports = {compilePredicate:compilePredicate,

@@ -41,6 +41,10 @@ var builtinModules = [fs.readFileSync(__dirname + '/builtin.pl', 'utf8')];
 function Environment()
 {
     this.module_map = [];
+
+    this.debug_ops = {};
+    this.debug_times = {};
+    this.debug_backtracks = 0;
     this.debugger_steps = 0;
     this.debugging = false;
     this.userModule = this.getModule("user");
@@ -105,25 +109,25 @@ Environment.prototype.create_choicepoint = function(data, cleanup)
 
 Environment.prototype.saveState = function()
 {
-    return {currentModule: this.currentModule,
-            currentFrame: this.currentFrame,
-            choicepoints: this.choicepoints,
-            TR: this.TR,
-            trail: this.trail,
-            PC: this.PC,
-            stream: this.streams,
-            yieldInfo: this.yieldInfo,
-            // In theory, argS, argP and argI need not be saved.
-            // argS SHOULD always be [] at a save point, and argP
-            // can always be restored to this.currentFrame.slots,
-            // and argI to 0. Mode should also always be restored
-            // to ... write?
-            argS: this.argS,
-            argP: this.argP,
-            argI: this.argI,
-            mode: this.mode};
-    // FIXME: unreachable!
+    var saved = {currentModule: this.currentModule,
+                 currentFrame: this.currentFrame,
+                 choicepoints: this.choicepoints,
+                 TR: this.TR,
+                 trail: this.trail,
+                 PC: this.PC,
+                 stream: this.streams,
+                 yieldInfo: this.yieldInfo,
+                 // In theory, argS, argP and argI need not be saved.
+                 // argS SHOULD always be [] at a save point, and argP
+                 // can always be restored to this.currentFrame.slots,
+                 // and argI to 0. Mode should also always be restored
+                 // to ... write?
+                 argS: this.argS,
+                 argP: this.argP,
+                 argI: this.argI,
+                 mode: this.mode};
     this.reset();
+    return saved;
 }
 
 Environment.prototype.restoreState = function(saved)
@@ -312,7 +316,7 @@ Environment.prototype.execute = function(queryTerm, onSuccess, onFailure, onErro
     // make a frame with 0 args (since a query has no head)
     var topFrame = new Frame(this);
     topFrame.functor = new Functor(new AtomTerm("$top"), 0);
-    topFrame.clause = new Clause([Instructions.iExitQuery.opcode], [], ["i_exit_query"]);
+    topFrame.clause = new Clause([Instructions.i_exitquery.opcode], [], ["i_exit_query"]);
     this.currentFrame = topFrame;
     var queryFrame = new Frame(this);
     queryFrame.functor = new Functor(new AtomTerm("$query"), 0);
@@ -323,6 +327,7 @@ Environment.prototype.execute = function(queryTerm, onSuccess, onFailure, onErro
     this.PC = 0;
     this.currentFrame = queryFrame;
     this.argP = queryFrame.slots;
+    //console.log(queryTerm.toString());
     Kernel.execute(this, onSuccess, onFailure, onError);
 }
 
