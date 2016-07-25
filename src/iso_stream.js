@@ -15,19 +15,23 @@ var TermWriter = require('./term_writer');
 var Operators = require('./operators');
 var CharConversionTable = require('./char_conversion');
 var fs = require('fs');
+var CTable = require('./ctable');
 
 function get_stream(s)
 {
     Utils.must_be_bound(s);
-    if (s instanceof BlobTerm)
+    if (TAGOF(s) == ConstantTag)
     {
-        if (s.type == "stream")
+        s = CTable.get(s);
+        if (s instanceof BlobTerm && s.type == "stream")
+        {
             return s.value;
-    }
-    else if (s instanceof AtomTerm)
-    {
-        // Aliases (not yet implemented)
-        Errors.domainError(Constants.streamOrAliasAtom, s);
+        }
+        else if (s instanceof AtomTerm)
+        {
+            // Aliases (not yet implemented)
+            Errors.domainError(Constants.streamOrAliasAtom, s);
+        }
     }
     Errors.domainError(Constants.streamOrAliasAtom, s);
 }
@@ -35,7 +39,7 @@ function get_stream(s)
 function get_stream_position(stream, property)
 {
     if (stream.tell != null)
-        return this.unify(new CompoundTerm(Constants.positionAtom, [new IntegerTerm(stream.tell(stream) - stream.buffer.length)]), property);
+        return this.unify(CompoundTerm.create(Constants.positionAtom, [IntegerTerm.get(stream.tell(stream) - stream.buffer.length)]), property);
     return false;
 }
 
@@ -129,9 +133,11 @@ module.exports.open = [
         // FIXME: Options we must support for open/4 are given in 7.10.2.11
         Utils.must_be_atom(file);
         Utils.must_be_atom(mode);
+        mode = CTable.get(mode);
+        file = CTable.get(file);
         if (mode.value != "read" && mode.value != "write" && mode.value != "append") // These are the three IO modes required in 7.10.1.1
             Errors.domainError(Constants.ioModeAtom, mode);
-        return this.unify(stream, new BlobTerm("stream", fsOpen(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
+        return this.unify(stream, BlobTerm.get("stream", fsOpen(file.value, mode.value, Options.parseOptions(options, Constants.streamOptionAtom))));
     }];
 
 // 8.11.6
@@ -193,7 +199,7 @@ module.exports.set_stream_position = function(stream, position)
     stream = get_stream(stream);
     if (stream.seek == null)
         Errors.permissionError(Constants.repositionAtom, Constants.streamAtom, stream.term);
-    return stream.seek(stream, position.value);
+    return stream.seek(stream, CTable.get(position).value);
 }
 
 // 8.12.1
@@ -208,7 +214,7 @@ module.exports.get_char = [
         var t = stream.getch();
         if (t == -1)
             return this.unify(c, Constants.endOfFileAtom);
-        return this.unify(c, new AtomTerm(String.fromCharCode(t)));
+        return this.unify(c, AtomTerm.get(String.fromCharCode(t)));
     }];
 module.exports.get_code = [
     function(c)
@@ -218,7 +224,7 @@ module.exports.get_code = [
     function(stream, c)
     {
         stream = get_stream(stream);
-        return this.unify(c, new IntegerTerm(stream.getch()));
+        return this.unify(c, IntegerTerm.get(stream.getch()));
     }];
 
 // 8.12.2
@@ -233,7 +239,7 @@ module.exports.peek_char = [
         var t = stream.peekch();
         if (t == -1)
             return this.unify(c, Constants.endOfFileAtom);
-        return this.unify(c, new AtomTerm(String.fromCharCode(t)));
+        return this.unify(c, AtomTerm.get(String.fromCharCode(t)));
     }];
 module.exports.peek_code = [
     function(c)
@@ -243,7 +249,7 @@ module.exports.peek_code = [
     function(stream, c)
     {
         stream = get_stream(stream);
-        return this.unify(c, new IntegerTerm(stream.peekch()));
+        return this.unify(c, IntegerTerm.get(stream.peekch()));
     }];
 
 // 8.12.3
@@ -256,7 +262,7 @@ module.exports.put_char = [
     {
         Utils.must_be_character(c);
         stream = get_stream(stream);
-        stream.putch(c.value.charCodeAt(0));
+        stream.putch(CTable.get(c).value.charCodeAt(0));
         return true;
     }];
 module.exports.put_code = [
@@ -268,7 +274,7 @@ module.exports.put_code = [
     {
         Utils.must_be_integer(c);
         stream = get_stream(stream);
-        stream.putch(c.value);
+        stream.putch(CTable.get(c).value);
         return true;
     }];
 
@@ -281,7 +287,7 @@ module.exports.get_byte = [
     function(stream, c)
     {
         stream = get_stream(stream);
-        return this.unify(c, new IntegerTerm(stream.getb()));
+        return this.unify(c, IntegerTerm.get(stream.getb()));
     }];
 // 8.13.2
 module.exports.peek_byte = [
@@ -292,7 +298,7 @@ module.exports.peek_byte = [
     function(stream, c)
     {
         stream = get_stream(stream);
-        return this.unify(c, new IntegerTerm(stream.peekb()));
+        return this.unify(c, IntegerTerm.get(stream.peekb()));
     }];
 // 8.13.3
 module.exports.put_byte = [
@@ -304,7 +310,7 @@ module.exports.put_byte = [
     {
         Utils.must_be_integer(c);
         stream = get_stream(stream);
-        stream.putb(c.value);
+        stream.putb(CTable.get(c).value);
         return true;
     }];
 // 8.14.1 read_term/3, read_term/2, read/1, read/2
@@ -373,6 +379,9 @@ module.exports.op = function(priority, fixity, op)
     Utils.must_be_atom(op);
     Utils.must_be_integer(priority);
     var new_op;
+    priority = CTable.get(priority);
+    op = CTable.get(op);
+    fixity = CTable.get(fixity);
     if (priority.value == 0)
         new_op = undefined;
     else if (priority.value > 1200)
@@ -445,7 +454,7 @@ module.exports.current_op = function(priority, fixity, op)
         return false;
     if (index+1 < op_count)
         this.create_choicepoint(index+1);
-    return this.unify(priority, new IntegerTerm(next_op.precedence)) && this.unify(fixity, new AtomTerm(next_op.fixity)) && this.unify(op, new AtomTerm(op_name));
+    return this.unify(priority, IntegerTerm.get(next_op.precedence)) && this.unify(fixity, AtomTerm.get(next_op.fixity)) && this.unify(op, AtomTerm.get(op_name));
 }
 
 // 8.14.5 char_conversion/2
@@ -453,23 +462,24 @@ module.exports.char_conversion = function(in_char, out_char)
 {
     Utils.must_be_character(in_char);
     Utils.must_be_character(out_char);
-    CharConversionTable[in_char.value] = out_char.value;
+    CharConversionTable[CTable.get(in_char).value] = CTable.get(out_char).value;
 }
 
 // 8.14.6 current_char_conversion/2
 module.exports.current_char_conversion = function(in_char, out_char)
 {
-    if (in_char instanceof AtomTerm)
+    if (TAGOF(in_char) == ConstantTag && CTable.get(in_char) instanceof AtomTerm)
     {
-        if (CharConversionTable[in_char.value] === undefined)
+        if (CharConversionTable[CTable.get(in_char).value] === undefined)
             return this.unify(out_char, in_char);
         else
-            return this.unify(out_char, new AtomTerm(CharConversionTable[in_char.value]));
+            return this.unify(out_char, AtomTerm.get(CharConversionTable[in_char.value]));
     }
-    else if (out_char instanceof AtomTerm)
+    else if (TAGOF(out_char) == ConstantTag && CTable.get(out_char) instanceof AtomTerm)
     {
         // This may or may not be deterministic
         // FIXME: Does not return identity mapping
+        out_char = CTable.get(out_char);
         if (this.foreign === undefined)
         {
             var needle = out_char.value;
@@ -486,9 +496,9 @@ module.exports.current_char_conversion = function(in_char, out_char)
         var binding = bindings.pop();
         if (bindings.length > 0)
             this.create_choicepoint(bindings);
-        return this.unify(in_char, new AtomTerm(binding));
+        return this.unify(in_char, AtomTerm.get(binding));
     }
-    else if (in_char instanceof VariableTerm && out_char instanceof VariableTerm)
+    else if (TAGOF(in_char) == VariableTag && TAGOF(out_char) == VariableTag)
     {
         // FIXME: Does not return identity mapping
         if (this.foreign === undefined)
@@ -507,6 +517,6 @@ module.exports.current_char_conversion = function(in_char, out_char)
         var binding = bindings.pop();
         if (bindings.length > 0)
             this.create_choicepoint(bindings);
-        return this.unify(in_char, new AtomTerm(binding)) && this.unify(out_char, new AtomTerm(CharConversionTable[binding]));
+        return this.unify(in_char, AtomTerm.get(binding)) && this.unify(out_char, AtomTerm.get(CharConversionTable[binding]));
     }
 }

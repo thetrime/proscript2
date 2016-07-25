@@ -5,7 +5,6 @@ var Module = require('./module.js');
 var Parser = require('./parser.js');
 var Kernel = require('./kernel.js');
 var AtomTerm = require('./atom_term.js');
-var VariableTerm = require('./variable_term.js');
 var CompoundTerm = require('./compound_term.js');
 var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
@@ -21,6 +20,9 @@ var fs = require('fs');
 var Utils = require('./utils');
 var PrologFlag = require('./prolog_flag');
 var Clause = require('./clause');
+var CTable = require('./ctable');
+var util = require('util');
+
 
 function builtin(module, name)
 {
@@ -148,26 +150,27 @@ Environment.prototype.restoreState = function(saved)
 
 Environment.prototype.unify = function(a, b)
 {
-    a = a.dereference();
-    b = b.dereference();
+    a = DEREF(a);
+    b = DEREF(b);
     //console.log("Unify: " + a + " vs " + b);
-    if (a.equals(b))
+    if (a == b)
         return true;
-    if (a instanceof VariableTerm)
+    if (a >>> 30 == 0) // A is a variable
     {
         this.bind(a, b);
         return true;
     }
-    if (b instanceof VariableTerm)
+    if (b >>> 30 == 0) // B is a variable
     {
         this.bind(b, a);
         return true;
     }
-    if (a instanceof CompoundTerm && b instanceof CompoundTerm && a.functor.equals(b.functor))
+    if (a >>> 30 == 2 && b >>> 30 == 2 && FUNCTOROF(a) == FUNCTOROF(b))
     {
-        for (var i = 0; i < a.args.length; i++)
+        var argcount = CTable.get(FUNCTOROF(a)).arity;
+        for (var i = 0; i < argcount; i++)
 	{
-            if (!this.unify(a.args[i], b.args[i]))
+            if (!this.unify(ARGOF(a, i), ARGOF(b, i)))
                 return false;
         }
 	return true;
@@ -179,8 +182,8 @@ Environment.prototype.bind = function(variable, value)
 {
     //console.log("Binding " + util.inspect(variable) + " to " + util.inspect(value) + " at " + this.TR);
     this.trail[this.TR] = variable;
-    variable.limit = this.TR++;
-    variable.value = value;
+    this.TR++;
+    HEAP[variable] = value;
 }
 
 Environment.prototype.halt = function(exitcode)
@@ -228,62 +231,64 @@ Environment.prototype.consultString = function(data)
                             null,
                             Stream.stringBuffer(data));
     var clause = null;
-    while (!((clause = Parser.readTerm(stream, [])).equals(Constants.endOfFileAtom)))
+    while ((clause = Parser.readTerm(stream, [])) != Constants.endOfFileAtom)
     {
-        //console.log("Read: " + clause);
-        if (clause instanceof CompoundTerm && clause.functor.equals(Constants.directiveFunctor))
+        //console.log("Clause: " + PORTRAY(clause));
+        if (TAGOF(clause) == CompoundTag && FUNCTOROF(clause) == Constants.directiveFunctor)
         {
-            var directive = clause.args[0];
-            if (directive instanceof CompoundTerm && directive.functor.equals(Constants.moduleFunctor))
+            var directive = ARGOF(clause, 0);
+            if (TAGOF(directive) == CompoundTag && FUNCTOROF(directive) == Constants.moduleFunctor)
             {
-                Utils.must_be_atom(directive.args[0]);
+                Utils.must_be_atom(ARGOF(directive, 0))
                 // Compile the shims in user
-                var exports = Utils.to_list(directive.args[1]);
+                var exports = Utils.to_list(ARGOF(directive, 1));
                 for (var i = 0; i < exports.length; i++)
                 {
                     Utils.must_be_pi(exports[i]);
                     // For an export of foo/3, add a clause foo(A,B,C):- Module:foo(A,B,C).  to user
-                    var functor = new Functor(exports[i].args[0], exports[i].args[1].value);
+                    var functor = Functor.get(exports[i].args[0], exports[i].args[1].value);
                     var args = new Array(exports[i].args[1].value);
                     for (var j = 0; j < exports[i].args[1].value; j++)
-                        args[j] = new VariableTerm();
-                    var head = new CompoundTerm(exports[i].args[0], args);
-                    var shim = new CompoundTerm(Constants.clauseFunctor, [head, new CompoundTerm(Constants.crossModuleCallFunctor, [directive.args[0], head])]);
+                        args[j] = MAKEVAR();
+                    var head = CompoundTerm.create(exports[i].args[0], args);
+                    var shim = CompoundTerm.create(Constants.clauseFunctor, [head, CompoundTerm.create(Constants.crossModuleCallFunctor, [directive.args[0], head])]);
                     this.userModule.addClause(functor, shim);
                 }
                 this.currentModule = this.getModule(directive.args[0].value)
             }
-            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.metaPredicateFunctor))
+            else if (TAGOF(directive) == CompoundTag && FUNCTOROF(directive) == Constants.metaPredicateFunctor)
             {
-                Utils.must_be_compound(directive.args[0]);
-                var functor = directive.args[0].functor;
-                var args = new Array(directive.args[0].functor.arity);
-                for (var i = 0; i < directive.args[0].functor.arity; i++)
+                Utils.must_be_compound(ARGOF(directive,0))
+                var functor = FUNCTOROF(ARGOF(directive, 0));
+                var args = new Array(CTable.get(functor).arity);
+                for (var i = 0; i < args.length; i++)
                 {
-                    if (directive.args[0].args[i] instanceof AtomTerm)
-                        args[i] = directive.args[0].args[i].value;
-                    else if (directive.args[0].args[i] instanceof IntegerTerm)
-                        args[i] = directive.args[0].args[i].value;
+                    var arg = ARGOF(ARGOF(directive, 0),i);
+                    var arg_object = CTable.get(arg);
+                    if (arg_object instanceof AtomTerm)
+                        args[i] = arg_object.value;
+                    else if (arg_object instanceof IntegerTerm)
+                        args[i] = arg_object.value;
                     else
-                        Errors.typeError(Constants.metaArgumentSpecifierAtom, directive.args[0].args[i]);
+                        Errors.typeError(Constants.metaArgumentSpecifierAtom, arg);
                 }
                 this.currentModule.makeMeta(functor, args);
             }
-            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.dynamicFunctor))
+            else if (TAGOF(directive) == CompoundTag && FUNCTOROF(directive) == Constants.dynamicFunctor)
             {
-                Utils.must_be_pi(directive.args[0]);
-                var functor = new Functor(directive.args[0].args[0], directive.args[0].args[1].value);
+                Utils.must_be_pi(ARGOF(directive,0));
+                var functor = Functor.get(ARGOF(ARGOF(directive,0),0), CTable.get(ARGOF(ARGOF(directive,0),1)).value);
                 this.currentModule.makeDynamic(functor);
             }
-            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.multiFileFunctor))
+            else if (TAGOF(directive) == CompoundTag && FUNCTOROF(directive) == Constants.multiFileFunctor)
             {
                 // FIXME: implement
             }
-            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.discontiguousFunctor))
+            else if (TAGOF(directive) == CompoundTag && FUNCTOROF(directive) == Constants.discontiguousFunctor)
             {
                 // FIXME: implement
             }
-            else if (directive instanceof CompoundTerm && directive.functor.equals(Constants.initializationFunctor))
+            else if (TAGOF(directive) == CompoundTag && FUNCTOROF(directive) == Constants.initializationFunctor)
             {
                 // FIXME: implement
             }
@@ -292,7 +297,7 @@ Environment.prototype.consultString = function(data)
             {
                 // FIXME: in /theory/ this could block and we should not assume that just because this.execute() has returned that the goal has completed.
                 //        In /practise/ if a directive executes a blocking predicate, then it is probably a terrible directive.
-                console.log("Processing directive " + directive);
+                console.log("Processing directive " + PORTRAY(directive));
                 this.execute(directive,
                              function(){console.log("    Directive succeeded");},
                              function(){console.log("    Directive failed");},
@@ -301,6 +306,7 @@ Environment.prototype.consultString = function(data)
         }
         else
         {
+            //console.log("Got ordinary clause: " + PORTRAY(clause));
             var functor = clauseFunctor(clause);
             this.currentModule.addClause(functor, clause);
         }
@@ -312,14 +318,13 @@ Environment.prototype.consultString = function(data)
 Environment.prototype.execute = function(queryTerm, onSuccess, onFailure, onError)
 {
     var compiledQuery = Compiler.compileQuery(queryTerm);
-
     // make a frame with 0 args (since a query has no head)
     var topFrame = new Frame(this);
-    topFrame.functor = new Functor(new AtomTerm("$top"), 0);
+    topFrame.functor = Functor.get(AtomTerm.get("$top"), 0);
     topFrame.clause = new Clause([Instructions.i_exitquery.opcode], [], ["i_exit_query"]);
     this.currentFrame = topFrame;
     var queryFrame = new Frame(this);
-    queryFrame.functor = new Functor(new AtomTerm("$query"), 0);
+    queryFrame.functor = Functor.get(AtomTerm.get("$query"), 0);
     queryFrame.clause = compiledQuery.clause;
     for (var i = 0; i < compiledQuery.variables.length; i++)
         queryFrame.slots[i] = compiledQuery.variables[i];
@@ -333,7 +338,7 @@ Environment.prototype.execute = function(queryTerm, onSuccess, onFailure, onErro
 
 Environment.prototype.getPredicateCode = function(functor, optionalContextModule)
 {
-    //console.log("Looking for " + functor + " in " + this.currentModule.name);
+    //console.log("Looking for " + CTable.get(functor).toString() + " in " + this.currentModule.name);
     var m = optionalContextModule || this.currentModule;
     var p = m.getPredicateCode(functor);
     if (p === undefined && m != this.userModule)
@@ -351,8 +356,9 @@ Environment.prototype.getPredicateCode = function(functor, optionalContextModule
         p.module = m;
     if (p === undefined)
     {
+        var functor_object = CTable.get(functor);
         if (PrologFlag.values.unknown == "error")
-            Errors.existenceError(Constants.procedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
+            Errors.existenceError(Constants.procedureAtom, CompoundTerm.create(Constants.predicateIndicatorFunctor, [functor_object.name, IntegerTerm.get(functor_object.arity)]));
         else if (PrologFlag.values.unknown == "fail")
             return Compiler.fail()
         else if (PrologFlag.values.unknown == "warning")
@@ -361,7 +367,7 @@ Environment.prototype.getPredicateCode = function(functor, optionalContextModule
             return Compiler.fail()
         }
         else
-            Errors.existenceError(Constants.procedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
+            Errors.existenceError(Constants.procedureAtom, CompoundTerm.create(Constants.predicateIndicatorFunctor, [functor_object.name, IntegerTerm.get(functor_object.arity)]));
     }
 
     return p;
@@ -369,7 +375,7 @@ Environment.prototype.getPredicateCode = function(functor, optionalContextModule
 
 Environment.prototype.backtrack = function(onSuccess, onFailure, onError)
 {
-    //console.log("Backtracking...");
+    console.log("Backtracking...");
     if (Kernel.backtrack(this))
         Kernel.execute(this, onSuccess, onFailure, onError);
     else
@@ -379,27 +385,28 @@ Environment.prototype.backtrack = function(onSuccess, onFailure, onError)
 Environment.prototype.copyTerm = function(t)
 {
     if (t.stack != undefined) console.log(t.stack);
-    t = t.dereference();
+    t = DEREF(t);
     var variables = [];
     Compiler.findVariables(t, variables);
     var newVars = new Array(variables.length);
     for (var i = 0; i < variables.length; i++)
-        newVars[i] = new VariableTerm();
+        newVars[i] = MAKEVAR();
     return _copyTerm(t, variables, newVars);
 }
 
 function _copyTerm(t, vars, newVars)
 {
-    if (t instanceof VariableTerm)
+    if (TAGOF(t) == VariableTag)
     {
         return newVars[vars.indexOf(t)];
     }
-    else if (t instanceof CompoundTerm)
+    else if (TAGOF(t) == CompoundTag)
     {
-        var newArgs = new Array(t.args.length);
-        for (var i = 0; i < t.args.length; i++)
-            newArgs[i] = _copyTerm(t.args[i].dereference(), vars, newVars);
-        return new CompoundTerm(t.functor, newArgs);
+        var functor = CTable.get(FUNCTOROF(t));
+        var newArgs = new Array(functor.arity);
+        for (var i = 0; i < newArgs.length; i++)
+            newArgs[i] = _copyTerm(ARGOF(t, i), vars, newVars);
+        return CompoundTerm.create(FUNCTOROF(t), newArgs);
     }
     // For everything else, just return the term itself
     return t;
@@ -491,11 +498,11 @@ function console_write(stream, offset, length, buffer)
 function clauseFunctor(term)
 {
     Utils.must_be_bound(term);
-    if (term instanceof AtomTerm)
-        return new Functor(term, 0);
-    if (term.functor.equals(Constants.clauseFunctor))
-	return clauseFunctor(term.args[0]);
-    return term.functor;
+    if (TAGOF(term) == ConstantTag && CTable.get(term) instanceof AtomTerm)
+        return Functor.get(term, 0);
+    if (FUNCTOROF(term) == Constants.clauseFunctor)
+        return clauseFunctor(ARGOF(term,0));
+    return FUNCTOROF(term);
 }
 
 module.exports = Environment;

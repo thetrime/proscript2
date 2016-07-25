@@ -68,14 +68,15 @@
 
 
 run_all_tests :-
-	findall(F, file(F), Files),
+        findall(F, file(F), Files),
         test_all(Files),
         write_results, !.
 
 
 test_all([]).
 test_all([F|Fs]) :-
-	run_tests(F),
+        run_tests(F),
+        writeln(tested(F)),
         test_all(Fs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -562,7 +563,7 @@ delmemb(E, [F|R], [F|R1]) :-
 %
 
 read_test(Extra, Missing) :-
-	read(X),
+        read(X),
         X = [G, Expected],
         result(G, R),
         compare_subst_lists(R, Expected, Extra, Missing),
@@ -592,7 +593,7 @@ run_tests(File) :-
 %
  
 loop_through(F, S) :-
-	catch(read(S,X), B, X = B),
+        catch(read(S,X), B, X = B),
         (
        X = end_of_file
         -> true
@@ -657,12 +658,12 @@ write_if_wrong(F, G,Expected, Extra, Missing) :-
 
 
 update_score(F,[],[]) :- !,
-	retract(score(F,total(T), wrong(W))),
+        retract(score(F,total(T), wrong(W))),
         T1 is T +1,
         asserta(score(F,total(T1), wrong(W))).
 update_score(F,_,_) :-
        retract(score(F,total(T), wrong(W))),
-        T1 is T +1, W1 is W + 1,
+       T1 is T +1, W1 is W + 1,
         asserta(score(F,total(T1), wrong(W1))). 
 
 
@@ -701,6 +702,7 @@ file(arith_gt).
 file('arith_gt=').
 file(arith_lt).
 file('arith_lt=').
+/*
 file(asserta).
 file(assertz).
 file(atom).
@@ -751,6 +753,7 @@ file('term_lt=').
 file(true).
 file(unify).
 file(univ).
+*/
 
 %%%%%%%%%%%
 %

@@ -2,6 +2,7 @@
 exports=module.exports;
 
 var Term = require('./term');
+var CTable = require('./ctable');
 
 function FloatTerm(value)
 {
@@ -20,9 +21,20 @@ FloatTerm.prototype.toString = function()
     return this.value;
 }
 
+FloatTerm.prototype.hashCode = function()
+{
+    return this.value;
+}
+
+
 FloatTerm.prototype.getClass = function()
 {
     return "FloatTerm";
+}
+
+FloatTerm.get = function(i)
+{
+    return CTable.intern(new FloatTerm(i)) | 0xc0000000;
 }
 
 

@@ -3,7 +3,6 @@ exports=module.exports;
 
 var Constants = require('./constants.js');
 var CompoundTerm = require('./compound_term.js');
-var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
 var BlobTerm = require('./blob_term.js');
 var FloatTerm = require('./float_term.js');
@@ -12,21 +11,9 @@ var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
 var Errors = require('./errors.js');
 var Clause = require('./clause.js');
+var CTable = require('./ctable.js');
 var Instructions = require('./opcodes.js').opcode_map;
-
-
-function dereference_recursive(term)
-{
-    var term = term.dereference();
-    if (term instanceof CompoundTerm)
-    {
-	var new_args = [];
-	for (var i = 0; i < term.args.length; i++)
-	    new_args[i] = dereference_recursive(term.args[i])
-	return new CompoundTerm(term.functor, new_args);
-    }
-    return term;
-}
+var util = require('util');
 
 
 function compilePredicateClause(clause, withChoicepoint, meta)
@@ -44,7 +31,7 @@ function compilePredicateClause(clause, withChoicepoint, meta)
     }
     if (withChoicepoint)
         instructions.push({opcode: Instructions.try_me_or_next_clause});
-    compileClause(dereference_recursive(clause), instructions);
+    compileClause(clause, instructions);
     return assemble(instructions);
 }
 
@@ -169,10 +156,9 @@ function compileQuery(term)
     // We have to make a fake head with all the variables in the term. Otherwise, when we execute the body, we will get
     // b_firstvar, and the variable passed in will be destroyed
     var variables = [];
-    term = term.dereference();
     findVariables(term, variables);
     //console.log("Variables found in " + term + ":" + util.inspect(variables));
-    compileClause(new CompoundTerm(Constants.clauseFunctor, [new CompoundTerm("$query", variables), dereference_recursive(term)]), instructions);
+    compileClause(CompoundTerm.create(Constants.clauseFunctor, [CompoundTerm.create("$query", variables), term]), instructions);
     //console.log(util.inspect(code, {showHidden: false, depth: null}));
     return {clause: assemble(instructions),
             variables: variables};
@@ -180,13 +166,15 @@ function compileQuery(term)
 
 function findVariables(term, variables)
 {
-    term = term.dereference();
-    if (term instanceof VariableTerm && variables.indexOf(term) == -1)
+    term = DEREF(term);
+    if (TAGOF(term) == VariableTag && variables.indexOf(term) == -1)
         variables.push(term);
-    else if (term instanceof CompoundTerm)
+    else if (TAGOF(term) == CompoundTag)
     {
-        for (var i = 0; i < term.args.length; i++)
-            findVariables(term.args[i], variables);
+        var ftor = FUNCTOROF(term);
+        var ftor_object = CTable.get(ftor);
+        for (var i = 0; i < ftor_object.arity; i++)
+            findVariables(ARGOF(term, i), variables);
     }
 }
 
@@ -211,37 +199,37 @@ Remember that slots 0 and 1 correspond to the 2 arguments of foo/2. In the secon
 function compileClause(term, instructions)
 {
     var argSlots;
-    if (term instanceof CompoundTerm && term.functor.equals(Constants.clauseFunctor))
+    if (TAGOF(term) == CompoundTag && FUNCTOROF(term) == Constants.clauseFunctor)
     {
         // A clause
-        if (term.args[0] instanceof CompoundTerm)
-            argSlots = term.args[0].functor.arity;
+        if (TAGOF(ARGOF(term, 0)) == CompoundTag)
+            argSlots = CTable.get(FUNCTOROF(ARGOF(term,0))).arity;
         else
             argSlots = 0;
         // Now we must analyze the variables. Each variable will be given the following attributes:
         // fresh: true (this will be later altered by the compiler)
         // slot:  0..N (the location of the variable)
         var variables = {};
-        var localCutSlots = getReservedEnvironmentSlots(term.args[1])
+        var localCutSlots = getReservedEnvironmentSlots(ARGOF(term, 1));
         var context = {nextSlot:argSlots + localCutSlots};
-        analyzeVariables(term.args[0], true, 0, variables, context);
-        analyzeVariables(term.args[1], false, 1, variables, context);
-        compileHead(term.args[0], variables, instructions);
+        analyzeVariables(ARGOF(term, 0), true, 0, variables, context);
+        analyzeVariables(ARGOF(term, 1), false, 1, variables, context);
+        compileHead(ARGOF(term, 0), variables, instructions);
         instructions.push({opcode: Instructions.i_enter});
-        if (!compileBody(term.args[1], variables, instructions, true, {nextReserved:0}, -1))
+        if (!compileBody(ARGOF(term, 1), variables, instructions, true, {nextReserved:0}, -1))
         {
-            var badBody = term.args[1].dereference();
-            if (badBody instanceof CompoundTerm && badBody.functor.equals(Constants.crossModuleCallFunctor))
-                Errors.typeError(Constants.callableAtom, term.args[1].args[1]);
+            var badBody = ARGOF(term, 1);
+            if (TAGOF(badBody) == CompoundTag && FUNCTOROF(badBody) == Constants.crossModuleCallFunctor)
+                Errors.typeError(Constants.callableAtom, ARGOF(ARGOF(term, 1), 1));
             else
-                Errors.typeError(Constants.callableAtom, term.args[1]);
+                Errors.typeError(Constants.callableAtom, ARGOF(term, 1));
         }
     }
     else
     {
         // Fact. A fact obviously cannot have any cuts in it, so there is nothing to reserve space for
-        if (term instanceof CompoundTerm)
-            argSlots = term.functor.arity;
+        if (TAGOF(term) == CompoundTag)
+            argSlots = CTable.get(FUNCTOROF(term)).arity;
         else
             argSlots = 0;
         var context = {nextSlot:argSlots};
@@ -254,31 +242,31 @@ function compileClause(term, instructions)
 
 function compileHead(term, variables, instructions)
 {
-    if (term instanceof CompoundTerm)
+    if (TAGOF(term) == CompoundTag)
     {
-	for (var i = 0; i < term.functor.arity; i++)
+        var functor = CTable.get(FUNCTOROF(term));
+        for (var i = 0; i < functor.arity; i++)
 	{
-	    compileArgument(term.args[i], variables, instructions, false);
+            compileArgument(ARGOF(term, i), variables, instructions, false);
 	}
     }
 }
 
 function compileArgument(arg, variables, instructions, embeddedInTerm)
 {
-    if (arg instanceof VariableTerm)
+    if (TAGOF(arg) == VariableTag)
     {
-        if (arg.name == "_")
+        if (arg == 0) // Anonymous variable _
         {
             instructions.push({opcode: Instructions.h_void})
         }
-        else if (variables[arg.name].fresh)
+        else if (variables[arg].fresh)
         {
-	    variables[arg.name].fresh = false;
+            variables[arg].fresh = false;
 	    if (embeddedInTerm)
 	    {
                 instructions.push({opcode: Instructions.h_firstvar,
-				   name: arg.name,
-				   slot:variables[arg.name].slot});
+                                   slot:variables[arg].slot});
 	    }
 	    else
 	    {
@@ -287,34 +275,20 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
 	}
 	else
             instructions.push({opcode: Instructions.h_var,
-			       slot: variables[arg.name].slot});
+                               slot: variables[arg].slot});
     }
-    else if (arg instanceof AtomTerm)
+    else if (TAGOF(arg) == ConstantTag)
     {
         instructions.push({opcode: Instructions.h_atom,
 			   atom: arg});
     }
-    else if (arg instanceof IntegerTerm)
-    {
-        instructions.push({opcode: Instructions.h_atom,
-                           atom: arg});
-    }
-    else if (arg instanceof FloatTerm)
-    {
-        instructions.push({opcode: Instructions.h_atom,
-                           atom: arg});
-    }
-    else if (arg instanceof BigIntegerTerm)
-    {
-        instructions.push({opcode: Instructions.h_atom,
-                           atom: arg});
-    }
-    else if (arg instanceof CompoundTerm)
+    else if (TAGOF(arg) == CompoundTag)
     {
         instructions.push({opcode: Instructions.h_functor,
-			   functor: arg.functor});
-	for (var i = 0; i < arg.functor.arity; i++)
-	    compileArgument(arg.args[i], variables, instructions, true);
+                           functor: FUNCTOROF(arg)});
+        var functor = CTable.get(FUNCTOROF(arg));
+        for (var i = 0; i < functor.arity; i++)
+            compileArgument(ARGOF(arg, i), variables, instructions, true);
         instructions.push({opcode: Instructions.h_pop});
     }
 }
@@ -322,14 +296,18 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
 function compileBody(term, variables, instructions, isTailGoal, reservedContext, localCutPoint)
 {
     var rc = true;
-    if (term instanceof VariableTerm)
+    if (term != (term & 0xffffffff))
+    {
+        throw new Error();
+    }
+    if (TAGOF(term) == VariableTag)
     {
         compileTermCreation(term, variables, instructions);
         instructions.push({opcode: Instructions.i_usercall})
         if (isTailGoal)
             instructions.push({opcode: Instructions.i_exit});
     }
-    else if (term.equals(Constants.cutAtom))
+    else if (term == Constants.cutAtom)
     {
         if (localCutPoint != -1)
             instructions.push({opcode: Instructions.c_lcut,
@@ -339,12 +317,12 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
         if (isTailGoal)
             instructions.push({opcode: Instructions.i_exit});
     }
-    else if (term.equals(Constants.trueAtom))
+    else if (term == Constants.trueAtom)
     {
         if (isTailGoal)
             instructions.push({opcode: Instructions.i_exit});
     }
-    else if (term.equals(Constants.catchAtom))
+    else if (term == Constants.catchAtom)
     {
         var slot = reservedContext.nextReserved++;
         instructions.push({opcode: Instructions.i_catch,
@@ -352,25 +330,32 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
         instructions.push({opcode: Instructions.i_exitcatch,
                            slot: slot});
     }
-    else if (term.equals(Constants.failAtom))
+    else if (term == Constants.failAtom)
     {
         instructions.push({opcode: Instructions.i_fail});
     }
-    else if (term instanceof AtomTerm)
+    else if (TAGOF(term) == ConstantTag && CTable.get(term) instanceof AtomTerm)
     {
-        instructions.push({opcode: isTailGoal?Instructions.i_depart:Instructions.i_call,
-			   functor: new Functor(term, 0)});
-    }
-    else if (term instanceof CompoundTerm)
-    {
-	if (term.functor.equals(Constants.conjunctionFunctor))
-	{
-            rc &= compileBody(term.args[0], variables, instructions, false, reservedContext, localCutPoint) &&
-                compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext, localCutPoint);
-	}
-	else if (term.functor.equals(Constants.disjunctionFunctor))
+        if (CTable.get(term).value == "fail")
         {
-            if (term.args[0] instanceof CompoundTerm && term.args[0].functor.equals(Constants.localCutFunctor))
+            console.log(term & 0xffffffff);
+            console.log("Fail constant: " + Constants.failAtom);
+            console.log("Test: " + AtomTerm.get("fail"));
+            throw new Error("NO");
+        }
+        instructions.push({opcode: isTailGoal?Instructions.i_depart:Instructions.i_call,
+                           functor: Functor.get(term, 0)});
+    }
+    else if (TAGOF(term) == CompoundTag)
+    {
+        if (FUNCTOROF(term) == Constants.conjunctionFunctor)
+	{
+            rc &= compileBody(ARGOF(term, 0), variables, instructions, false, reservedContext, localCutPoint) &&
+                compileBody(ARGOF(term, 1), variables, instructions, isTailGoal, reservedContext, localCutPoint);
+	}
+        else if (FUNCTOROF(term) == Constants.disjunctionFunctor)
+        {
+            if (ARGOF(term, 0) == CompoundTag && FUNCTOROF(ARGOF(term, 0)) == Constants.localCutFunctor)
             {
                 // If-then-else
                 var ifThenElseInstruction = instructions.length;
@@ -379,19 +364,19 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
                                    slot:cutPoint,
                                    address: -1});
                 // If
-                rc &= compileBody(term.args[0].args[0], variables, instructions, false, reservedContext, cutPoint);
+                rc &= compileBody(ARGOF(ARGOF(term, 0), 0), variables, instructions, false, reservedContext, cutPoint);
                 // (Cut)
                 instructions.push({opcode: Instructions.c_cut,
                                    slot: cutPoint});
                 // Then
-                rc &= compileBody(term.args[0].args[1], variables, instructions, false, reservedContext, localCutPoint);
+                rc &= compileBody(ARGOF(ARGOF(term, 0), 1), variables, instructions, false, reservedContext, localCutPoint);
                 // (and now jump out before the Else)
                 var jumpInstruction = instructions.length;
                 instructions.push({opcode: Instructions.c_jump,
                                    address: -1});
                 // Else - we resume from here if the 'If' doesnt work out
                 instructions[ifThenElseInstruction].address = instructions.length;
-                rc &= compileBody(term.args[1], variables, instructions, false, reservedContext, localCutPoint);
+                rc &= compileBody(ARGOF(term, 1), variables, instructions, false, reservedContext, localCutPoint);
                 instructions[jumpInstruction].address = instructions.length;
             }
             else
@@ -400,12 +385,12 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
                 var orInstruction = instructions.length;
                 instructions.push({opcode: Instructions.c_or,
                                    address: -1});
-                rc &= compileBody(term.args[0], variables, instructions, false, reservedContext, localCutPoint);
+                rc &= compileBody(ARGOF(term, 0), variables, instructions, false, reservedContext, localCutPoint);
                 var jumpInstruction = instructions.length;
                 instructions.push({opcode: Instructions.c_jump,
                                    address: -1});
                 instructions[orInstruction].address = instructions.length;
-                rc &= compileBody(term.args[1], variables, instructions, isTailGoal, reservedContext, localCutPoint);
+                rc &= compileBody(ARGOF(term, 1), variables, instructions, isTailGoal, reservedContext, localCutPoint);
                 instructions[jumpInstruction].address = instructions.length;
             }
             // Finally, we need to make sure that the c_jump has somewhere to go,
@@ -413,7 +398,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
             if (isTailGoal)
                 instructions.push({opcode: Instructions.i_exit});
         }
-        else if (term.functor.equals(Constants.notFunctor))
+        else if (FUNCTOROF(term) == Constants.notFunctor)
         {
             // \+A is the same as (A -> fail ; true)
             // It is compiled to a much simpler representation though:
@@ -428,8 +413,8 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
                                slot:cutPoint,
                                address: -1});
             // If
-            if (!compileBody(term.args[0], variables, instructions, false, reservedContext, cutPoint))
-                Errors.typeError(Constants.callableAtom, term.args[0]);
+            if (!compileBody(ARGOF(term, 0), variables, instructions, false, reservedContext, cutPoint))
+                Errors.typeError(Constants.callableAtom, ARGOF(term, 0));
 
             // (Cut)
             instructions.push({opcode: Instructions.c_cut,
@@ -441,59 +426,60 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
             if (isTailGoal)
                 instructions.push({opcode: Instructions.i_exit});
         }
-	else if (term.functor.equals(Constants.throwFunctor))
+        else if (FUNCTOROF(term) == Constants.throwFunctor)
         {
-	    compileTermCreation(term.args[0], variables, instructions);
+            compileTermCreation(ARGOF(term, 0), variables, instructions);
             instructions.push({opcode: Instructions.b_throw});
 	}
-        else if (term.functor.equals(Constants.crossModuleCallFunctor))
+        else if (FUNCTOROF(term) == Constants.crossModuleCallFunctor)
         {
             instructions.push({opcode: Instructions.i_switch_module,
-                               atom: term.args[0]});
-            rc &= compileBody(term.args[1], variables, instructions, false, reservedContext, localCutPoint);
+                               atom: ARGOF(term, 0)});
+            rc &= compileBody(ARGOF(term, 1), variables, instructions, false, reservedContext, localCutPoint);
             instructions.push({opcode: Instructions.i_exitmodule});
             if (isTailGoal)
                 instructions.push({opcode: Instructions.i_exit});
 
         }
-        else if (term.functor.equals(Constants.cleanupChoicepointFunctor))
+        else if (FUNCTOROF(term) == Constants.cleanupChoicepointFunctor)
         {
-            compileTermCreation(term.args[0], variables, instructions);
-            compileTermCreation(term.args[1], variables, instructions);
+            compileTermCreation(ARGOF(term, 0), variables, instructions);
+            compileTermCreation(ARGOF(term, 1), variables, instructions);
             instructions.push({opcode: Instructions.b_cleanup_choicepoint});
 	}
 
-        else if (term.functor.equals(Constants.localCutFunctor))
+        else if (FUNCTOROF(term) == Constants.localCutFunctor)
         {
             var cutPoint = reservedContext.nextReserved++;
             instructions.push({opcode: Instructions.c_ifthen,
                                slot:cutPoint});
-            rc &= compileBody(term.args[0], variables, instructions, false, reservedContext, cutPoint);
+            rc &= compileBody(ARGOF(term, 0), variables, instructions, false, reservedContext, cutPoint);
             instructions.push({opcode: Instructions.c_cut,
                                slot: cutPoint});
-            rc &= compileBody(term.args[1], variables, instructions, false, reservedContext, localCutPoint);
+            rc &= compileBody(ARGOF(term, 1), variables, instructions, false, reservedContext, localCutPoint);
             if (isTailGoal)
                 instructions.push({opcode: Instructions.i_exit});
         }
-        else if (term.functor.equals(Constants.notUnifiableFunctor))
+        else if (FUNCTOROF(term) == Constants.notUnifiableFunctor)
         {
             // This is just \+(A=B)
-            rc &= compileBody(new CompoundTerm(Constants.notFunctor, [new CompoundTerm(Constants.unifyFunctor, [term.args[0], term.args[1]])]), variables, instructions, isTailGoal, reservedContext, localCutPoint);
+            rc &= compileBody(CompoundTerm.create(Constants.notFunctor, [CompoundTerm.create(Constants.unifyFunctor, [ARGOF(term, 0), ARGOF(term, 1)])]), variables, instructions, isTailGoal, reservedContext, localCutPoint);
         }
-	else if (term.functor.equals(Constants.unifyFunctor))
+        else if (FUNCTOROF(term) == Constants.unifyFunctor)
         {
-	    compileTermCreation(term.args[0], variables, instructions);
-	    compileTermCreation(term.args[1], variables, instructions);
+            compileTermCreation(ARGOF(term, 0), variables, instructions);
+            compileTermCreation(ARGOF(term, 1), variables, instructions);
             instructions.push({opcode: Instructions.i_unify});
 	    if (isTailGoal)
                 instructions.push({opcode: Instructions.i_exit});
 	}
 	else
         {
-	    for (var i = 0; i < term.functor.arity; i++)
-		compileTermCreation(term.args[i], variables, instructions);
+            var functor = CTable.get(FUNCTOROF(term));
+            for (var i = 0; i < functor.arity; i++)
+                compileTermCreation(ARGOF(term, i), variables, instructions);
             instructions.push({opcode: isTailGoal?Instructions.i_depart:Instructions.i_call,
-                               functor: term.functor});
+                               functor: FUNCTOROF(term)});
 	}
     }
     else
@@ -506,18 +492,19 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
 
 function compileTermCreation(term, variables, instructions)
 {
-    if (term instanceof VariableTerm)
+    //console.log("Compiling: " + term);
+    if (term == 0) console.log("Compiling null term: " + new Error().stack);
+    if (TAGOF(term) == VariableTag)
     {
-        if (term.name == "_")
+        if (term == 0) // anonymous variable _
         {
             instructions.push({opcode: Instructions.b_void});
         }
-        else if (variables[term.name].fresh)
+        else if (variables[term].fresh)
 	{
             instructions.push({opcode: Instructions.b_firstvar,
-			       name:term.name,
-			       slot:variables[term.name].slot});
-	    variables[term.name].fresh = false;
+                               slot:variables[term].slot});
+            variables[term].fresh = false;
         }
         /*
         else if (false) // FIXME: Do we need bArgVar?
@@ -530,55 +517,28 @@ function compileTermCreation(term, variables, instructions)
 	else
 	{
             instructions.push({opcode: Instructions.b_var,
-			       name:term.name,
-			       slot:variables[term.name].slot});
+                               name:term,
+                               slot:variables[term].slot});
 
 	}
     }
-    else if (term instanceof CompoundTerm)
+    else if (TAGOF(term) == CompoundTag)
     {
         instructions.push({opcode: Instructions.b_functor,
-			   functor:term.functor});
-	for (var i = 0; i < term.functor.arity; i++)
-            compileTermCreation(term.args[i], variables, instructions);
+                           functor:FUNCTOROF(term)});
+        var functor = CTable.get(FUNCTOROF(term));
+        for (var i = 0; i < functor.arity; i++)
+            compileTermCreation(ARGOF(term, i), variables, instructions);
         instructions.push({opcode: Instructions.b_pop});
     }
-    else if (term instanceof AtomTerm)
+    else if (TAGOF(term) == ConstantTag)
     {
         instructions.push({opcode: Instructions.b_atom,
 			   atom:term});
     }
-    else if (term instanceof IntegerTerm)
-    {
-        instructions.push({opcode: Instructions.b_atom,
-                           atom:term});
-
-    }
-    else if (term instanceof FloatTerm)
-    {
-        instructions.push({opcode: Instructions.b_atom,
-                           atom:term});
-
-    }
-    else if (term instanceof BigIntegerTerm)
-    {
-        instructions.push({opcode: Instructions.b_atom,
-                           atom:term});
-    }
-    else if (term instanceof RationaLTerm)
-    {
-        instructions.push({opcode: Instructions.b_atom,
-                           atom:term});
-    }
-    else if (term instanceof BlobTerm)
-    {
-        // CHECKME: This is a bit suspicious, but what do we do about open(foo, read, S), assert(bar(S)) ?
-        instructions.push({opcode: Instructions.b_atom,
-                           atom:term});
-    }
     else
     {
-        throw "Bad type: " + term.getClass();
+        throw "Bad type: " + term;
     }
 }
 
@@ -592,23 +552,23 @@ function compileTermCreation(term, variables, instructions)
 function getReservedEnvironmentSlots(term)
 {
     var slots = 0;
-    if (term instanceof CompoundTerm)
+    if (TAGOF(term) == CompoundTag)
     {
-	if (term.functor.equals(Constants.conjunctionFunctor))
+        if (FUNCTOROF(term) == Constants.conjunctionFunctor)
 	{
-            slots += getReservedEnvironmentSlots(term.args[0]);
-            slots += getReservedEnvironmentSlots(term.args[1]);
+            slots += getReservedEnvironmentSlots(ARGOF(term, 0));
+            slots += getReservedEnvironmentSlots(ARGOF(term, 1));
 	}
-	else if (term.functor.equals(Constants.disjunctionFunctor))
+        else if (FUNCTOROF(term) == Constants.disjunctionFunctor)
         {
-            slots += getReservedEnvironmentSlots(term.args[0]);
-            slots += getReservedEnvironmentSlots(term.args[1]);
+            slots += getReservedEnvironmentSlots(ARGOF(term, 0));
+            slots += getReservedEnvironmentSlots(ARGOF(term, 1));
 	}
-	else if (term.functor.equals(Constants.localCutFunctor))
+        else if (FUNCTOROF(term) == Constants.localCutFunctor)
 	{
             slots++;
-            slots += getReservedEnvironmentSlots(term.args[0]);
-            slots += getReservedEnvironmentSlots(term.args[1]);
+            slots += getReservedEnvironmentSlots(ARGOF(term, 0));
+            slots += getReservedEnvironmentSlots(ARGOF(term, 1));
         }
     }
     return slots;
@@ -618,44 +578,45 @@ function getReservedEnvironmentSlots(term)
 function analyzeVariables(term, isHead, depth, map, context)
 {
     var rc = 0;
-    if (term instanceof VariableTerm)
+    if (TAGOF(term) == VariableTag)
     {
-        if (term.name == "_") // _ is always void
+        if (term == 0) // _ is always void
             return rc;
-	if (map[term.name] === undefined)
+        if (map[term] === undefined)
 	{
-	    map[term.name] = ({variable: term,
-                               fresh: true,
-                               slot: context.nextSlot++});
+            map[term] = ({variable: term,
+                          fresh: true,
+                          slot: context.nextSlot++});
 	    rc++;
 	}
     }
-    else if (term instanceof CompoundTerm)
+    else if (TAGOF(term) == CompoundTag)
     {
+        var functor = CTable.get(FUNCTOROF(term));
 	if (isHead && depth == 0)
 	{
 	    // Reserve the first arity slots since that is where the previous
             // frame is going to write the arguments
-	    for (var i = 0; i < term.functor.arity; i++)
+            for (var i = 0; i < functor.arity; i++)
             {
-		if (term.args[i] instanceof VariableTerm)
+                if (TAGOF(ARGOF(term, i)) == VariableTag)
 		{
-		    if (map[term.args[i].name] === undefined)
+                    if (map[ARGOF(term, i)] === undefined)
 		    {
-                        map[term.args[i].name] = ({variable: term.args[i],
-						   fresh: true,
-                                                   slot: i});
+                        map[ARGOF(term, i)] = ({variable: ARGOF(term, i),
+                                                fresh: true,
+                                                slot: i});
 			rc++;
 		    }
                 }
                 else
-                    rc += analyzeVariables(term.args[i], isHead, depth+1, map, context);
+                    rc += analyzeVariables(ARGOF(term, i), isHead, depth+1, map, context);
             }
         }
         else
         {
-            for (var i = 0; i < term.functor.arity; i++)
-                rc += analyzeVariables(term.args[i], isHead, depth+1, map, context);
+            for (var i = 0; i < functor.arity; i++)
+                rc += analyzeVariables(ARGOF(term, i), isHead, depth+1, map, context);
         }
     }
     return rc;

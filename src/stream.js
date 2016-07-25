@@ -22,7 +22,7 @@ function Stream(read, write, seek, close, tell, userdata)
     this.filled_buffer_size = 0;
     this.buffer_ptr = 0;
     this.do_buffer = true;
-    this.term = new BlobTerm("stream", this);
+    this.term = BlobTerm.get("stream", this);
 }
 
 Stream.prototype.flush = function()

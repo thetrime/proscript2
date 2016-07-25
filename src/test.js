@@ -28,5 +28,5 @@ function onFail()
 
 function onError(error)
 {
-    console.log("Error: " + error.toString());
+    console.log("Error: " + PORTRAY(error));
 }

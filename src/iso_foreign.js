@@ -15,6 +15,7 @@ var Parser = require('./parser.js');
 var PrologFlag = require('./prolog_flag.js');
 var Utils = require('./utils.js');
 var Errors = require('./errors.js');
+var CTable = require('./ctable.js');
 
 
 function acyclic_term(t)
@@ -24,7 +25,7 @@ function acyclic_term(t)
     while (stack.length != 0)
     {
         var arg = stack.pop();
-        if (arg instanceof VariableTerm)
+        if (TAGOF(arg) == VariableTag)
         {
             var needle = arg.dereference();
             for (var i = 0; i < visited.length; i++)
@@ -35,11 +36,12 @@ function acyclic_term(t)
                 }
             }
         }
-        else if (arg instanceof CompoundTerm)
+        else if (TAGOF(arg) == CompoundTag)
         {
             visited.push(arg);
-            for (var i = 0; i < arg.args.length; i++)
-                stack.push(arg.args[i]);
+            var functor = CTable.get(FUNCTOROF(arg));
+            for (var i = 0; i < functor.arity; i++)
+                stack.push(ARGOF(arg, i));
         }
     }
     return true;
@@ -69,47 +71,48 @@ module.exports["\\="] = function(a, b)
 // 8.3.1 var/1
 module.exports["var"] = function(a)
 {
-    return (a instanceof VariableTerm);
+    return (TAGOF(a) == VariableTag);
 }
 // 8.3.2 atom/1
 module.exports["atom"] = function(a)
 {
-    return (a instanceof AtomTerm);
+    return (TAGOF(a) == ConstantTag && CTable.get(a) instanceof AtomTerm);
 }
 // 8.3.3 integer/1
 module.exports["integer"] = function(a)
 {
-    return (a instanceof IntegerTerm);
+    return (TAGOF(a) == ConstantTag && CTable.get(a) instanceof IntegerTerm);
 }
 // 8.3.4 float/1
 module.exports["float"] = function(a)
 {
-    return (a instanceof FloatTerm);
+    return (TAGOF(a) == ConstantTag && CTable.get(a) instanceof FloatTerm);
 }
 // 8.3.5 atomic/1
 module.exports.atomic = function(a)
 {
-    return ((a instanceof AtomTerm) ||
-            (a instanceof IntegerTerm) ||
-            (a instanceof FloatTerm));
-    // FIXME: Bignum support
+    return (TAGOF(a) == ConstantTag);
 }
 // 8.3.6 compound/1
 module.exports.compound = function(a)
 {
-    return (a instanceof CompoundTerm);
+    return (TAGOF(a) == CompoundTag);
 }
 // 8.3.7 nonvar/1
 module.exports.nonvar = function(a)
 {
-    return !(a instanceof VariableTerm);
+    return (TAGOF(a) != VariableTag);
 }
 // 8.3.8 number/1
 module.exports.number = function(a)
 {
+    if (TAGOF(a) != ConstantTag)
+        return false;
+    a = CTable.get(a);
     return ((a instanceof IntegerTerm) ||
-            (a instanceof FloatTerm));
-    // FIXME: Bignum support
+            (a instanceof FloatTerm) ||
+            (a instanceof BigIntegerTerm) ||
+            (a instanceof RationalTerm));
 }
 // 8.4.1 term-comparison
 module.exports["@=<"] = function(a, b)
@@ -139,34 +142,32 @@ module.exports["@>="] = function(a, b)
 // 8.5.1 functor/3
 module.exports.functor = function(term, name, arity)
 {
-    if (term instanceof VariableTerm)
+    if (TAGOF(term) == VariableTag)
     {
         // Construct a term
         Utils.must_be_positive_integer(arity);
         Utils.must_be_bound(name);
+        arity = CTable.get(arity);
         if (arity.value == 0)
         {
             return this.unify(term, name);
         }
         var args = new Array(arity.value);
         for (var i = 0; i < args.length; i++)
-            args[i] = new VariableTerm();
-        if (name instanceof CompoundTerm)
+            args[i] = MAKEVAR();
+        if (TAGOF(name) == CompoundTag)
             Errors.typeError(Constants.atomicAtom, name);
         Utils.must_be_atom(name);
-        return this.unify(term, new CompoundTerm(name, args));
+        return this.unify(term, CompoundTerm.create(name, args));
     }
-    if (term instanceof AtomTerm)
+    else if (TAGOF(term) == ConstantTag)
     {
-        return this.unify(name, term) && this.unify(arity, new IntegerTerm(0));
+        return this.unify(name, term) && this.unify(arity, IntegerTerm.get(0));
     }
-    if (term instanceof IntegerTerm)
+    else if (TAGOF(term) == CompoundTag)
     {
-        return this.unify(name, term) && this.unify(arity, new IntegerTerm(0));
-    }
-    if (term instanceof CompoundTerm)
-    {
-        return this.unify(name, term.functor.name) && this.unify(arity, new IntegerTerm(term.functor.arity));
+        var functor = CTable.get(FUNCTOROF(term));
+        return this.unify(name, functor.name) && this.unify(arity, IntegerTerm.get(functor.arity));
     }
     else
         Errors.typeError(Constants.compoundAtom, term);
@@ -177,52 +178,55 @@ module.exports.arg = function(n, term, arg)
     // ISO only requires the +,+,? mode
     // We also support -,+,? since the bagof implementation requires it
     Utils.must_be_bound(term);
-    if (!(term instanceof CompoundTerm))
+    if (TAGOF(term) != CompoundTag)
         Errors.typeError(Constants.compoundAtom, term);
-    if (n instanceof VariableTerm)
+    if (TAGOF(n) == VariableTag)
     {
         // -,+,? mode
+        var functor = CTable.get(FUNCTOROF(term));
         var index = this.foreign || 0;
-        if (index + 1 < term.functor.arity)
+        if (index + 1 < functor.arity)
             this.create_choicepoint(index+1);
-        if (index >= term.functor.arity)
+        if (index >= functor.arity)
             return false;
-        return (this.unify(n, new IntegerTerm(index+1)) && // arg is 1-based, but all our terms are 0-based
-                this.unify(term.args[index], arg));
+        return (this.unify(n, IntegerTerm.get(index+1)) && // arg is 1-based, but all our terms are 0-based
+                this.unify(ARGOF(term, index), arg));
     }
     else
     {
         Utils.must_be_positive_integer(n);
-        if (term.args[n.value-1] === undefined)
+        n = CTable.get(n);
+        if (n.value > CTable.get(FUNCTOROF(term)).arity)
             return false; // N is too big
-        return this.unify(term.args[n.value-1], arg);
+        if (n < 1)
+            return false;
+        return this.unify(ARGOF(term, n.value-1), arg);
     }
 }
 // 8.5.3 (=..)/2
 module.exports["=.."] = function(term, univ)
 {
     // CHECKME: More errors should be checked
-    if ((term instanceof AtomTerm) ||
-        (term instanceof IntegerTerm) ||
-        (term instanceof FloatTerm) ||
-        (term instanceof BlobTerm) ||
-        (term instanceof BigIntegerTerm) ||
-        (term instanceof RationalTerm))
+    if (TAGOF(term) == ConstantTag)
     {
         return this.unify(univ, Utils.from_list([term]));
     }
-    if (term instanceof CompoundTerm)
+    if (TAGOF(term) == CompoundTag)
     {
-        return this.unify(univ, Utils.from_list([term.functor.name].concat(term.args)));
+        var functor = CTable.get(FUNCTOROF(term));
+        var list = [functor.name];
+        for (var i = 0; i < functor.arity; i++)
+            list.push(ARGOF(term, i));
+        return this.unify(univ, Utils.from_list(list));
     }
-    if (term instanceof VariableTerm)
+    if (TAGOF(term) == VariableTag)
     {
         var list = Utils.to_list(univ);
         if (list.length == 0)
             Errors.domainError(Constants.nonEmptyListAtom, univ);
         var fname = list.shift();
         Utils.must_be_bound(fname);
-        return this.unify(term, new CompoundTerm(fname, list));
+        return this.unify(term, CompoundTerm.create(fname, list));
     }
     else
         Errors.typeError(Constants.compoundAtom, term);
@@ -237,12 +241,17 @@ module.exports.clause = function(head, body)
 {
     // FIXME: Assumes current module
     // FIXME: Should allow Module:Head
+
     // This is silly, but ok
-    if ((body instanceof IntegerTerm) || (body instanceof FloatTerm))
-        Errors.typeError(Constants.callableAtom, body);
+    if (TAGOF(body) == ConstantTag)
+    {
+        var t = CTable.get(body);
+        if ((t instanceof IntegerTerm) || (body instanceof FloatTerm))
+            Errors.typeError(Constants.callableAtom, body);
+    }
 
     var functor = Utils.head_functor(head);
-    var predicate = this.currentModule.predicates[functor.toString()];
+    var predicate = this.currentModule.predicates[functor];
     if (predicate == undefined)
         return false;
     if (predicate.foreign)
@@ -254,21 +263,21 @@ module.exports.clause = function(head, body)
     if (index + 1 < clauses.length)
         this.create_choicepoint(index+1);
     var clause = clauses[index];
-    if (clause instanceof CompoundTerm && clause.functor.equals(Constants.clauseFunctor))
-        return this.unify(clause.args[0], head) && this.unify(clause.args[1], body);
+    if (TAGOF(clause) == CompoundTag && FUNCTOROF(clause) == Constants.clauseFunctor)
+        return this.unify(ARGOF(clause, 0), head) && this.unify(ARGOF(clause, 1), body);
     else
         return this.unify(clause, head) && this.unify(Constants.trueAtom, body);
 }
 // 8.8.2 current_predicate/2
 module.exports.current_predicate = function(indicator)
 {
-    if (!(indicator instanceof VariableTerm))
+    if (TAGOF(indicator) != VariableTag)
     {
-        if (!(indicator instanceof CompoundTerm && indicator.functor.equals(Constants.predicateIndicatorFunctor)))
+        if (!(TAGOF(indicator) == CompoundTag && FUNCTOROF(indicator == Constants.predicateIndicatorFunctor)))
             Errors.typeError(Constants.predicateIndicatorAtom, indicator);
-        if (!(indicator.args[0] instanceof VariableTerm) && !(indicator.args[0] instanceof AtomTerm))
+        if (!(TAGOF(ARGOF(indicator, 0)) == VariableTag) && !(TAGOF(ARGOF(indicator, 1)) == ConstantTag && CTable.get(ARGOF(indicator, 1)) instanceof AtomTerm))
             Errors.typeError(Constants.predicateIndicatorAtom, indicator);
-        if (!(indicator.args[1] instanceof VariableTerm) && !(indicator.args[1] instanceof IntegerTerm))
+        if (!(TAGOF(ARGOF(indicator, 1) == VariableTag)) && !(TAGOF(ARGOF(indicator, 1)) == ConstantTag && CTable.get(ARGOF(indicator, 1)) instanceof IntegerTerm))
             Errors.typeError(Constants.predicateIndicatorAtom, indicator);
 
     }
@@ -281,39 +290,44 @@ module.exports.current_predicate = function(indicator)
         return false;
     if (index + 1 < keys.length)
         this.create_choicepoint(index+1);
-    return this.unify(indicator, new CompoundTerm(Constants.predicateIndicatorFunctor, [this.currentModule.predicates[keys[index]].functor.name,
-                                                                                        new IntegerTerm(this.currentModule.predicates[keys[index]].functor.arity)]));
+    return this.unify(indicator, CompoundTerm.create(Constants.predicateIndicatorFunctor, [this.currentModule.predicates[keys[index]].functor.name,
+                                                                                        IntegerTerm.get(this.currentModule.predicates[keys[index]].functor.arity)]));
 }
 // 8.9.1
 module.exports.asserta = function(term)
 {
     // FIXME: Does not take modules into account
-    this.currentModule.asserta(term);
+    this.currentModule.asserta(this.copyTerm(term));
 }
 // 8.9.2
 module.exports.assertz = function(term)
 {
     // FIXME: Does not take modules into account
-    this.currentModule.assertz(term);
+    this.currentModule.assertz(this.copyTerm(term));
 }
 // 8.9.3
 module.exports.retract = function(term)
 {
     // FIXME: Does not take modules into account
     var functor = Utils.clause_functor(term);
+    var functor_object = CTable.get(functor);
     var index = this.foreign || 0;
     var module = this.currentModule;
-    if (module.predicates[functor.toString()].dynamic !== true)
-        Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, new CompoundTerm(Constants.predicateIndicatorFunctor, [functor.name, new IntegerTerm(functor.arity)]));
-    if (index >= module.predicates[functor.toString()].clauses.length)
+    if (module.predicates[functor].dynamic !== true)
+        Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, CompoundTerm.create(Constants.predicateIndicatorFunctor, [functor_object.name, IntegerTerm.get(functor_object.arity)]));
+    if (index >= module.predicates[functor].clauses.length)
         return false;
-    if (index + 1 < module.predicates[functor.toString()].clauses.length)
+    if (index + 1 < module.predicates[functor].clauses.length)
         this.create_choicepoint(index+1);
-    if (this.unify(module.predicates[functor.toString()].clauses[index], term))
+    //console.log("Trying to unify " + PORTRAY(term) + " with clause " + index + " which is: " + PORTRAY(module.predicates[functor].clauses[index]));
+
+    if (this.unify(module.predicates[functor].clauses[index], term))
     {
+        //console.log("Found a clause (" + index + "): " + PORTRAY(term));
         module.retractClause(functor, index);
         return true;
     }
+    //console.log("Failed to unify with " + index + ": " + PORTRAY(module.predicates[functor].clauses[index]));
     // This will backtrack into the choicepoint we created just before, if the unificaiton failed
     return false;
 }
@@ -340,15 +354,18 @@ module.exports.repeat = function()
 // 8.16.1
 module.exports.atom_length = function(atom, length)
 {
-    if (atom instanceof VariableTerm)
+    if (TAGOF(atom) == VariableTag)
         Errors.instantiationError(atom)
+    if (TAGOF(atom) != ConstantTag)
+        Errors.typeError(Constants.atomAtom, atom)
+    atom = CTable.get(atom);
     if (!(atom instanceof AtomTerm))
         Errors.typeError(Constants.atomAtom, atom)
-    if (!((length instanceof IntegerTerm) || length instanceof VariableTerm))
+    if (TAGOF(length) != VariableTag && !(TAGOF(length) ==  ConstantTag && CTable.get(length) instanceof IntegerTerm))
         Errors.typeError(Constants.integerAtom, length)
-    if ((length instanceof IntegerTerm) && length.value < 0)
+    if ((TAGOF(length) ==  ConstantTag && (CTable.get(length) instanceof IntegerTerm) && CTable.get(length).value < 0))
         Errors.domainError(Constants.notLessThanZeroAtom, length)
-    return this.unify(new IntegerTerm(atom.value.length), length);
+    return this.unify(IntegerTerm.get(CTable.get(atom).value.length), length);
 }
 // 8.16.2
 module.exports.atom_concat = function(atom1, atom2, atom12)
@@ -357,32 +374,32 @@ module.exports.atom_concat = function(atom1, atom2, atom12)
     if (this.foreign === undefined)
     {
         // First call
-        if (atom1 instanceof VariableTerm && atom12 instanceof VariableTerm)
+        if (TAGOF(atom1) == VariableTag && TAGOF(atom12) == VariableTag)
             Errors.instantiationError(atom1);
-        if (atom2 instanceof VariableTerm && atom12 instanceof VariableTerm)
+        if (TAGOF(atom2) == VariableTag && TAGOF(atom12) == VariableTag)
             Errors.instantiationError(atom2);
-        if (!(atom1 instanceof VariableTerm))
+        if (TAGOF(atom1) != VariableTag)
             Utils.must_be_atom(atom1);
-        if (!(atom2 instanceof VariableTerm))
+        if (TAGOF(atom2) != VariableTag)
             Utils.must_be_atom(atom2);
-        if (!(atom12 instanceof VariableTerm))
+        if (TAGOF(atom12) != VariableTag)
             Utils.must_be_atom(atom12);
-        if (atom1 instanceof AtomTerm && atom2 instanceof AtomTerm)
+        if (TAGOF(atom1) == ConstantTag  && TAGOF(atom2) == ConstantTag)
         {
             // Deterministic case
-            return this.unify(atom12, new AtomTerm(atom1.value + atom2.value));
+            return this.unify(atom12, AtomTerm.get(CTable.get(atom1).value + CTable.get(atom2).value));
         }
         // Non-deterministic case
         index = 0;
     }
     else
         index = this.foreign;
-    if (index == atom12.value.length+1)
+    if (index == CTable.get(atom12).value.length+1)
     {
         return false;
     }
     this.create_choicepoint(index+1);
-    return this.unify(atom1, new AtomTerm(atom12.value.substring(0, index))) && this.unify(atom2, new AtomTerm(atom12.value.substring(index)));
+    return this.unify(atom1, AtomTerm.get(CTable.get(atom12).value.substring(0, index))) && this.unify(atom2, AtomTerm.get(CTable.get(atom12).value.substring(index)));
 }
 // 8.16.3
 module.exports.sub_atom = function(atom, before, length, after, subatom)
@@ -390,16 +407,16 @@ module.exports.sub_atom = function(atom, before, length, after, subatom)
     var index;
     Utils.must_be_bound(atom);
     Utils.must_be_atom(atom);
-    if (!(subatom instanceof VariableTerm))
+    if (TAGOF(subatom) != VariableTag)
         Utils.must_be_atom(subatom);
-    if (!(before instanceof VariableTerm))
+    if (TAGOF(before) != VariableTag);
         Utils.must_be_integer(before);
-    if (!(length instanceof VariableTerm))
+    if (TAGOF(length) != VariableTag)
         Utils.must_be_integer(length);
-    if (!(after instanceof VariableTerm))
+    if (TAGOF(after) != VariableTag)
         Utils.must_be_integer(after);
 
-    var input = atom.value;
+    var input = CTable.get(atom).value;
     if (this.foreign === undefined)
     {
         // First call
@@ -407,17 +424,17 @@ module.exports.sub_atom = function(atom, before, length, after, subatom)
         if (before instanceof IntegerTerm)
         {
             index.fixed_start = true;
-            index.start = before.value;
+            index.start = CTable.get(before).value;
         }
         if (length instanceof IntegerTerm)
         {
             index.fixed_length = true;
-            index.length = length.value;
+            index.length = CTable.get(length).value;
         }
         if (after instanceof IntegerTerm)
         {
             index.fixed_remaining = true;
-            index.remaining = after.value;
+            index.remaining = CTable.get(after).value;
         }
         if (index.fixed_start && index.fixed_remaining && !index.fixed_length)
         {
@@ -434,10 +451,10 @@ module.exports.sub_atom = function(atom, before, length, after, subatom)
         if (index.fixed_start && index.fixed_length)
         {
             // Deterministic general case.
-            return this.unify(after, new IntegerTerm(input.length-index.start-index.length)) &&
-                this.unify(before, new IntegerTerm(index.start)) &&
-                this.unify(length, new IntegerTerm(index.length)) &&
-                this.unify(subatom, new AtomTerm(input.substring(index.start, index.start+index.length)));
+            return this.unify(after, IntegerTerm.get(input.length-index.start-index.length)) &&
+                this.unify(before, IntegerTerm.get(index.start)) &&
+                this.unify(length, IntegerTerm.get(index.length)) &&
+                this.unify(subatom, AtomTerm.get(input.substring(index.start, index.start+index.length)));
         }
     }
     else
@@ -479,15 +496,15 @@ module.exports.sub_atom = function(atom, before, length, after, subatom)
     }
     // Make a new choicepoint
     this.create_choicepoint(index);
-    return this.unify(after, new IntegerTerm(input.length-index.start-index.length)) &&
-        this.unify(before, new IntegerTerm(index.start)) &&
-        this.unify(length, new IntegerTerm(index.length)) &&
-        this.unify(subatom, new AtomTerm(input.substring(index.start, index.start+index.length)));
+    return this.unify(after, IntegerTerm.get(input.length-index.start-index.length)) &&
+        this.unify(before, IntegerTerm.get(index.start)) &&
+        this.unify(length, IntegerTerm.get(index.length)) &&
+        this.unify(subatom, AtomTerm.get(input.substring(index.start, index.start+index.length)));
 }
 // 8.16.4
 module.exports.atom_chars = function(atom, chars)
 {
-    if (atom instanceof VariableTerm)
+    if (TAGOF(atom) == VariableTag)
     {
         // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
         var head = chars;
@@ -495,26 +512,27 @@ module.exports.atom_chars = function(atom, chars)
         while(true)
         {
             Utils.must_be_bound(head);
-            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            if (TAGOF(head) == CompoundTag && FUNCTOROF(head) == Constants.listFunctor)
             {
-                Utils.must_be_character(head.args[0]);
-                buffer += head.args[0].value;
-                head = head.args[1];
+                Utils.must_be_character(ARGOF(head, 0));
+                buffer += CTable.get(ARGOF(head, 0)).value;
+                head = ARGOF(head, 1);
             }
-            else if (head.equals(Constants.emptyListAtom))
+            else if (head == Constants.emptyListAtom)
             {
                 break;
             }
             else
                 Errors.typeError(Constants.listAtom, chars);
         }
-        return this.unify(atom, new AtomTerm(buffer));
+        return this.unify(atom, AtomTerm.get(buffer));
     }
-    else if (atom instanceof AtomTerm)
+    else if (TAGOF(atom) == ConstantTag && CTable.get(atom) instanceof AtomTerm)
     {
         var list = [];
-        for (var i = 0; i < atom.value.length; i++)
-            list.push(new AtomTerm(atom.value[i]));
+        var buffer = CTable.get(atom).value;
+        for (var i = 0; i < buffer.length; i++)
+            list.push(AtomTerm.get(buffer[i]));
         return this.unify(Utils.from_list(list), chars);
     }
     Errors.typeError(Constants.atomAtom, atom);
@@ -522,35 +540,37 @@ module.exports.atom_chars = function(atom, chars)
 // 8.16.5
 module.exports.atom_codes = function(atom, codes)
 {
-    if (atom instanceof VariableTerm)
+    if (TAGOF(atom) == VariableTag)
     {
         var head = codes;
         var buffer = '';
         Utils.must_be_bound(codes);
         while(true)
         {
-            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            if (TAGOF(head) == CompoundTag && FUNCTOROF(head) == Constants.listFunctor)
             {
-                if (head.args[0] instanceof IntegerTerm && head.args[0].value >= 0)
-                    buffer += String.fromCharCode(head.args[0].value);
+                var h = ARGOF(head, 0);
+                if (TAGOF(h) == ConstantTag && CTable.get(h) instanceof IntegerTerm && CTable.get(h).value >= 0)
+                    buffer += String.fromCharCode(CTable.get(h).value);
                 else
-                    Errors.representationError(Constants.characterCodeAtom, head.args[0]);
-                head = head.args[1];
+                    Errors.representationError(Constants.characterCodeAtom, h);
+                head = ARGOF(head, 1);
             }
-            else if (head.equals(Constants.emptyListAtom))
+            else if (head == Constants.emptyListAtom)
             {
                 break;
             }
             else
                 Errors.typeError(Constants.listAtom, codes);
         }
-        return this.unify(atom, new AtomTerm(buffer));
+        return this.unify(atom, AtomTerm.get(buffer));
     }
-    else if (atom instanceof AtomTerm)
+    else if (TAGOF(atom) == ConstantTag && CTable.get(atom) instanceof AtomTerm)
     {
         var list = [];
-        for (var i = 0; i < atom.value.length; i++)
-            list.push(new IntegerTerm(atom.value.charCodeAt(i)));
+        var buffer = CTable.get(atom).value;
+        for (var i = 0; i < buffer.length; i++)
+            list.push(IntegerTerm.get(buffer.charCodeAt(i)));
         return this.unify(Utils.from_list(list), codes);
     }
     Errors.typeError(Constants.atomAtom, atom);
@@ -558,48 +578,50 @@ module.exports.atom_codes = function(atom, codes)
 // 8.16.6
 module.exports.char_code = function(c, code)
 {
-    if ((code instanceof VariableTerm) && (c instanceof VariableTerm))
+    if ((TAGOF(code) == VariableTag) && (TAGOF(c) == VariableTag))
     {
         Errors.instantiationError(code);
     }
-    if (c instanceof AtomTerm)
+    else if (TAGOF(c) == ConstantTag && CTable.get(c) instanceof AtomTerm)
     {
-        if (!(code instanceof VariableTerm))
+        if (TAGOF(code) != VariableTag)
             Utils.must_be_positive_integer(code);
-        if (c.value.length != 1)
+        c_obj = CTable.get(c);
+        if (c_obj.value.length != 1)
             Errors.typeError(Constants.characterAtom, c);
         if ((code instanceof VariableTerm) || (code instanceof IntegerTerm))
-            return this.unify(new IntegerTerm(c.value.charCodeAt(0)), code);
+            return this.unify(IntegerTerm.get(c_obj.value.charCodeAt(0)), code);
         Errors.representationError(Constants.characterCodeAtom, code);
     }
     Utils.must_be_bound(code);
     Utils.must_be_integer(code);
-    if (code.value < 0)
+    var code_obj = CTable.get(code);
+    if (code_obj.value < 0)
         Errors.representationError(Constants.characterCodeAtom, code);
-    return this.unify(new AtomTerm(String.fromCharCode(code.value)), c);
+    return this.unify(AtomTerm.get(String.fromCharCode(code_obj.value)), c);
 }
 // 8.16.7
 module.exports.number_chars = function(number, chars)
 {
-    if (!(chars instanceof VariableTerm))
+    if (TAGOF(chars) != VariableTag)
     {
         // We have to try this first since for a given number there could be many possible values for chars. Consider 3E+0, 3.0 etc
         var list = chars;
         var head;
         var string = "";
-        while (list instanceof CompoundTerm && list.functor.equals(Constants.listFunctor))
+        while (TAGOF(list) == CompoundTag && FUNCTOROF(list) == Constants.listFunctor)
         {
-            head = list.args[0].dereference();
+            head = ARGOF(list, 0);
             Utils.must_be_character(head);
-            string += head.value;
-            list = list.args[1].dereference();
+            string += CTable.get(head).value;
+            list = ARGOF(list, 1);
         }
-        if (!list.equals(Constants.emptyListAtom))
+        if (list != Constants.emptyListAtom)
             Errors.typeError(Constants.listAtom, chars);
         return this.unify(number, Parser.tokenToNumericTerm(string));
 
     }
-    if (number instanceof VariableTerm)
+    if (TAGOF(number) == VariableTag)
     {
         // Error if chars is not ground (instantiation error) or not a list (type_error(list)) or an element is not a one-char atom (type_error(character))
         Utils.must_be_bound(chars);
@@ -607,15 +629,16 @@ module.exports.number_chars = function(number, chars)
         var buffer = '';
         while(true)
         {
-            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            if (TAGOF(head) == CompoundTag && FUNCTOROF(head) == Constants.listFunctor)
             {
-                if (head.args[0] instanceof AtomTerm && head.args[0].value.length == 1)
-                    buffer += head.args[0].value;
+                var h = ARGOF(head, 0);
+                if (TAGOF(h) == ConstantTag && CTable.get(h) instanceof AtomTerm && CTable.get(h).value.length == 1)
+                    buffer += CTable.get(h).value;
                 else
-                    Errors.typeError(Constants.characterAtom, head.args[0]);
-                head = head.args[1];
+                    Errors.typeError(Constants.characterAtom, h);
+                head = ARGOF(head, 1);
             }
-            else if (head.equals(Constants.emptyListAtom))
+            else if (head == Constants.emptyListAtom)
             {
                 break;
             }
@@ -627,54 +650,59 @@ module.exports.number_chars = function(number, chars)
             Errors.syntaxError(Constants.illegalNumberAtom);
         return this.unify(number, Parser.numberToken(buffer));
     }
-    else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
+    else if (TAGOF(number) == ConstantTag)
     {
-        var string = String(number.value);
-        if (number instanceof FloatTerm && parseInt(number.value) == number.value)
-            string += ".0";
-        var list = [];
-        for (var i = 0; i < string.length; i++)
-            list.push(new AtomTerm(string[i]));
-        return this.unify(Utils.from_list(list), chars);
+        var n = CTable.get(number);
+        if ((n instanceof IntegerTerm) || (number instanceof FloatTerm))
+        {
+            var string = String(n.value);
+            if (n instanceof FloatTerm && parseInt(n.value) == n.value)
+                string += ".0";
+            var list = [];
+            for (var i = 0; i < string.length; i++)
+                list.push(AtomTerm.get(string[i]));
+            return this.unify(Utils.from_list(list), chars);
+        }
     }
     Errors.typeError(Constants.numberAtom, number);
 }
 // 8.16.8
 module.exports.number_codes = function(number, codes)
 {
-    if (!(codes instanceof VariableTerm))
+    if (TAGOF(codes) != VariableTag)
     {
         // We have to try this first since for a given number there could be many possible values for codes. Consider 3E+0, 3.0 etc
         var list = codes;
         var head;
         var string = "";
-        while (list instanceof CompoundTerm && list.functor.equals(Constants.listFunctor))
+        while (TAGOF(list) == CompoundTag && FUNCTOROF(list) == Constants.listFunctor)
         {
-            head = list.args[0].dereference();
+            head = ARGOF(list, 0);
             Utils.must_be_character_code(head);
-            string += String.fromCharCode(head.value);
-            list = list.args[1].dereference();
+            string += String.fromCharCode(CTable.get(head).value);
+            list = ARGOF(list, 1);
         }
-        if (!list.equals(Constants.emptyListAtom))
+        if (list != Constants.emptyListAtom)
             Errors.typeError(Constants.listAtom, codes);
         return this.unify(number, Parser.tokenToNumericTerm(string));
     }
-    if (number instanceof VariableTerm)
+    if (TAGOF(number) == VariableTag)
     {
         var head = codes;
         var buffer = '';
         Utils.must_be_bound(codes);
         while(true)
         {
-            if (head instanceof CompoundTerm && head.functor.equals(Constants.listFunctor))
+            if (TAGOF(head) == CompoundTag && FUNCTOROF(head) == Constants.listFunctor)
             {
-                if (head.args[0] instanceof IntegerTerm)
-                    buffer += String.fromCharCode(head.args[0].value);
+                var h0 = ARGOF(head, 0);
+                if (TAGOF(h0) == ConstantTag && CTable.get(h0) instanceof IntegerTerm)
+                    buffer += String.fromCharCode(CTable.get(h0).value);
                 else
-                    Errors.representationError(Constants.characterCodeAtom, head.args[0]);
-                head = head.args[1];
+                    Errors.representationError(Constants.characterCodeAtom, h0);
+                head = ARGOF(head, 1);
             }
-            else if (head.equals(Constants.emptyListAtom))
+            else if (head ==Constants.emptyListAtom)
             {
                 break;
             }
@@ -686,15 +714,19 @@ module.exports.number_codes = function(number, codes)
             Errors.syntaxError(Constants.illegalNumberAtom);
         return this.unify(number, Parser.numberToken(buffer));
     }
-    else if ((number instanceof IntegerTerm) || (number instanceof FloatTerm))
+    else if (TAGOF(number) == ConstantTag)
     {
-        var string = String(number.value);
-        if (number instanceof FloatTerm && parseInt(number.value) == number.value)
-            string += ".0";
-        var list = [];
-        for (var i = 0; i < string.length; i++)
-            list.push(new IntegerTerm(string.charCodeAt(i)));
-        return this.unify(Utils.from_list(list), codes);
+        var n = CTable.get(number);
+        if ((n instanceof IntegerTerm) || (number instanceof FloatTerm))
+        {
+            var string = String(n.value);
+            if (n instanceof FloatTerm && parseInt(n.value) == n.value)
+                string += ".0";
+            var list = [];
+            for (var i = 0; i < string.length; i++)
+                list.push(IntegerTerm.get(string.charCodeAt(i)));
+            return this.unify(Utils.from_list(list), codes);
+        }
     }
     Errors.typeError(Constants.numberAtom, number);
 }
@@ -706,7 +738,7 @@ module.exports.set_prolog_flag = function(flag, value)
     Utils.must_be_atom(flag);
     for (var i = 0; i < PrologFlag.flags.length; i++)
     {
-        if (PrologFlag.flags[i].name == flag.value)
+        if (PrologFlag.flags[i].name == CTable.get(flag).value)
         {
             PrologFlag.flags[i].fn(true, value);
             return true;
@@ -717,7 +749,7 @@ module.exports.set_prolog_flag = function(flag, value)
 // 8.17.2
 module.exports.current_prolog_flag = function(flag, value)
 {
-    if (flag instanceof VariableTerm)
+    if (TAGOF(flag) == VariableTag)
     {
         // Search case
         var index;
@@ -729,14 +761,15 @@ module.exports.current_prolog_flag = function(flag, value)
             return false;
         if (index+1 < PrologFlag.flags.length)
             this.create_choicepoint(index+1);
-        return this.unify(flag, new AtomTerm(PrologFlag.flags[index].name)) && this.unify(value, PrologFlag.flags[index].fn(false, null));
+        return this.unify(flag, AtomTerm.get(PrologFlag.flags[index].name)) && this.unify(value, PrologFlag.flags[index].fn(false, null));
     }
-    else if (flag instanceof AtomTerm)
+    else if (TAGOF(flag) == ConstantTag && CTable.get(flag) instanceof AtomTerm)
     {
         // Lookup case
+        var f = CTable.get(flag);
         for (var i = 0; i < PrologFlag.flags.length; i++)
         {
-            if (PrologFlag.flags[i].name == flag.value)
+            if (PrologFlag.flags[i].name == f.value)
             {
                 return this.unify(value, PrologFlag.flags[i].fn(false, null));
             }

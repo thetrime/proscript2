@@ -13,6 +13,8 @@ var Rational = require('./rational.js');
 var RationalTerm = require('./rational_term.js');
 var Errors = require('./errors.js');
 var Utils = require('./utils.js');
+var CTable = require('./ctable.js');
+var util = require('util');
 
 
 var strict_iso = false;
@@ -28,12 +30,12 @@ function evaluate_args(args)
     return evaluated;
 }
 
-function toFloats(args)
+function toFloats(args) // Takes an array of Objects and returns an array of primitive floats
 {
     var floats = new Array(args.length);
     for (var i = 0; i < args.length; i++)
     {
-        var v = evaluate_expression(args[i]);
+        var v = args[i];
         if (v instanceof IntegerTerm || v instanceof FloatTerm)
             floats[i] = Number(v.value);
         else if (v instanceof BigIntegerTerm)
@@ -46,12 +48,12 @@ function toFloats(args)
     return floats;
 }
 
-function toBigIntegers(args)
+function toBigIntegers(args) // Takes an array of Objects and returns an array of BigIntegers
 {
     var bi = new Array(args.length);
     for (var i = 0; i < args.length; i++)
     {
-        var v = evaluate_expression(args[i]);
+        var v = args[i];
         if (v instanceof IntegerTerm)
             bi[i] = new BigInteger(v.value);
         else if (v instanceof BigIntegerTerm)
@@ -62,7 +64,7 @@ function toBigIntegers(args)
     return bi;
 }
 
-function toRationals(args)
+function toRationals(args) // Takes an array of Objects and returns an array of Rationals
 {
     var r = new Array(args.length);
     for (var i = 0; i < args.length; i++)
@@ -83,15 +85,20 @@ function toRationals(args)
 
 function evaluate_expression(a)
 {
-    if ((a instanceof IntegerTerm) || (a instanceof FloatTerm) || (a instanceof BigIntegerTerm) || (a instanceof RationalTerm))
-        return a;
-    if (a instanceof VariableTerm)
+    if (TAGOF(a) == VariableTag)
         Errors.instantiationError(a);
-    if (a instanceof CompoundTerm)
+    else if (TAGOF(a) == ConstantTag)
     {
-        if (a.functor.equals(Constants.addFunctor))
+        var ao = CTable.get(a);
+        if ((ao instanceof IntegerTerm) || (ao instanceof FloatTerm) || (ao instanceof BigIntegerTerm) || (ao instanceof RationalTerm))
+            return ao;
+        Errors.typeError(Constants.evaluableAtom, Utils.predicate_indicator(a));
+    }
+    else if (TAGOF(a) == CompoundTag)
+    {
+        if (FUNCTOROF(a) == Constants.addFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             var target = commonType(arg[0], arg[1]);
             switch(target)
             {
@@ -99,7 +106,7 @@ function evaluate_expression(a)
                 {
                     var result = arg[0] + arg[1];
                     if (result == ~~result)
-                        return new IntegerTerm(result);
+                        return CTable.get(IntegerTerm.get(result));
                     if (!is_unbounded)
                         Errors.integerOverflow();
                     // Fall-through and try again
@@ -107,7 +114,7 @@ function evaluate_expression(a)
                 case "bigint":
                 {
                     var bi = toBigIntegers(arg);
-                    return NumericTerm.get(bi[0].add(bi[1]));
+                    return CTable.get(NumericTerm.get(bi[0].add(bi[1])));
                 }
                 case "float":
                 {
@@ -115,18 +122,18 @@ function evaluate_expression(a)
                     var result = f[0] + f[1];
                     if ((result == Infinity) || (result == -Infinity))
                         Errors.floatOverflow();
-                    return new FloatTerm(result);
+                    return CTable.get(FloatTerm.get(result));
                 }
                 case "rational":
                 {
                     var r = toRationals(arg);
-                    return NumericTerm.get(r[0].add(r[1]));
+                    return CTable.get(NumericTerm.get(r[0].add(r[1])));
                 }
             }
         }
-        else if (a.functor.equals(Constants.subtractFunctor))
+        else if (FUNCTOROF(a) == Constants.subtractFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             var target = commonType(arg[0], arg[1]);
             switch(target)
             {
@@ -134,7 +141,7 @@ function evaluate_expression(a)
                 {
                     var result = arg[0] - arg[1];
                     if (result == ~~result)
-                        return new IntegerTerm(result);
+                        return CTable.get(IntegerTerm.get(result));
                     if (!is_unbounded)
                         Errors.integerOverflow();
                     // Fall-through and try again
@@ -142,7 +149,7 @@ function evaluate_expression(a)
                 case "bigint":
                 {
                     var bi = toBigIntegers(arg);
-                    return NumericTerm.get(bi[0].subtract(bi[1]));
+                    return CTable.get(NumericTerm.get(bi[0].subtract(bi[1])));
                 }
                 case "float":
                 {
@@ -150,18 +157,18 @@ function evaluate_expression(a)
                     var result = f[0] - f[1];
                     if ((result == Infinity) || (result == -Infinity))
                         Errors.floatOverflow();
-                    return new FloatTerm(result);
+                    return CTable.get(FloatTerm.get(result));
                 }
                 case "rational":
                 {
                     var r = toRationals(arg);
-                    return NumericTerm.get(r[0].subtract(r[1]));
+                    return CTable.get(NumericTerm.get(r[0].subtract(r[1])));
                 }
             }
         }
-        else if (a.functor.equals(Constants.multiplyFunctor))
+        else if (FUNCTOROF(a) == Constants.multiplyFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             var target = commonType(arg[0], arg[1]);
             switch(target)
             {
@@ -169,7 +176,7 @@ function evaluate_expression(a)
                 {
                     var result = arg[0] * arg[1];
                     if (result == ~~result)
-                        return new IntegerTerm(result);
+                        return CTable.get(IntegerTerm.get(result));
                     if (!is_unbounded)
                         Errors.integerOverflow();
                     // Fall-through and try again
@@ -177,7 +184,7 @@ function evaluate_expression(a)
                 case "bigint":
                 {
                     var bi = toBigIntegers(arg);
-                    return NumericTerm.get(bi[0].multiply(bi[1]));
+                    return CTable.get(NumericTerm.get(bi[0].multiply(bi[1])));
                 }
                 case "float":
                 {
@@ -185,18 +192,18 @@ function evaluate_expression(a)
                     var result = f[0] * f[1];
                     if ((result == Infinity) || (result == -Infinity))
                         Errors.floatOverflow();
-                    return new FloatTerm(result);
+                    return CTable.get(FloatTerm.get(result));
                 }
                 case "rational":
                 {
                     var r = toRationals(arg);
-                    return NumericTerm.get(r[0].multiply(r[1]));
+                    return CTable.get(NumericTerm.get(r[0].multiply(r[1])));
                 }
             }
         }
-        else if (a.functor.equals(Constants.intDivFunctor))
+        else if (FUNCTOROF(a) == Constants.intDivFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             if (!(arg[0] instanceof IntegerTerm || arg[0] instanceof BigIntegerTerm))
                 Errors.typeError(Constants.integerAtom, arg[0]);
             if (!(arg[1] instanceof IntegerTerm || arg[1] instanceof BigIntegerTerm))
@@ -205,7 +212,7 @@ function evaluate_expression(a)
             {
                 if (arg[1].value == 0)
                     Errors.zeroDivisor();
-                return new IntegerTerm(Math.trunc(arg[0] / arg[1]));
+                return CTable.get(IntegerTerm.get(Math.trunc(arg[0] / arg[1])));
             }
             else
             {
@@ -215,15 +222,15 @@ function evaluate_expression(a)
                 return new BigIntegerTerm(bi[0].divide(bi[1]));
             }
         }
-        else if (a.functor.equals(Constants.divisionFunctor))
+        else if (FUNCTOROF(a) == Constants.divisionFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             if (arg[0] instanceof RationalTerm || arg[1] instanceof RationalTerm)
             {
                 // Rational
                 var r = toRationals(arg);
                 var res = r[0].divide(r[1]);
-                return NumericTerm.get(res);
+                return CTable.get(NumericTerm.get(res));
             }
             else
             {
@@ -234,12 +241,12 @@ function evaluate_expression(a)
                 var result = d[0] / d[1];
                 if (result == Infinity || result == -Infinity)
                     Errors.floatOverflow();
-                return new FloatTerm(result);
+                return CTable.get(FloatTerm.get(result));
             }
         }
-        else if (a.functor.equals(Constants.remainderFunctor))
+        else if (FUNCTOROF(a) == Constants.remainderFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             if (!(arg[0] instanceof IntegerTerm || arg[0] instanceof BigIntegerTerm))
                 Errors.typeError(Constants.integerAtom, arg[0]);
             if (!(arg[1] instanceof IntegerTerm || arg[1] instanceof BigIntegerTerm))
@@ -248,17 +255,17 @@ function evaluate_expression(a)
             {
                 if (arg[1].value == 0)
                     Errors.zeroDivisor();
-                return new IntegerTerm(arg[0] % arg[1]);
+                return CTable.get(IntegerTerm.get(arg[0] % arg[1]));
             }
             else
             {
                 var bi = toBigIntegers(arg);
-                return NumericTerm.get(bi[0].remainder(bi[1]));
+                return CTable.get(NumericTerm.get(bi[0].remainder(bi[1])));
             }
         }
-        else if (a.functor.equals(Constants.moduloFunctor))
+        else if (FUNCTOROF(a) == Constants.moduloFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             if (!(arg[0] instanceof IntegerTerm || arg[0] instanceof BigIntegerTerm))
                 Errors.typeError(Constants.integerAtom, arg[0]);
             if (!(arg[1] instanceof IntegerTerm || arg[1] instanceof BigIntegerTerm))
@@ -267,17 +274,17 @@ function evaluate_expression(a)
             {
                 if (arg[1].value == 0)
                     Errors.zeroDivisor();
-                return new IntegerTerm(arg[0].value - Math.floor(arg[0].value / arg[1].value) * arg[1].value);
+                return CTable.get(IntegerTerm.get(arg[0].value - Math.floor(arg[0].value / arg[1].value) * arg[1].value));
             }
             else
             {
                 var bi = toBigIntegers(arg);
-                return NumericTerm.get(bi[0].mod(bi[1]));
+                return CTable.get(NumericTerm.get(bi[0].mod(bi[1])));
             }
         }
-        else if (a.functor.equals(Constants.negateFunctor))
+        else if (FUNCTOROF(a) == Constants.negateFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof IntegerTerm)
             {
                 if (arg[0] == Number.MIN_SAFE_INTEGER)
@@ -286,14 +293,14 @@ function evaluate_expression(a)
                         return new BigIntegerTerm(new BigInteger(arg[0].value).negate())
                     Errors.integerOverflow();
                 }
-                return new IntegerTerm(-arg[0].value);
+                return CTable.get(IntegerTerm.get(-arg[0].value));
             }
             else if (arg[0] instanceof FloatTerm)
             {
                 var result = -arg[0].value;
                 if (result == Infinity || result == -Infinity)
                     Errors.floatOverflow();
-                return new FloatTerm(result);
+                return CTable.get(FloatTerm.get(result));
             }
             else if (arg[0] instanceof BigIntegerTerm)
             {
@@ -304,39 +311,39 @@ function evaluate_expression(a)
                 return new RationalTerm(arg[0].value.negate());
             }
         }
-        else if (a.functor.equals(Constants.absFunctor))
+        else if (FUNCTOROF(a) == Constants.absFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             var t = arg[0];
             if ((t instanceof IntegerTerm) || (t instanceof FloatTerm))
             {
-                return new IntegerTerm(Math.abs(t));
+                return CTable.get(IntegerTerm.get(Math.abs(t)));
             }
             else if ((t instanceof BigIntegerTerm) || (t instanceof RationalTerm))
             {
-                return NumericTerm.get(t.abs());
+                return CTable.get(NumericTerm.get(t.abs()));
             }
         }
-        else if (a.functor.equals(Constants.signFunctor))
+        else if (FUNCTOROF(a) == Constants.signFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             var t = arg[0];
             if ((t instanceof IntegerTerm) || (t instanceof FloatTerm))
             {
                 if (t.value == 0)
-                    return new IntegerTerm(0);
+                    return CTable.get(IntegerTerm.get(0));
                 else if (t.value > 0)
-                    return new IntegerTerm(1);
-                return new IntegerTerm(0);
+                    return CTable.get(IntegerTerm.get(1));
+                return CTable.get(IntegerTerm.get(0));
             }
             else if ((t instanceof BigIntegerTerm) || (t instanceof RationalTerm))
             {
-                return new IntegerTerm(t.signum());
+                return CTable.get(IntegerTerm.get(t.signum()));
             }
         }
-        else if (a.functor.equals(Constants.floatIntegerPartFunctor))
+        else if (FUNCTOROF(a) == Constants.floatIntegerPartFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof IntegerTerm || arg[0] instanceof BigIntegerTerm)
             {
                 if (strict_iso)
@@ -346,26 +353,26 @@ function evaluate_expression(a)
             else if (arg[0] instanceof FloatTerm)
             {
                 var sign = arg[0].value >= 0 ? 1 : -1;
-                return new FloatTerm(sign * Math.floor(Math.abs(arg[0].value)));
+                return CTable.get(FloatTerm.get(sign * Math.floor(Math.abs(arg[0].value))));
             }
             else if (arg[0] instanceof RationalTerm)
             {
                 return new BigIntegerTerm(arg[0].value.numerator.divide(arg[0].value.denominator));
             }
         }
-        else if (a.functor.equals(Constants.floatFractionPartFunctor))
+        else if (FUNCTOROF(a) == Constants.floatFractionPartFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof IntegerTerm || arg[0] instanceof BigIntegerTerm)
             {
                 if (strict_iso)
                     typeError(Constants.floatAtom, arg[0]);
-                return new IntegerTerm(0);
+                return CTable.get(IntegerTerm.get(0));
             }
             else if (arg[0] instanceof FloatTerm)
             {
                 var sign = arg[0].value >= 0 ? 1 : -1;
-                return new FloatTerm(arg[0].value - (sign * Math.floor(Math.abs(arg[0].value))));
+                return CTable.get(FloatTerm.get(arg[0].value - (sign * Math.floor(Math.abs(arg[0].value)))));
             }
             else if (arg[0] instanceof RationalTerm)
             {
@@ -374,24 +381,24 @@ function evaluate_expression(a)
                 return new RationalTerm(arg[0].value.subtract(r));
             }
         }
-        else if (a.functor.equals(Constants.floatFunctor))
+        else if (FUNCTOROF(a) == Constants.floatFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof FloatTerm)
                 return new arg[0];
             if (arg[0] instanceof IntegerTerm)
-                return new FloatTerm(arg[0].value);
+                return CTable.get(FloatTerm.get(arg[0].value));
             else if (a instanceof BigIntegerTerm && !strict_iso)
                 return arg[0].toFloat();
             else if (arg[0] instanceof RationalTerm && !strict_iso)
                 return arg[0].toFloat();
             Errors.typeError(Constants.numberAtom, arg[0]);
         }
-        else if (a.functor.equals(Constants.floorFunctor))
+        else if (FUNCTOROF(a) == Constants.floorFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof FloatTerm)
-                return new IntegerTerm(Math.floor(arg[0].value));
+                return CTable.get(IntegerTerm.get(Math.floor(arg[0].value)));
             if (arg[0] instanceof IntegerTerm && !strict_iso)
                 return arg[0];
             else if (a instanceof BigIntegerTerm && !strict_iso)
@@ -400,11 +407,11 @@ function evaluate_expression(a)
                 return arg[0].truncate(); // FIXME: No?
             Errors.typeError(Constants.floatAtom, arg[0]);
         }
-        else if (a.functor.equals(Constants.truncateFunctor))
+        else if (FUNCTOROF(a) == Constants.truncateFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof FloatTerm)
-                return new IntegerTerm(Math.trunc(arg[0].value));
+                return CTable.get(IntegerTerm.get(Math.trunc(arg[0].value)));
             if (arg[0] instanceof IntegerTerm && !strict_iso)
                 return arg[0];
             else if (a instanceof BigIntegerTerm && !strict_iso)
@@ -413,11 +420,11 @@ function evaluate_expression(a)
                 return arg[0].truncate();
             Errors.typeError(Constants.floatAtom, arg[0]);
         }
-        else if (a.functor.equals(Constants.roundFunctor))
+        else if (FUNCTOROF(a) == Constants.roundFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof FloatTerm)
-                return new IntegerTerm(Math.round(arg[0].value));
+                return CTable.get(IntegerTerm.get(Math.round(arg[0].value)));
             if (arg[0] instanceof IntegerTerm && !strict_iso)
                 return arg[0];
             else if (a instanceof BigIntegerTerm && !strict_iso)
@@ -426,11 +433,11 @@ function evaluate_expression(a)
                 return arg[0].round();
             Errors.typeError(Constants.floatAtom, arg[0]);
         }
-        else if (a.functor.equals(Constants.ceilingFunctor))
+        else if (FUNCTOROF(a) == Constants.ceilingFunctor)
         {
-            var arg  = evaluate_args(a.args);
+            var arg  = evaluate_args([ARGOF(a,0)]);
             if (arg[0] instanceof FloatTerm)
-                return new IntegerTerm(Math.ceil(arg[0].value));
+                return CTable.get(IntegerTerm.get(Math.ceil(arg[0].value)));
             if (arg[0] instanceof IntegerTerm && !strict_iso)
                 return arg[0];
             else if (a instanceof BigIntegerTerm && !strict_iso)
@@ -440,13 +447,13 @@ function evaluate_expression(a)
             Errors.typeError(Constants.floatAtom, arg[0]);
         }
         // Can add in extensions here, otherwise we fall through to the evaluableError below
-        else if (a.functor.equals(Constants.exponentiationFunctor))
+        else if (FUNCTOROF(a) == Constants.exponentiationFunctor)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             if (arg[0] instanceof FloatTerm || arg[1] instanceof FloatTerm)
             {
                 var f = toFloats(arg);
-                return new FloatTerm(Math.pow(f[0], f[1]));
+                return CTable.get(FloatTerm.get(Math.pow(f[0], f[1])));
             }
             else if (arg[0] instanceof IntegerTerm)
             {
@@ -454,7 +461,7 @@ function evaluate_expression(a)
                 {
                     var attempt = Math.pow(arg[0], arg[1]);
                     if (attempt == ~~attempt) // no loss of precision
-                        return new IntegerTerm(attempt);
+                        return CTable.get(IntegerTerm.get(attempt));
                     return new BigIntegerTerm(new BigInteger(arg[0].value).pow(arg[1]));
                 }
                 if (arg[1] instanceof BigIntegerTerm)
@@ -484,18 +491,17 @@ function evaluate_expression(a)
                 throw new Error("Not implemented");
             }
         }
-        else if (a.functor.equals(Constants.rdivFunctor) && !strict_iso)
+        else if (FUNCTOROF(a) == Constants.rdivFunctor && !strict_iso)
         {
-            var arg = evaluate_args(a.args);
+            var arg = evaluate_args([ARGOF(a,0), ARGOF(a,1)]);
             if (!(arg[0] instanceof IntegerTerm || arg[0] instanceof BigIntegerTerm))
                 Errors.typeError(Constants.integerAtom, arg[0]);
             if (!(arg[1] instanceof IntegerTerm || arg[1] instanceof BigIntegerTerm))
                 Errors.typeError(Constants.integerAtom, arg[1]);
             var bi = toBigIntegers(arg);
-            return NumericTerm.get(Rational.rationalize(bi[0], bi[1]));
+            return CTable.get(NumericTerm.get(Rational.rationalize(bi[0], bi[1])));
         }
     }
-    //console.log("Could not evaluate: " + util.inspect(a));
     Errors.typeError(Constants.evaluableAtom, Utils.predicate_indicator(a));
 }
 

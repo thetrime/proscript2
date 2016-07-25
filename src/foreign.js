@@ -34,7 +34,7 @@ module.exports["$det"] = function()
 
 module.exports["$choicepoint_depth"] = function(t)
 {
-    return this.unify(t, new IntegerTerm(this.choicepoints.length));
+    return this.unify(t, IntegerTerm.get(this.choicepoints.length));
 }
 
 module.exports.keysort = function(unsorted, sorted)
@@ -57,7 +57,7 @@ module.exports.keysort = function(unsorted, sorted)
               });
     var result = Constants.emptyListAtom;
     for (var i = list.length-1; i >= 0; i--)
-        result = new CompoundTerm(Constants.listFunctor, [list[i].value, result]);
+        result = CompoundTerm.create(Constants.listFunctor, [list[i].value, result]);
     return this.unify(sorted, result);
 }
 
@@ -73,7 +73,7 @@ module.exports.sort = function(unsorted, sorted)
         if (last == null || !(list[i].equals(last)))
         {
             last = list[i].dereference();
-            result = new CompoundTerm(Constants.listFunctor, [last, result]);
+            result = CompoundTerm.create(Constants.listFunctor, [last, result]);
         }
     }
     return this.unify(sorted, result);
@@ -94,13 +94,13 @@ module.exports.is_list = function(t)
 module.exports.upcase_atom = function(t, s)
 {
     Utils.must_be_atom(t);
-    return this.unify(s, new AtomTerm(t.value.toUpperCase()));
+    return this.unify(s, AtomTerm.get(t.value.toUpperCase()));
 }
 
 module.exports.downcase_atom = function(t, s)
 {
     Utils.must_be_atom(t);
-    return this.unify(s, new AtomTerm(t.value.toLowerCase()));
+    return this.unify(s, AtomTerm.get(t.value.toLowerCase()));
 }
 
 function toFloat(arg)
@@ -132,7 +132,7 @@ function format(env, sink, formatString, formatArgs)
             formatArgs = formatArgs.args[1].dereference();
             return nextArg;
         }
-        Errors.formatError(new AtomTerm("not enough arguments"));
+        Errors.formatError(AtomTerm.get("not enough arguments"));
     }
     for (i = 0; i < input.length; i++)
     {
@@ -374,7 +374,7 @@ function format(env, sink, formatString, formatArgs)
                         }
                         default:
                         {
-                            Errors.formatError(new AtomTerm("No such format character: " + input.charAt(i)));
+                            Errors.formatError(AtomTerm.get("No such format character: " + input.charAt(i)));
                         }
 
                     }
@@ -388,7 +388,7 @@ function format(env, sink, formatString, formatArgs)
     }
     if (sink instanceof CompoundTerm && sink.functor.equals(Constants.atomFunctor))
     {
-        return env.unify(sink.args[0], new AtomTerm(output));
+        return env.unify(sink.args[0], AtomTerm.get(output));
     }
     var bufferObject = Stream.stringBuffer(output.toString());
     return sink.value.write(sink.value, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;

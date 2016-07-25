@@ -1,3 +1,5 @@
+GLOBAL.window = GLOBAL;
+
 var Prolog = require('../../src/core');
 var env = new Prolog.Environment();
 var test_file = "inriasuite.pl";
@@ -6,7 +8,7 @@ var test_file = "inriasuite.pl";
 
 env.consultFile(test_file, function()
                {
-                   env.execute(new Prolog.AtomTerm("run_all_tests"),
+                   env.execute(Prolog.AtomTerm.get("run_all_tests"),
                                function()
                                {
                                    console.log("Succeeded");
@@ -17,6 +19,6 @@ env.consultFile(test_file, function()
                                },
                                function(e)
                                {
-                                   console.log("Error: " + e.toString());
+                                   console.log("Error: " + PORTRAY(e));
                                });
                });

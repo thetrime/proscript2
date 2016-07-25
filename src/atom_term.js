@@ -2,6 +2,7 @@
 exports=module.exports;
 
 var Term = require('./term');
+var CTable = require('./ctable');
 
 function AtomTerm(value)
 {
@@ -23,6 +24,16 @@ AtomTerm.prototype.equals = function(o)
 AtomTerm.prototype.getClass = function()
 {
     return "AtomTerm";
+}
+
+AtomTerm.prototype.hashCode = function()
+{
+    return this.value;
+}
+
+AtomTerm.get = function(string)
+{
+    return (CTable.intern(new AtomTerm(string)) | 0xc0000000) & 0xffffffff;
 }
 
 

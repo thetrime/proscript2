@@ -13,7 +13,7 @@ module.exports.get = function(t)
     if (t instanceof BigInteger)
     {
         if (t.isSmall)
-            return new IntegerTerm(t.valueOf());
+            return IntegerTerm.get(t.valueOf());
         return new BigIntegerTerm(t);
     }
     else if (t instanceof Rational)
@@ -23,13 +23,13 @@ module.exports.get = function(t)
     else if (typeof t == "string")
     {
         if (t.length < 16)
-            return new IntegerTerm(parseInt(t));
+            return IntegerTerm.get(parseInt(t));
         var v = new BigInteger(t);
         if (v.isSmall)
-            return new IntegerTerm(v.valueOf());
+            return IntegerTerm.get(v.valueOf());
         return new BigIntegerTerm(v);
     }
     else if (typeof t == 'number')
-        return new IntegerTerm(t);
+        return IntegerTerm.get(t);
     throw new Error("Bad numeric token: " + t);
 }

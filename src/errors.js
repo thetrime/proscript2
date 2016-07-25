@@ -6,91 +6,92 @@ var AtomTerm = require('./atom_term');
 var VariableTerm = require('./variable_term');
 var Functor = require('./functor');
 
-var errorFunctor = new Functor(new AtomTerm("error"), 2);
-var typeErrorFunctor = new Functor(new AtomTerm("type_error"), 2);
-var domainErrorFunctor = new Functor(new AtomTerm("domain_error"), 2);
-var representationErrorFunctor = new Functor(new AtomTerm("representation_error"), 1);
-var existenceErrorFunctor = new Functor(new AtomTerm("existence_error"), 2);
-var permissionErrorFunctor = new Functor(new AtomTerm("permission_error"), 3);
-var evaluationErrorFunctor = new Functor(new AtomTerm("evaluation_error"), 1);
-var syntaxErrorFunctor = new Functor(new AtomTerm("syntax_error"), 1);
-var formatErrorFunctor = new Functor(new AtomTerm("format_error"), 1);
-var ioErrorFunctor = new Functor(new AtomTerm("io_error"), 2);
-var systemErrorFunctor = new AtomTerm("system_error");
-var instantiationErrorAtom = new AtomTerm("instantiation_error");
-var integerOverflowAtom = new AtomTerm("integer_overflow");
-var floatOverflowAtom = new AtomTerm("float_overflow");
-var zeroDivisorAtom = new AtomTerm("zero_divisor");
+var errorFunctor = Functor.get(AtomTerm.get("error"), 2);
+var typeErrorFunctor = Functor.get(AtomTerm.get("type_error"), 2);
+var domainErrorFunctor = Functor.get(AtomTerm.get("domain_error"), 2);
+var representationErrorFunctor = Functor.get(AtomTerm.get("representation_error"), 1);
+var existenceErrorFunctor = Functor.get(AtomTerm.get("existence_error"), 2);
+var permissionErrorFunctor = Functor.get(AtomTerm.get("permission_error"), 3);
+var evaluationErrorFunctor = Functor.get(AtomTerm.get("evaluation_error"), 1);
+var syntaxErrorFunctor = Functor.get(AtomTerm.get("syntax_error"), 1);
+var formatErrorFunctor = Functor.get(AtomTerm.get("format_error"), 1);
+var ioErrorFunctor = Functor.get(AtomTerm.get("io_error"), 2);
+var systemErrorFunctor = AtomTerm.get("system_error");
+var instantiationErrorAtom = AtomTerm.get("instantiation_error");
+var integerOverflowAtom = AtomTerm.get("integer_overflow");
+var floatOverflowAtom = AtomTerm.get("float_overflow");
+var zeroDivisorAtom = AtomTerm.get("zero_divisor");
 
 module.exports.instantiationError = function()
 {
-    throw new CompoundTerm(errorFunctor, [instantiationErrorAtom, new VariableTerm()]);
+    //console.log(new Error().stack);
+    throw CompoundTerm.create(errorFunctor, [instantiationErrorAtom, new VariableTerm()]);
 }
 
 module.exports.systemError = function(t)
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(systemErrorFunctor, [t]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(systemErrorFunctor, [t]), new VariableTerm()]);
 }
 
 module.exports.makeSystemError = function(t)
 {
-    return new CompoundTerm(errorFunctor, [new CompoundTerm(systemErrorFunctor, [t]), new VariableTerm()]);
+    return CompoundTerm.create(errorFunctor, [CompoundTerm.create(systemErrorFunctor, [t]), new VariableTerm()]);
 }
 
 module.exports.typeError = function(expected, actual)
 {
-    //console.log(new Error().stack);
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(typeErrorFunctor, [expected, actual]), new VariableTerm()]);
+   //console.log(new Error().stack);
+   throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(typeErrorFunctor, [expected, actual]), new VariableTerm()]);
 }
 
 module.exports.domainError = function(domain, value)
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(domainErrorFunctor, [domain, value]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(domainErrorFunctor, [domain, value]), new VariableTerm()]);
 }
 
 module.exports.permissionError = function(operation, type, culprit)
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(permissionErrorFunctor, [operation, type, culprit]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(permissionErrorFunctor, [operation, type, culprit]), new VariableTerm()]);
 }
 
 module.exports.representationError = function(flag) // The ISO standard does NOT include what has violated the representation, sadly. We pass it in anyway
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(representationErrorFunctor, [flag]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(representationErrorFunctor, [flag]), new VariableTerm()]);
 }
 
 // non-ISO
 module.exports.existenceError = function(type, value)
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(existenceErrorFunctor, [type, value]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(existenceErrorFunctor, [type, value]), new VariableTerm()]);
 }
 
 
 module.exports.integerOverflow = function()
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(evaluationErrorFunctor, [integerOverflowAtom]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(evaluationErrorFunctor, [integerOverflowAtom]), new VariableTerm()]);
 }
 
 module.exports.floatOverflow = function()
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(evaluationErrorFunctor, [floatOverflowAtom]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(evaluationErrorFunctor, [floatOverflowAtom]), new VariableTerm()]);
 }
 
 module.exports.zeroDivisor = function()
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(evaluationErrorFunctor, [zeroDivisorAtom]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(evaluationErrorFunctor, [zeroDivisorAtom]), new VariableTerm()]);
 }
 
 module.exports.syntaxError = function(message)
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(syntaxErrorFunctor, [message]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(syntaxErrorFunctor, [message]), new VariableTerm()]);
 }
 
 module.exports.ioError = function(what, where) // Non-ISO
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(ioErrorFunctor, [what, where]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(ioErrorFunctor, [what, where]), new VariableTerm()]);
 }
 
 module.exports.formatError = function(message) // Non-ISO
 {
-    throw new CompoundTerm(errorFunctor, [new CompoundTerm(formatErrorFunctor, [message]), new VariableTerm()]);
+    throw CompoundTerm.create(errorFunctor, [CompoundTerm.create(formatErrorFunctor, [message]), new VariableTerm()]);
 }

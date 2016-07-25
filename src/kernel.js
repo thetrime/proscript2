@@ -8,13 +8,13 @@ var Functor = require('./functor.js');
 var Compiler = require('./compiler.js');
 var Frame = require('./frame.js');
 var util = require('util');
-var VariableTerm = require('./variable_term.js');
 var AtomTerm = require('./atom_term.js');
 var CompoundTerm = require('./compound_term.js');
 var Choicepoint = require('./choicepoint.js');
 var ClauseChoicepoint = require('./clause_choicepoint.js');
 var Errors = require('./errors.js');
 var Clause = require('./clause.js');
+var CTable = require('./ctable.js');
 var Instructions = require('./opcodes.js').opcode_map;
 
 /*
@@ -55,14 +55,14 @@ function unwind_trail(env, from)
 {
     // Unwind the trail back to env.TR
     for (var i = env.TR; i < from; i++)
-        env.trail[i].value = null;
+        HEAP[env.trail[i]] = env.trail[i];
 }
 
 function link(env, value)
 {
     if (value === undefined)
         throw "Illegal link";
-    var v = new VariableTerm();
+    var v = MAKEVAR();
     env.bind(v, value);
     return v;
 }
@@ -72,10 +72,12 @@ function set_exception(env, term)
     if (term.stack != undefined)
     {
         console.log("Trace: " + term.stack);
-        exception = new CompoundTerm(Constants.systemErrorFunctor, [term.toString()]);
+        exception = CompoundTerm.create(Constants.systemErrorFunctor, [term.toString()]);
     }
     else
+    {
         exception = env.copyTerm(term);
+    }
 
 }
 
@@ -93,7 +95,8 @@ function backtrack_to(env, choicepoint_index)
 
 function backtrack(env)
 {
-//    env.debug_backtracks++;
+    //    env.debug_backtracks++;
+    //console.log("... backtracking");
     var oldTR = env.TR;
     while (true)
     {
@@ -168,10 +171,10 @@ function cut_to(env, point)
 
                         // make a frame with 0 args (since a query has no head)
                         env.currentFrame = new Frame(env);
-                        env.currentFrame.functor = new Functor(new AtomTerm("$cleanup"), 0);
+                        env.currentFrame.functor = Functor.get(AtomTerm.get("$cleanup"), 0);
                         env.currentFrame.clause = new Clause([Instructions.iExitQuery.opcode], [], ["i_exit_query"]);
                         env.nextFrame.parent = env.currentFrame;
-                        env.nextFrame.functor = new Functor(new AtomTerm("<meta-call>"), 1);
+                        env.nextFrame.functor = Functor.get(AtomTerm.get("<meta-call>"), 1);
                         env.nextFrame.clause = compiledCode.clause;
                         env.nextFrame.returnPC = 0; // Return to exit_query
 
@@ -223,9 +226,9 @@ function popArgFrame(env)
 
 function print_opcode(env, opcode)
 {
-    var s = opcode;
-    var ptr = env.PC+1;
     var opcode_info = opcodes[opcode];
+    var s = opcode_info.label;
+    var ptr = env.PC+1;
     for (var j = 0; j < opcode_info.args.length; j++)
     {
         if (opcode_info.args[j] == "slot")
@@ -236,9 +239,13 @@ function print_opcode(env, opcode)
         {
             s += " " + ((env.currentFrame.clause.opcodes[ptr++] << 24) | (env.currentFrame.clause.opcodes[ptr++] << 16) | (env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++] << 0) + env.PC)
         }
-        else if (opcode_info.args[j] == "functor" || opcode_info.args[j] == "atom")
+        else if (opcode_info.args[j] == "functor")
         {
-            s += "(" + env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++]))] + ")";
+            s += "(" + CTable.get(env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++]))]).toString() + ")";
+        }
+        else if (opcode_info.args[j] == "atom")
+        {
+            s += "(" + PORTRAY(env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[ptr++] << 8) | (env.currentFrame.clause.opcodes[ptr++]))]) + ")";
         }
     }
     return s;
@@ -255,7 +262,7 @@ function print_instruction(env, current_opcode)
     if (module === undefined)
         module = {name:"<undefined>"};
     //console.log("Depth: " + env.currentFrame.depth);
-    console.log(pad("                                                            ", ("@ " + module.name + ":" + env.currentFrame.functor + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
+    console.log(pad("                                                            ", ("@ " + module.name + ":" + CTable.get(env.currentFrame.functor).toString() + " " + env.PC + ": ")) + print_opcode(env, current_opcode));
 }
 
 var next_opcode = undefined;
@@ -305,7 +312,7 @@ function usercall(env, goal)
     var compiledCode;
     try
     {
-        if (goal instanceof VariableTerm)
+        if (TAGOF(goal) == VariableTag)
             Errors.instantiationError();
         compiledCode = Compiler.compileQuery(goal);
     }
@@ -314,7 +321,7 @@ function usercall(env, goal)
         set_exception(env, e);
         return false;
     }
-    env.nextFrame.functor = new Functor(new AtomTerm("call"), 1);
+    env.nextFrame.functor = Functor.get(AtomTerm.get("call"), 1);
     env.nextFrame.clause = compiledCode.clause;
     env.nextFrame.returnPC = env.PC+1;
     env.nextFrame.choicepoint = env.choicepoints.length;
@@ -410,9 +417,9 @@ function redo_execute(env)
                 // So that explains why slots is the wrong /length/ but not how one of the values in slots[] is undefined
                 // The test case is to click the 'top' button on the Demo proactive app and change the next line to var args = env.currentFrame.slots.slice(0)
                 var args = [];
-                for (var i = 0; i < env.currentFrame.functor.arity; i++)
+                for (var i = 0; i < CTable.get(env.currentFrame.functor).arity; i++)
                 {
-                    args[i] = env.currentFrame.slots[i].dereference_recursive();
+                    args[i] = DEREF(env.currentFrame.slots[i]);
                 }
                 var rc = execute_foreign(env, args);
 //                if (env.debugging)
@@ -529,10 +536,11 @@ function redo_execute(env)
             {
                 var frame = env.currentFrame;
                 //console.log(util.inspect(env.choicepoints));
+                //console.log("EXCEPTION: Looking for handler..");
                 while (frame != undefined)
                 {
-                    //console.log(frame.functor);
-                    if (frame.functor.equals(Constants.catchFunctor))
+                    //console.log(CTable.get(frame.functor).toString());
+                    if (frame.functor == Constants.catchFunctor)
                     {
                         // Unwind to the frames choicepoint. Note that this will be set to the fake choicepoint we created in i_catch
                         //console.log("Frame " + frame.functor + " has choicepoint of " + frame.choicepoint);
@@ -564,7 +572,7 @@ function redo_execute(env)
                     frame = frame.parent;
                 }
                 if(exception.stack != null)
-                    env.yieldInfo.onError(Errors.makeSystemError(new AtomTerm(exception.toString())));
+                    env.yieldInfo.onError(Errors.makeSystemError(AtomTerm.get(exception.toString())));
                 else
                     env.yieldInfo.onError(Errors.makeSystemError(exception));
                 //env.debug_times[current_opcode] = (env.debug_times[current_opcode] || 0) + new Date().getTime() - d0
@@ -575,7 +583,7 @@ function redo_execute(env)
                 // FIXME: We must make sure that when processing b_throw that we pop modules as needed
                 // FIXME: There could also be implications for the cleanup in setup-call-cleanup?
                 var module = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
-                env.currentModule = env.getModule(module.value);
+                env.currentModule = env.getModule(CTable.get(module).value);
                 env.currentFrame.contextModule = env.currentModule;
                 //console.log(env.currentModule);
                 env.PC+=3;
@@ -633,7 +641,8 @@ function redo_execute(env)
             {
                 // argP[argI-1] is a goal that we want to execute. First, we must compile it
                 env.argI--;
-                var goal = env.argP[env.argI].dereference();
+                var goal = DEREF(env.argP[env.argI]);
+                //console.log("Calling: " + PORTRAY(goal));
                 if (!usercall(env, goal))
                 {
                     next_opcode = LOOKUP_OPCODE["b_throw_foreign"].opcode;
@@ -717,8 +726,8 @@ function redo_execute(env)
             case 23: // b_firstvar
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                env.currentFrame.slots[slot] = new VariableTerm();
-                //console.log("firstvar: setting slot " + slot + " to a new variable: " + env.currentFrame.slots[slot]);
+                env.currentFrame.slots[slot] = MAKEVAR();
+                //console.log("firstvar: setting frame value at " + env.argI + " to " + PORTRAY(env.currentFrame.slots[slot]));
                 env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
                 env.PC+=3;
                 continue;
@@ -727,13 +736,12 @@ function redo_execute(env)
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
                 //console.log("argvar: getting variable from slot " + slot + ": " + env.currentFrame.slots[slot]);
-		var arg = env.currentFrame.slots[slot];
-                arg = arg.dereference();
+                var arg = DEREF(env.currentFrame.slots[slot]);
                 //console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
-                if (arg instanceof VariableTerm)
+                if (TAGOF(arg) == VariableTag)
                 {
                     // FIXME: This MAY require trailing
-                    env.argP[env.argI] = new VariableTerm();
+                    env.argP[env.argI] = MAKEVAR();
 		    env.bind(env.argP[env.argI], arg);
 		    //console.log("argP now refers to " + util.inspect(env.argP[env.argI]));
                 }
@@ -757,8 +765,13 @@ function redo_execute(env)
                 //
                 // The status of X depends on which branch in the disjunction we took
                 if (env.currentFrame.slots[slot] == undefined)
-                    env.currentFrame.slots[slot] = new VariableTerm();
+                {
+                    console.log("Had to make a new var...");
+                    env.currentFrame.slots[slot] = MAKEVAR();
+                }
+                //console.log("Just pushed: " + env.currentFrame.slots[slot] + "-> " + PORTRAY(env.currentFrame.slots[slot]) + " to next frame slot " + env.argI);
                 env.argP[env.argI] = link(env, env.currentFrame.slots[slot]);
+                //console.log("Checking: " + PORTRAY(env.argP[env.argI]));
                 env.argI++;
                 env.PC+=3;
                 continue;
@@ -779,19 +792,24 @@ function redo_execute(env)
             case 28: // b_void
 	    {
 		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                env.argP[env.argI++] = new VariableTerm();
+                env.argP[env.argI++] = MAKEVAR();
                 env.PC++;
                 continue;
             }
             case 29: // b_functor
             {
 		var index = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-		var functor = env.currentFrame.clause.constants[index];
-		var new_term_args = new Array(functor.arity);
-		env.argP[env.argI++] = new CompoundTerm(functor, new_term_args);
+                var functor = env.currentFrame.clause.constants[index];
+                var functor_object = CTable.get(functor);
+                var new_term_args = new Array(functor_object.arity);
+                for (var i = 0; i < new_term_args.length; i++)
+                    new_term_args[i] = 0;
+                var H = HTOP+1;
+                //console.log(new_term_args + " from " + functor_object.arity);
+		env.argP[env.argI++] = CompoundTerm.create(functor, new_term_args);
 		newArgFrame(env);
-		env.argP = new_term_args;
-		env.argI = 0;
+                env.argP = HEAP;
+                env.argI = H;
 		env.PC+=3;
 		continue;
             }
@@ -811,7 +829,7 @@ function redo_execute(env)
                     // a variable occurring in the head, for example the X in foo(a(X)):- ...
                     // the compiler has allocated an appropriate slot in the frame above the arity of the goal we are executing
                     // we just need to create a variable in that slot, then bind it to the variable in the current frame
-                    env.currentFrame.slots[slot] = new VariableTerm();
+                    env.currentFrame.slots[slot] = MAKEVAR();
                     env.bind(env.argP[env.argI], env.currentFrame.slots[slot]);
 		}
                 else
@@ -819,7 +837,7 @@ function redo_execute(env)
                     // in read mode, we are trying to match an argument to a variable occurring in the head. If the thing we are trying to
                     // match is not a variable, put a new variable in the slot and bind it to the thing we actually want
                     // otherwise, we can just copy the variable directly into the slot
-                    if (env.argP[env.argI] instanceof VariableTerm)
+                    if (TAGOF(env.argP[env.argI]) == VariableTag)
                     {
                         env.currentFrame.slots[slot] = link(env, env.argP[env.argI]);
                     }
@@ -835,34 +853,35 @@ function redo_execute(env)
             }
             case 31: // h_functor
             {
-		var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
-                var arg = env.argP[env.argI++].dereference();
+                var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
+                var arg = DEREF(env.argP[env.argI++]);
                 env.PC+=3;
                 // Try to match a functor
-                if (arg instanceof CompoundTerm)
+                if (TAGOF(arg) == CompoundTag)
                 {
-		    if (arg.functor.equals(functor))
+                    if (FUNCTOROF(arg) == functor)
 		    {
 			newArgFrame(env);
-                        env.argP = arg.args;
-                        env.argI = 0;
+                        env.argP = HEAP;
+                        env.argI = ARGPOF(arg, 0);
                         continue;
                     }
                 }
-                else if (arg instanceof VariableTerm)
+                else if (TAGOF(arg) == VariableTag)
                 {
 		    newArgFrame(env);
-                    var args = new Array(functor.arity);
+                    var args = new Array(CTable.get(functor).arity);
                     for (var i = 0; i < args.length; i++)
-                        args[i] = new VariableTerm();
-		    env.bind(arg, new CompoundTerm(functor, args));
-		    env.argP = args;
-		    env.argI = 0;
+                        args[i] = MAKEVAR();
+                    var H = HTOP+1;
+                    env.bind(arg, CompoundTerm.create(functor, args));
+                    env.argP = HEAP;
+                    env.argI = H;
                     env.mode = "write";
                     continue;
                 }
                 //console.log("argP: " + util.inspect(env.argP));
-                //console.log("Failed to unify " + util.inspect(arg) + " with the functor " + util.inspect(functor));
+                //console.log("Failed to unify " + PORTRAY(arg) + " with the functor " + CTable.get(functor).toString());
 
                 if (backtrack(env))
                     continue;
@@ -878,11 +897,11 @@ function redo_execute(env)
             case 33: // h_atom
             {
 		var atom = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
-                var arg = env.argP[env.argI++].dereference();
+                var arg = DEREF(env.argP[env.argI++]);
                 env.PC+=3;
-		if (arg.equals(atom))
+                if (arg == atom)
                     continue;
-                if (arg instanceof VariableTerm)
+                if (TAGOF(arg) == VariableTag)
                 {
                     env.bind(arg, atom);
                 }
@@ -907,7 +926,7 @@ function redo_execute(env)
             case 35: // h_var
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                var arg = env.argP[env.argI++].dereference();
+                var arg = DEREF(env.argP[env.argI++]);
                 //console.log("h_var from slot " + slot + ": " +arg+", and " + env.currentFrame.slots[slot])
                 if (!env.unify(arg, env.currentFrame.slots[slot]))
                 {
@@ -945,12 +964,12 @@ function redo_execute(env)
             case 40: // s_qualify
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                var value = env.currentFrame.slots[slot].dereference();
-                //console.log(env.currentFrame.functor + ": Qualifying " + value);
-                if (!(value instanceof CompoundTerm && value.functor.equals(Constants.crossModuleCallFunctor)))
-                    env.currentFrame.slots[slot] = new CompoundTerm(Constants.crossModuleCallFunctor, [env.currentFrame.parent.contextModule.term, value]);
+                var value = DEREF(env.currentFrame.slots[slot]);
+                //console.log("Qualifying " + value + " or " + PORTRAY(value) + " from slot " + slot );
+                if (!(TAGOF(value) == CompoundTag && FUNCTOROF(value) == Constants.crossModuleCallFunctor))
+                    env.currentFrame.slots[slot] = CompoundTerm.create(Constants.crossModuleCallFunctor, [env.currentFrame.parent.contextModule.term, value]);
                 env.PC+=3;
-                //console.log("Arg is now: " + env.currentFrame.slots[slot]);
+                //console.log("Arg is now: " + PORTRAY(env.currentFrame.slots[slot]));
                 continue;
             }
             default:

@@ -6,11 +6,12 @@ var Constants = require('./constants.js');
 var AtomTerm = require('./atom_term.js');
 var CompoundTerm = require('./compound_term.js');
 var IntegerTerm = require('./integer_term.js');
+var CTable = require('./ctable.js');
 
-var doubleQuotesAtom = new AtomTerm("double_quotes");
-var unknownAtom = new AtomTerm("unknown");
-var charConversionAtom = new AtomTerm("char_conversion");
-var debugAtom = new AtomTerm("debug");
+var doubleQuotesAtom = AtomTerm.get("double_quotes");
+var unknownAtom = AtomTerm.get("unknown");
+var charConversionAtom = AtomTerm.get("char_conversion");
+var debugAtom = AtomTerm.get("debug");
 
 
 function flag_bounded(set, value)
@@ -22,13 +23,13 @@ function flag_bounded(set, value)
 function flag_max_integer(set, value)
 {
     if (set) Errors.permissionError(Constants.modifyAtom, Constants.flagAtom, Constants.maxIntegerAtom);
-    return new IntegerTerm(268435455);
+    return IntegerTerm.get(268435455);
 }
 
 function flag_min_integer(set, value)
 {
     if (set) Errors.permissionError(Constants.modifyAtom, Constants.flagAtom, Constants.minIntegerAtom);
-    return new IntegerTerm(536870911);
+    return IntegerTerm.get(536870911);
 }
 
 function flag_integer_rounding_function(set, value)
@@ -41,12 +42,12 @@ function flag_char_conversion(set, value)
 {
     if (set) 
     {
-        if (value instanceof AtomTerm && value.value == "on")
+        if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "on")
             prolog_flag_values.char_conversion = true;
-        else if (value instanceof AtomTerm && value.value == "off")
+        else if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "off")
             prolog_flag_values.char_conversion = false;
         else
-            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [charConversionAtom, value]));
+            Errors.domainError(Constants.flagValueAtom, CompoundTerm.create(Constants.addFunctor, [charConversionAtom, value]));
         return true;
     }
     return prolog_flag_values.char_conversion?Constants.onAtom:Constants.offAtom;
@@ -56,12 +57,12 @@ function flag_debug(set, value)
 {
     if (set) 
     {
-        if (value instanceof AtomTerm && value.value == "on")
+        if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "on")
             prolog_flag_values.debug = true;
-        else if (value instanceof AtomTerm && value.value == "off")
+        else if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "off")
             prolog_flag_values.debug = false;
         else
-            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [debugAtom, value]));
+            Errors.domainError(Constants.flagValueAtom, CompoundTerm.create(Constants.addFunctor, [debugAtom, value]));
         return true;
     }
     return prolog_flag_values.debug?Constants.onAtom:Constants.offAtom;
@@ -77,34 +78,34 @@ function flag_unknown(set, value)
 {
     if (set) 
     {
-        if (value instanceof AtomTerm && value.value == "error")
+        if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "error")
             prolog_flag_values.unknown = "error";
-        else if (value instanceof AtomTerm && value.value == "fail")
+        else if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "fail")
             prolog_flag_values.unknown = "fail";
-        else if (value instanceof AtomTerm && value.value == "warning")
+        else if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "warning")
             prolog_flag_values.unknown = "warning";
         else
-            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [unknownAtom, value]));
+            Errors.domainError(Constants.flagValueAtom, CompoundTerm.create(Constants.addFunctor, [unknownAtom, value]));
         return true;
     }
-    return new AtomTerm(prolog_flag_values.unknown);
+    return AtomTerm.get(prolog_flag_values.unknown);
 }
 
 function flag_double_quotes(set, value)
 {
     if (set) 
     {
-        if (value instanceof AtomTerm && value.value == "chars")
+        if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "chars")
             prolog_flag_values.double_quotes = "chars";
-        else if (value instanceof AtomTerm && value.value == "codes")
+        else if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "codes")
             prolog_flag_values.double_quotes = "codes";
-        else if (value instanceof AtomTerm && value.value == "atom")
+        else if (TAGOF(value) == ConstantTag && CTable.get(value) instanceof AtomTerm && CTable.get(value).value == "atom")
             prolog_flag_values.double_quotes = "atom";
         else
-            Errors.domainError(Constants.flagValueAtom, new CompoundTerm(Constants.addFunctor, [doubleQuotesAtom, value]));
+            Errors.domainError(Constants.flagValueAtom, CompoundTerm.create(Constants.addFunctor, [doubleQuotesAtom, value]));
         return true;
     }
-    return new AtomTerm(prolog_flag_values.double_quotes);
+    return AtomTerm.get(prolog_flag_values.double_quotes);
 }
 
 

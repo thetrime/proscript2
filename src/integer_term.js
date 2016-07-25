@@ -2,6 +2,7 @@
 exports=module.exports;
 
 var Term = require('./term');
+var CTable = require('./ctable');
 
 function IntegerTerm(value)
 {
@@ -23,6 +24,17 @@ IntegerTerm.prototype.getClass = function()
 IntegerTerm.prototype.toString = function()
 {
     return this.value;
+}
+
+IntegerTerm.prototype.hashCode = function()
+{
+    return this.value;
+}
+
+
+IntegerTerm.get = function(i)
+{
+    return CTable.intern(new IntegerTerm(i)) | 0xc0000000;
 }
 
 module.exports = IntegerTerm;

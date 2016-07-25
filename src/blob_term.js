@@ -2,6 +2,7 @@
 exports=module.exports;
 
 var AtomTerm = require('./atom_term');
+var CTable = require('./ctable');
 
 var global_blob_id = 0;
 
@@ -12,7 +13,7 @@ function BlobTerm(type, value)
     this.type = type;
 }
 
-BlobTerm.prototype = new AtomTerm;
+BlobTerm.prototype = AtomTerm.get;
 
 BlobTerm.prototype.toString = function()
 {
@@ -27,6 +28,16 @@ BlobTerm.prototype.dereference = function()
 BlobTerm.prototype.getClass = function()
 {
     return "blob";
+}
+
+BlobTerm.prototype.hashCode = function()
+{
+    return "@" + this.type + "::" + this.id;
+}
+
+BlobTerm.get = function(type, data)
+{
+    return CTable.intern(new BlobTerm(type, data)) | 0xc0000000;
 }
 
 module.exports = BlobTerm;

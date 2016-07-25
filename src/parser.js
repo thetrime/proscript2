@@ -7,7 +7,6 @@ exports=module.exports;
 var Stream = require('./stream.js');
 var PrologFlag = require('./prolog_flag.js');
 var CompoundTerm = require('./compound_term.js');
-var VariableTerm = require('./variable_term.js');
 var IntegerTerm = require('./integer_term.js');
 var AtomTerm = require('./atom_term.js');
 var BigInteger = require('big-integer');
@@ -47,18 +46,18 @@ function parse_infix(s, lhs, precedence, vars)
 {
     var token = read_token(s);
     var rhs = read_expression(s, precedence, false, false, vars);
-    return new CompoundTerm(token, [lhs, rhs]);
+    return CompoundTerm.create(token, [lhs, rhs]);
 }
 
 function parse_postfix(s, lhs)
 {
     var token = read_token(s)
-    return new CompoundTerm(token, [lhs]);
+    return CompoundTerm.create(token, [lhs]);
 }
 
 function syntax_error(msg)
 {
-    Errors.syntaxError(new AtomTerm(util.inspect(msg)));
+    Errors.syntaxError(AtomTerm.get(util.inspect(msg)));
 }
 
 // this should be called with token assigned either an integer or a float
@@ -71,12 +70,12 @@ function numberToken(token)
         if (parseInt(token) == parseFloat(token)) // very large integer
             return NumericTerm.get(token);
         if (parseFloat(Number(token)) == token)
-            return new FloatTerm(parseFloat(token));
+            return FloatTerm.get(parseFloat(token));
     }
     else if (token instanceof BigInteger)
         return new BigIntegerTerm(token);
     else if (token instanceof ExplicitFloat)
-        return new FloatTerm(token.value);
+        return FloatTerm.get(token.value);
     return null;
 }
 
@@ -97,22 +96,22 @@ function atomicToken(token)
         {
             var list = [];
             for (var i = 0; i < token.value.length; i++)
-                list.push(new IntegerTerm(token.value.charCodeAt(i)));
+                list.push(IntegerTerm.get(token.value.charCodeAt(i)));
             return Utils.from_list(list);
         }
         else if (PrologFlag.values.double_quotes == "chars")
         {
             var list = [];
             for (var i = 0; i < token.value.length; i++)
-                list.push(new AtomTerm(token.value.charAt(i)));
+                list.push(AtomTerm.get(token.value.charAt(i)));
             return Utils.from_list(list);
         }
         else if (PrologFlag.values.double_quotes == "atom")
         {
-            return new AtomTerm(token.value);
+            return AtomTerm.get(token.value);
         }
     }
-    return new AtomTerm(token);
+    return AtomTerm.get(token);
 }
 
 // This returns a javascript object representation of the term. It takes the two extra args because of some oddities with Prolog:
@@ -171,19 +170,19 @@ function read_expression(s, precedence, isarg, islist, vars)
                     {
                         get_raw_char_with_conversion(s.stream);
                         if (mode == 1)
-			    args.push(new IntegerTerm('"'.charCodeAt(0)));
+			    args.push(IntegerTerm.get('"'.charCodeAt(0)));
                         else
 			    args.push('"');
                         continue;
                     }
                 }
                 if (mode == 1)
-		    args.push(new IntegerTerm(t.charCodeAt(0)));
+		    args.push(IntegerTerm.get(t.charCodeAt(0)));
                 else
 		    args.push(t);
             }
             if (mode == 2)
-		lhs = new AtomTerm(args.join(''));
+		lhs = AtomTerm.get(args.join(''));
 	    else
 	    {
 		lhs = make_list(args, Constants.emptyListAtom);
@@ -249,11 +248,11 @@ function read_expression(s, precedence, isarg, islist, vars)
 	{
             // It is a variable
             if (token.variable_name[0] == "_")
-                lhs = new VariableTerm("_");
+                lhs = MAKEVAR(); // Anonymous variable
             else
             {
                 if (vars[token.variable_name] === undefined)
-                    vars[token.variable_name] = new VariableTerm(token.variable_name);
+                    vars[token.variable_name] = MAKEVAR();
                 lhs = vars[token.variable_name];
             }
         }
@@ -270,12 +269,12 @@ function read_expression(s, precedence, isarg, islist, vars)
     else if (op.fixity == "fx")
     {
 	var arg = read_expression(s, op.precedence, isarg, islist, vars);
-	lhs = new CompoundTerm(token, [arg]);
+	lhs = CompoundTerm.create(token, [arg]);
     }
     else if (op.fixity == "fy")
     {
 	var arg = read_expression(s, op.precedence+0.5, isarg, islist, vars);
-	lhs = new CompoundTerm(token, [arg]);
+	lhs = CompoundTerm.create(token, [arg]);
     }
     else
         return false; // Parse error
@@ -315,13 +314,14 @@ function read_expression(s, precedence, isarg, islist, vars)
                         return syntax_error("Unexpected: " + util.inspect(next));
                 }
             }
-	    lhs = new CompoundTerm(lhs, args);
-	    // Now, where were we?
+            lhs = CompoundTerm.create(lhs, args);
+            // Now, where were we?
 	    infix_operator = peek_token(s);
 	}
         // Pretend that . is an operator with infinite precedence
         if (infix_operator == ".")
         {
+            PORTRAY(lhs);
 	    return lhs;
         }
         if (infix_operator == "," && isarg)
@@ -709,7 +709,7 @@ function make_list(items, tail)
 {
     var result = tail;
     for (var i = items.length-1; i >= 0; i--)
-	result = new CompoundTerm(Constants.listFunctor, [items[i], result]);
+	result = CompoundTerm.create(Constants.listFunctor, [items[i], result]);
     return result;
 }
 
@@ -717,8 +717,8 @@ function make_curly(items)
 {
     var result = items[items.length-1];
     for (var i = items.length-2; i >= 0; i--)
-        result = new CompoundTerm(Constants.conjunctionFunctor, [items[i], result]);
-    return new CompoundTerm(Constants.curlyFunctor, [result]);
+        result = CompoundTerm.create(Constants.conjunctionFunctor, [items[i], result]);
+    return CompoundTerm.create(Constants.curlyFunctor, [result]);
 }
 
 
@@ -748,36 +748,36 @@ function tokenToNumericTerm(token)
     // trim whitespace from the start of the token. Apparently that IS allowed
     token = token.replace(/^\s+/gm,'');
     if (token.indexOf('.') != -1)
-        return new FloatTerm(parseFloat(token));
+        return FloatTerm.get(parseFloat(token));
     if (token.indexOf('E') != -1)
-        return new FloatTerm(parseFloat(token));
+        return FloatTerm.get(parseFloat(token));
     if (token.substring(0, 2) == "0'" && token.length == 3)
     {
-        return new IntegerTerm(token.charCodeAt(2));
+        return IntegerTerm.get(token.charCodeAt(2));
     }
     if (token.substring(0, 2) == "0x")
     {
         token = token.substring(2);
         if (parseInt(token, 16).toString(16) == token)
-            return new IntegerTerm(parseInt(token, 16));
+            return IntegerTerm.get(parseInt(token, 16));
         // FIXME: biginteger hex?
-        Errors.syntaxError(new AtomTerm("illegal number " + token))
+        Errors.syntaxError(AtomTerm.get("illegal number " + token))
     }
     if (token.substring(0, 2) == "0b")
     {
         token = token.substring(2);
         if (parseInt(token, 2).toString(2) == token)
-            return new IntegerTerm(parseInt(token, 2));
+            return IntegerTerm.get(parseInt(token, 2));
         // FIXME: biginteger binary?
-        Errors.syntaxError(new AtomTerm("illegal number " + token))
+        Errors.syntaxError(AtomTerm.get("illegal number " + token))
     }
     if (token.substring(0, 2) == "0o")
     {
         token = token.substring(2);
         if (parseInt(token, 8).toString(8) == token)
-            return new IntegerTerm(parseInt(token, 8));
+            return IntegerTerm.get(parseInt(token, 8));
         // FIXME: biginteger octal?
-        Errors.syntaxError(new AtomTerm("illegal number " + token))
+        Errors.syntaxError(AtomTerm.get("illegal number " + token))
     }
     if (token.length < 16)
     {
@@ -785,12 +785,12 @@ function tokenToNumericTerm(token)
         // If converting the token to a number then printing it back to a string is not the same
         // as the original token, then it is NOT a simple integer
         if (parseInt(token).toString() == token)
-            return new IntegerTerm(parseInt(token));
-        Errors.syntaxError(new AtomTerm("illegal number " + token))
+            return IntegerTerm.get(parseInt(token));
+        Errors.syntaxError(AtomTerm.get("illegal number " + token))
     }
     if (parseFloat(token) == parseInt(token))
         return new BigIntegerTerm(new BigInteger(token));
-    return new IntegerTerm(parseInt(token));
+    return IntegerTerm.get(parseInt(token));
 
 }
 
