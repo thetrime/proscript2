@@ -355,7 +355,7 @@ function compileBody(term, variables, instructions, isTailGoal, reservedContext,
 	}
         else if (FUNCTOROF(term) == Constants.disjunctionFunctor)
         {
-            if (ARGOF(term, 0) == CompoundTag && FUNCTOROF(ARGOF(term, 0)) == Constants.localCutFunctor)
+            if (TAGOF(ARGOF(term, 0)) == CompoundTag && FUNCTOROF(ARGOF(term, 0)) == Constants.localCutFunctor)
             {
                 // If-then-else
                 var ifThenElseInstruction = instructions.length;

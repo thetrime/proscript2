@@ -43,13 +43,13 @@ module.exports.keysort = function(unsorted, sorted)
 
     for (var i = 0; i < list.length; i++)
     {
-        if (!(list[i] instanceof CompoundTerm && list[i].functor.equals(Constants.pairFunctor)))
+        if (!(TAGOF(list[i]) == CompoundTag && FUNCTOROF(list[i]) == Constants.pairFunctor))
             Errors.typeError(Constants.pairAtom, list[i]);
         list[i] = {position: i, value: list[i]};
     }
     list.sort(function(a,b)
               {
-                  var d = Utils.difference(a.value.args[0], b.value.args[0]);
+                  var d = Utils.difference(ARGOF(a.value, 0), ARGOF(b.value,0));
                   // Ensure that the sort is stable
                   if (d == 0)
                       return a.position - b.position;
@@ -70,9 +70,9 @@ module.exports.sort = function(unsorted, sorted)
     // remove duplicates as we go. Remember the last thing we saw in variable 'last', then only add the current item to the output if it is different
     for (var i = list.length-1; i >= 0; i--)
     {
-        if (last == null || !(list[i].equals(last)))
+        if (last == null || list[i] != last)
         {
-            last = list[i].dereference();
+            last = DEREF(list[i]);
             result = CompoundTerm.create(Constants.listFunctor, [last, result]);
         }
     }
@@ -81,14 +81,14 @@ module.exports.sort = function(unsorted, sorted)
 
 module.exports.is_list = function(t)
 {
-    while (t instanceof CompoundTerm)
+    while (TAGOF(t) == CompoundTag)
     {
-        if (t.functor.equals(Constants.listFunctor))
-            t = t.args[1].dereference();
+        if (FUNCTOROF(t) == Constants.listFunctor)
+            t = ARGOF(t, 1);
         else
             return false;
     }
-    return Constants.emptyListAtom.equals(t);
+    return Constants.emptyListAtom == t;
 }
 
 module.exports.upcase_atom = function(t, s)

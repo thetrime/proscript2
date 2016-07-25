@@ -4,7 +4,7 @@ exports=module.exports;
 var CTable = require('./ctable');
 var util = require('util');
 
-window.HEAP = new Int32Array(65535); // FIXME: In progress. If we set this to Uint32Array then writing a number like (3 | 0xc0000000) to it and reading it back gives us a different value
+window.HEAP = new Int32Array(655350); // FIXME: In progress. If we set this to Uint32Array then writing a number like (3 | 0xc0000000) to it and reading it back gives us a different value
 window.HTOP = 1;
 window.VariableTag = {};
 window.ConstantTag = {};

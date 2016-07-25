@@ -287,6 +287,7 @@ function execute_foreign(env, args)
     }
     catch(e)
     {
+        //console.log("Error in " + CTable.get(env.currentFrame.functor).toString());
         set_exception(env, e);
         return "exception";
     }

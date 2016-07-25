@@ -221,8 +221,8 @@ module.exports.difference = function(a, b)
             return 1;
         if (TAGOF(b) == CompoundTag)
         {
-            fa = CTable.get(FUNCTOROF(a));
-            fb = CTable.get(FUNCTOROF(b));
+            var fa = CTable.get(FUNCTOROF(a));
+            var fb = CTable.get(FUNCTOROF(b));
             if (fa.arity != fb.arity)
                 return fa.arity - fb.arity;
             if (fa.name != fb.name)

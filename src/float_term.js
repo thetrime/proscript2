@@ -23,9 +23,8 @@ FloatTerm.prototype.toString = function()
 
 FloatTerm.prototype.hashCode = function()
 {
-    return this.value;
+    return this.value + "F";
 }
-
 
 FloatTerm.prototype.getClass = function()
 {

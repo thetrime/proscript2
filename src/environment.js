@@ -5,6 +5,7 @@ var Module = require('./module.js');
 var Parser = require('./parser.js');
 var Kernel = require('./kernel.js');
 var AtomTerm = require('./atom_term.js');
+var FloatTerm = require('./float_term.js');
 var CompoundTerm = require('./compound_term.js');
 var IntegerTerm = require('./integer_term.js');
 var Functor = require('./functor.js');
@@ -42,6 +43,7 @@ var builtinModules = [fs.readFileSync(__dirname + '/builtin.pl', 'utf8')];
 
 function Environment()
 {
+
     this.module_map = [];
 
     this.debug_ops = {};
@@ -387,7 +389,9 @@ Environment.prototype.copyTerm = function(t)
     if (t.stack != undefined) console.log(t.stack);
     t = DEREF(t);
     var variables = [];
+    //console.log("Copying: " + PORTRAY(t));
     Compiler.findVariables(t, variables);
+    //console.log("Vars: " + variables);
     var newVars = new Array(variables.length);
     for (var i = 0; i < variables.length; i++)
         newVars[i] = MAKEVAR();

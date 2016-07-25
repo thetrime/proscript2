@@ -702,10 +702,8 @@ file(arith_gt).
 file('arith_gt=').
 file(arith_lt).
 file('arith_lt=').
-/* FIXME: These are horribly broken
 file(asserta).
 file(assertz).
-*/
 file(atom).
 file(atom_chars).
 file(atom_codes).
@@ -713,8 +711,6 @@ file(atom_concat).
 file(atom_length).
 file(atomic).
 file(bagof).
-/*
-
 file(call).
 file('catch-and-throw').
 file(char_code).
@@ -756,7 +752,7 @@ file('term_lt=').
 file(true).
 file(unify).
 file(univ).
-*/
+
 
 %%%%%%%%%%%
 %

@@ -47,7 +47,7 @@ Module.prototype.makeDynamic = function(functor)
     if (this.predicates[functor] === undefined)
         this.definePredicate(functor);
     else if (this.predicates[functor].dynamic !== true)
-        Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, CompoundTerm.create(Constants.predicateIndicatorFunctor, [functor.name, IntegerTerm.get(functor.arity)]));
+        Errors.permissionError(Constants.modifyAtom, Constants.staticProcedureAtom, CompoundTerm.create(Constants.predicateIndicatorFunctor, [CTable.get(functor).name, IntegerTerm.get(CTable.get(functor).arity)]));
     this.predicates[functor].dynamic = true;
 }
 

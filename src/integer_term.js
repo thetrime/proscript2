@@ -13,7 +13,7 @@ IntegerTerm.prototype = new Term;
 
 IntegerTerm.prototype.equals = function(o)
 {
-    return (o === this) || ((o || {}).value === this.value);
+    return (o === this) || (o instanceof IntegerTerm && ((o || {}).value === this.value));
 }
 
 IntegerTerm.prototype.getClass = function()
