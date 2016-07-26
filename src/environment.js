@@ -183,6 +183,29 @@ Environment.prototype.unify = function(a, b)
     return false;
 }
 
+Environment.prototype.unifiable = function(a, b)
+{
+    a = DEREF(a);
+    b = DEREF(b);
+    if (a == b)
+        return true;
+    if (a >>> 30 == 0) // A is a variable
+        return true;
+    if (b >>> 30 == 0) // B is a variable
+        return true;
+    if (a >>> 30 == 2 && b >>> 30 == 2 && FUNCTOROF(a) == FUNCTOROF(b))
+    {
+        var argcount = CTable.get(FUNCTOROF(a)).arity;
+        for (var i = 0; i < argcount; i++)
+	{
+            if (!this.unifiable(ARGOF(a, i), ARGOF(b, i)))
+                return false;
+        }
+	return true;
+    }
+    return false;
+}
+
 Environment.prototype.bind = function(variable, value)
 {
     //console.log("Binding " + util.inspect(variable) + " to " + util.inspect(value) + " at " + this.TR);

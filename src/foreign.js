@@ -463,3 +463,18 @@ module.exports.qqq = function()
 {
     return true;
 }
+
+module.exports.memberchk = function(elem, list)
+{
+    var l = list;
+    while (TAGOF(l) == CompoundTag && FUNCTOROF(list) == Constants.listFunctor)
+    {
+        if (this.unifiable(ARGOF(l,0), elem))
+            return this.unify(ARGOF(l,0), elem);
+        l = ARGOF(l,1);
+    }
+    if (TAGOF(l) == VariableTag)
+        return this.unify(l, CompoundTerm.create(Constants.listFunctor, [elem, MAKEVAR()]));
+    return false;
+
+}
