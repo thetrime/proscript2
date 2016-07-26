@@ -353,7 +353,6 @@ function redo_execute(env)
         //d0 = new Date().getTime();
 
         var opcodes = env.currentFrame.clause.opcodes;
-
         if (next_opcode === undefined && opcodes[env.PC] === undefined)
         {
             console.log(util.inspect(env.currentFrame));
@@ -393,7 +392,7 @@ function redo_execute(env)
             }
             case 3: // i_exitcatch
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 if (env.currentFrame.reserved_slots[slot] == env.CP)
                 {
                     // Goal has exited deterministically, we do not need our backtrack point anymore since there is no way we could
@@ -625,7 +624,7 @@ function redo_execute(env)
             }
             case 15: // i_catch
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 // i_catch must do a few things:
                 //    * Create a backtrack point at the start of the frame so we can undo anything in the guarded goal if something goes wrong
                 //    * ensure argP[argI-1] points to the goal
@@ -678,7 +677,7 @@ function redo_execute(env)
             case 18: // c_cut
             {
                 // The task of c_cut is to pop and discard all choicepoints newer than the value in the given slot
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 if (!cut_to(env, env.currentFrame.reserved_slots[slot]))
                     return false;
                 env.PC+=3;
@@ -687,7 +686,7 @@ function redo_execute(env)
             case 19: // c_lcut
             {
                 // The task of c_lcut is to pop and discard all choicepoints newer than /one greater than/ the value in the given slot
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 if (!cut_to(env, env.currentFrame.reserved_slots[slot]+1))
                     return false;
                 env.PC+=3;
@@ -695,14 +694,14 @@ function redo_execute(env)
             }
             case 20: // c_ifthen
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 env.currentFrame.reserved_slots[slot] = env.CP;
                 env.PC+=3;
                 continue;
             }
             case 21: // c_ifthenelse
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 var address = ((opcodes[env.PC+3] << 24) | (opcodes[env.PC+4] << 16) | (opcodes[env.PC+5] << 8) | (opcodes[env.PC+6] << 0)) + env.PC;
                 env.currentFrame.reserved_slots[slot] = env.CP;
                 env.choicepoints[env.CP++] = new Choicepoint(env, address);
@@ -733,7 +732,7 @@ function redo_execute(env)
             }
             case 23: // b_firstvar
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 env.currentFrame.slots[slot] = MAKEVAR();
                 //console.log("firstvar: setting frame value at " + env.argI + " to " + PORTRAY(env.currentFrame.slots[slot]));
                 env.argP[env.argI++] = link(env, env.currentFrame.slots[slot]);
@@ -742,7 +741,7 @@ function redo_execute(env)
             }
             case 24: // b_argvar
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 //console.log("argvar: getting variable from slot " + slot + ": " + env.currentFrame.slots[slot]);
                 var arg = DEREF(env.currentFrame.slots[slot]);
                 //console.log("Value of variable is: " + util.inspect(arg, {showHidden: false, depth: null}));
@@ -751,7 +750,7 @@ function redo_execute(env)
                     // FIXME: This MAY require trailing
                     env.argP[env.argI] = MAKEVAR();
 		    env.bind(env.argP[env.argI], arg);
-		    //console.log("argP now refers to " + util.inspect(env.argP[env.argI]));
+		    //console.log("argP now refers to " + util.inspect(env.argP[env.argI])) | 0;
                 }
                 else
                 {
@@ -763,7 +762,7 @@ function redo_execute(env)
             }
             case 25: // b_var
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 // It MAY be that the variable is not yet initialized. This can happen if we have code like
                 // (foo(X) ; true), bar(X).
                 // which compiles to
@@ -792,21 +791,21 @@ function redo_execute(env)
             }
             case 27: // b_atom
 	    {
-                var index = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var index = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
 		env.argP[env.argI++] = env.currentFrame.clause.constants[index];
 		env.PC+=3;
                 continue;
             }
             case 28: // b_void
 	    {
-		var index = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+		var index = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 env.argP[env.argI++] = MAKEVAR();
                 env.PC++;
                 continue;
             }
             case 29: // b_functor
             {
-		var index = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+		var index = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 var functor = env.currentFrame.clause.constants[index];
                 var functor_object = CTable.get(functor);
                 var new_term_args = new Array(functor_object.arity);
@@ -827,7 +826,7 @@ function redo_execute(env)
 		// env.currentFrame.slot[(opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])] in PS2
                 // basically varFrameP(FR, n) is (((Word)f) + n), which is to say it is a pointer to the nth word in the frame
                 // In PS2 parlance, these are 'slots'
-		var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+		var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 if (env.mode == "write")
 		{
 		    // If in write mode, we must create a variable in the current frame's slot, then bind it to the next arg to be matched
@@ -933,7 +932,7 @@ function redo_execute(env)
             }
             case 35: // h_var
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 var arg = DEREF(env.argP[env.argI++]);
                 //console.log("h_var from slot " + slot + ": " +arg+", and " + env.currentFrame.slots[slot])
                 if (!env.unify(arg, env.currentFrame.slots[slot]))
@@ -971,7 +970,7 @@ function redo_execute(env)
             }
             case 40: // s_qualify
             {
-                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
+                var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2])) | 0;
                 var value = DEREF(env.currentFrame.slots[slot]);
                 //console.log("Qualifying " + value + " or " + PORTRAY(value) + " from slot " + slot );
                 if (!(TAGOF(value) == CompoundTag && FUNCTOROF(value) == Constants.crossModuleCallFunctor))
