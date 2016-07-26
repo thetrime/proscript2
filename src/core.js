@@ -13,10 +13,11 @@ window.UnknownTag = {};
 
 window.DEREF = function(a)
 {
-    while (((a >>> 30) | 0) == 0)
+    while ((a & 0xc0000000) == 0)
     {
-        if (a == 0 || a == HEAP[a]) return a;
-        a = HEAP[a];
+        var b = window.HEAP[a];
+        if (a == b) return a;
+        a = b;
     }
     return a;
 }
