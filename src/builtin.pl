@@ -218,7 +218,6 @@ append([], A, A).
 append([A|B], C, [A|D]) :-
 	append(B, C, D).
 
-
 length(List, Length) :-
         ( var(Length) ->
           length(List, 0, Length)
@@ -236,5 +235,10 @@ length1([_|L], Length) :-
         N1 is Length-1,
         length1(L, N1).
 
-member(X,[X|_]).
-member(X,[Y|T]) :- member(X,T).
+member(B, [C|A]) :-
+        member_(A, B, C).
+member_(_, A, A).
+member_([C|A], B, _) :-
+        member_(A, B, C).
+
+
