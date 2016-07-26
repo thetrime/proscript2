@@ -1,6 +1,6 @@
 "use strict";
 exports=module.exports;
-
+var CTable = require('./ctable.js');
 function ClauseChoicepoint(env)
 {
     this.frame = env.currentFrame;
@@ -27,7 +27,10 @@ ClauseChoicepoint.prototype.apply = function(env)
     env.nextFrame = this.nextFrame;
 
     if (env.currentFrame.clause.nextClause == null)
+    {
+        // This is really only for dynamic predicates. Static predicates wont push a clause choicepoint for the final clause
         return false;
+    }
     env.currentFrame.clause = env.currentFrame.clause.nextClause;
     return true;
 }

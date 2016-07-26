@@ -76,7 +76,7 @@ run_all_tests :-
 test_all([]).
 test_all([F|Fs]) :-
         run_tests(F),
-        writeln(tested(F)),
+        %writeln(tested(F)),
         test_all(Fs).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%

@@ -321,7 +321,6 @@ function read_expression(s, precedence, isarg, islist, vars)
         // Pretend that . is an operator with infinite precedence
         if (infix_operator == ".")
         {
-            PORTRAY(lhs);
 	    return lhs;
         }
         if (infix_operator == "," && isarg)

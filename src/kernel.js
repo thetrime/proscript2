@@ -287,7 +287,7 @@ function execute_foreign(env, args)
     }
     catch(e)
     {
-        //console.log("Error in " + CTable.get(env.currentFrame.functor).toString());
+        console.log("Error in " + CTable.get(env.currentFrame.functor).toString());
         set_exception(env, e);
         return "exception";
     }
@@ -316,13 +316,14 @@ function usercall(env, goal)
         if (TAGOF(goal) == VariableTag)
             Errors.instantiationError();
         compiledCode = Compiler.compileQuery(goal);
+        //console.log("Compiled " + PORTRAY(goal) + " to " + util.inspect(compiledCode, {depth:null}));
     }
     catch(e)
     {
         set_exception(env, e);
         return false;
     }
-    env.nextFrame.functor = Functor.get(AtomTerm.get("call"), 1);
+    env.nextFrame.functor = Functor.get(AtomTerm.get("<meta-call>"), 1);
     env.nextFrame.clause = compiledCode.clause;
     env.nextFrame.returnPC = env.PC+1;
     env.nextFrame.choicepoint = env.choicepoints.length;
@@ -489,7 +490,7 @@ function redo_execute(env)
             }
             case 8: // i_depart
 	    {
-		var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
+                var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
                 if (!get_code(env, functor))
                 {
@@ -599,6 +600,12 @@ function redo_execute(env)
             {
                 var functor = env.currentFrame.clause.constants[((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]))];
                 env.nextFrame.functor = functor;
+                if (functor === undefined)
+                {
+                    console.log("Current goal is " + CTable.get(env.currentFrame.functor).toString() + " hTOP: " + HTOP);
+                    console.log(util.inspect(env.currentFrame.clause, {depth: null}));
+                    console.log(env.currentFrame.clause.constants + " slot " + (env.currentFrame.clause.opcodes[env.PC+1] << 8) + "," + env.currentFrame.clause.opcodes[env.PC+2]);
+                }
                 if (!get_code(env, functor))
                 {
                     next_opcode = LOOKUP_OPCODE["b_throw_foreign"].opcode;
@@ -767,7 +774,7 @@ function redo_execute(env)
                 // The status of X depends on which branch in the disjunction we took
                 if (env.currentFrame.slots[slot] == undefined)
                 {
-                    console.log("Had to make a new var...");
+                    //console.log("Had to make a new var...");
                     env.currentFrame.slots[slot] = MAKEVAR();
                 }
                 //console.log("Just pushed: " + env.currentFrame.slots[slot] + "-> " + PORTRAY(env.currentFrame.slots[slot]) + " to next frame slot " + env.argI);
@@ -946,7 +953,7 @@ function redo_execute(env)
 	    }
             case 37: // c_or
             {
-                var address = (env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0) + env.PC;
+                var address = ((env.currentFrame.clause.opcodes[env.PC+1] << 24) | (env.currentFrame.clause.opcodes[env.PC+2] << 16) | (env.currentFrame.clause.opcodes[env.PC+3] << 8) | (env.currentFrame.clause.opcodes[env.PC+4] << 0)) + env.PC;
                 env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=5;
                 continue;

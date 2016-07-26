@@ -32,7 +32,9 @@ CTable.prototype.intern = function(object, hash)
         for (var i = 0; i < bucket.length; i++)
         {
             if (bucket[i].value.equals(object))
+            {
                 return bucket[i].index;
+            }
         }
         var index = this.next;
         this.next++;
@@ -45,13 +47,19 @@ CTable.prototype.intern = function(object, hash)
 
 CTable.prototype.get = function(index)
 {
-
+    /*
+    var q = this.table[index & 0x3fffffff];
+    if (q === undefined)
+    {
+        for (var i = 0; i < this.next; i++)
+            console.log(i + ": " + this.table[i]);
+    }
+*/
     return this.table[index & 0x3fffffff];
 }
 
 
 
 var ctable = new CTable();
-
-
+console.log("Created CTable");
 module.exports = ctable;

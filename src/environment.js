@@ -248,15 +248,16 @@ Environment.prototype.consultString = function(data)
                 {
                     Utils.must_be_pi(exports[i]);
                     // For an export of foo/3, add a clause foo(A,B,C):- Module:foo(A,B,C).  to user
-                    var functor = Functor.get(exports[i].args[0], exports[i].args[1].value);
-                    var args = new Array(exports[i].args[1].value);
-                    for (var j = 0; j < exports[i].args[1].value; j++)
+                    var arity = CTable.get(ARGOF(exports[i], 1)).value;
+                    var functor = Functor.get(ARGOF(exports[i], 0), arity);
+                    var args = new Array(arity);
+                    for (var j = 0; j < arity; j++)
                         args[j] = MAKEVAR();
-                    var head = CompoundTerm.create(exports[i].args[0], args);
-                    var shim = CompoundTerm.create(Constants.clauseFunctor, [head, CompoundTerm.create(Constants.crossModuleCallFunctor, [directive.args[0], head])]);
+                    var head = CompoundTerm.create(ARGOF(exports[i], 0), args);
+                    var shim = CompoundTerm.create(Constants.clauseFunctor, [head, CompoundTerm.create(Constants.crossModuleCallFunctor, [ARGOF(directive, 0), head])]);
                     this.userModule.addClause(functor, shim);
                 }
-                this.currentModule = this.getModule(directive.args[0].value)
+                this.currentModule = this.getModule(CTable.get(ARGOF(directive, 0)).value)
             }
             else if (TAGOF(directive) == CompoundTag && FUNCTOROF(directive) == Constants.metaPredicateFunctor)
             {
@@ -340,7 +341,7 @@ Environment.prototype.execute = function(queryTerm, onSuccess, onFailure, onErro
 
 Environment.prototype.getPredicateCode = function(functor, optionalContextModule)
 {
-    //console.log("Looking for " + CTable.get(functor).toString() + " in " + this.currentModule.name);
+    //console.log("Looking for " + CTable.get(functor).toString() + "(" + functor + ") in " + this.currentModule.name);
     var m = optionalContextModule || this.currentModule;
     var p = m.getPredicateCode(functor);
     if (p === undefined && m != this.userModule)
@@ -410,6 +411,8 @@ function _copyTerm(t, vars, newVars)
         var newArgs = new Array(functor.arity);
         for (var i = 0; i < newArgs.length; i++)
             newArgs[i] = _copyTerm(ARGOF(t, i), vars, newVars);
+        if (FUNCTOROF(t) == undefined)
+            console.log("oops: " + HTOP);
         return CompoundTerm.create(FUNCTOROF(t), newArgs);
     }
     // For everything else, just return the term itself

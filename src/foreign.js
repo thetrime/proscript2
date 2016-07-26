@@ -17,6 +17,7 @@ var Errors = require('./errors');
 var TermWriter = require('./term_writer');
 var Parser = require('./parser');
 var Arithmetic = require('./arithmetic');
+var CTable = require('./ctable');
 
 module.exports.term_variables = function(t, vt)
 {
@@ -94,13 +95,13 @@ module.exports.is_list = function(t)
 module.exports.upcase_atom = function(t, s)
 {
     Utils.must_be_atom(t);
-    return this.unify(s, AtomTerm.get(t.value.toUpperCase()));
+    return this.unify(s, AtomTerm.get((CTable.get(t).value).toUpperCase()));
 }
 
 module.exports.downcase_atom = function(t, s)
 {
     Utils.must_be_atom(t);
-    return this.unify(s, AtomTerm.get(t.value.toLowerCase()));
+    return this.unify(s, AtomTerm.get((CTable.get(t).value).toLowerCase()));
 }
 
 function toFloat(arg)
@@ -121,15 +122,15 @@ function format(env, sink, formatString, formatArgs)
 {
     Utils.must_be_atom(formatString);
     var a = 0;
-    var input = formatString.value;
+    var input = CTable.get(formatString).value;
     var output = '';
     var radix = -1;
     var nextArg = function()
     {
-        if (formatArgs instanceof CompoundTerm && formatArgs.functor.equals(Constants.listFunctor))
+        if (TAGOF(formatArgs) == CompoundTag && FUNCTOROF(formatArgs) == Constants.listFunctor)
         {
-            var nextArg = formatArgs.args[0].dereference();
-            formatArgs = formatArgs.args[1].dereference();
+            var nextArg = ARGOF(formatArgs, 0);
+            formatArgs = ARGOF(formatArgs, 1);
             return nextArg;
         }
         Errors.formatError(AtomTerm.get("not enough arguments"));
@@ -152,23 +153,29 @@ function format(env, sink, formatString, formatArgs)
                         {
                             var atom = nextArg();
                             Utils.must_be_atom(atom);
-                            output += atom.value;
+                            output += CTable.get(atom).value;
                             break;
                         }
                         case 'c': // character code
                         {
                             var code = nextArg();
                             Utils.must_be_character_code(code);
-                            output += String.fromCharCode(code.value);
+                            output += String.fromCharCode(CTable.get(atom).value);
                             break;
                         }
                         case 'd': // decimal
                         {
                             var d = nextArg();
-                            if (d instanceof IntegerTerm)
-                                output += d.value;
-                            else if (d instanceof BigIntegerTerm)
-                                output += d.value.toString();
+                            if (TAGOF(d) == ConstantTag)
+                            {
+                                var dx = CTable.get(d);
+                                if (dx instanceof IntegerTerm)
+                                    output += dx.value;
+                                else if (dx instanceof BigIntegerTerm)
+                                    output += dx.value.toString();
+                                else
+                                    Errors.typeError(Constants.integerAtom, d);
+                            }
                             else
                                 Errors.typeError(Constants.integerAtom, d);
                             break;
@@ -176,11 +183,17 @@ function format(env, sink, formatString, formatArgs)
                         case 'D': // decimal with separators
                         {
                             var d = nextArg();
-                            var tmp = ""
-                            if (d instanceof IntegerTerm)
-                                tmp = String(d.value);
-                            else if (d instanceof BigIntegerTerm)
-                                tmp = d.value.toString();
+                            if (TAGOF(d) == ConstantTag)
+                            {
+                                var dx = CTable.get(d);
+                                var tmp = ""
+                                if (dx instanceof IntegerTerm)
+                                    tmp = String(dx.value);
+                                else if (d instanceof BigIntegerTerm)
+                                    tmp = dx.value.toString();
+                                else
+                                    Errors.typeError(Constants.integerAtom, d);
+                            }
                             else
                                 Errors.typeError(Constants.integerAtom, d);
                             var i = tmp.length % 3;
@@ -247,10 +260,16 @@ function format(env, sink, formatString, formatArgs)
                         {
                             var d = nextArg();
                             var tmp = ""
-                            if (d instanceof IntegerTerm)
-                                tmp = String(d.value);
-                            else if (d instanceof BigIntegerTerm)
-                                tmp = d.value.toString();
+                            if (TAGOF(d) == CompoundTag)
+                            {
+                                var dx = CTable.get(d);
+                                if (dx instanceof IntegerTerm)
+                                    tmp = String(dx.value);
+                                else if (dx instanceof BigIntegerTerm)
+                                    tmp = dx.value.toString();
+                                else
+                                    Errors.typeError(Constants.integerAtom, d);
+                            }
                             else
                                 Errors.typeError(Constants.integerAtom, d);
                             var i = tmp.length % 3;
@@ -290,10 +309,16 @@ function format(env, sink, formatString, formatArgs)
                         {
                             var d = nextArg();
                             var tmp = ""
-                            if (d instanceof IntegerTerm)
-                                tmp = d.value.toString(radix);
-                            else if (d instanceof BigIntegerTerm)
-                                tmp = d.value.toString(radix);
+                            if (TAGOF(d) == ConstantTag)
+                            {
+                                var dx = CTable.get(d);
+                                if (dx instanceof IntegerTerm)
+                                    tmp = dx.value.toString(radix);
+                                else if (dx instanceof BigIntegerTerm)
+                                    tmp = dx.value.toString(radix);
+                                else
+                                    Errors.typeError(Constants.integerAtom, d);
+                            }
                             else
                                 Errors.typeError(Constants.integerAtom, d);
                             output += tmp.toLowerCase();
@@ -301,12 +326,18 @@ function format(env, sink, formatString, formatArgs)
                         }
                         case 'R': // radix in uppercase
                         {
-                            var d = nextArg();
+                           var d = nextArg();
                             var tmp = ""
-                            if (d instanceof IntegerTerm)
-                                tmp = d.value.toString(radix);
-                            else if (d instanceof BigIntegerTerm)
-                                tmp = d.value.toString(radix);
+                            if (TAGOF(d) == ConstantTag)
+                            {
+                                var dx = CTable.get(d);
+                                if (dx instanceof IntegerTerm)
+                                    tmp = dx.value.toString(radix);
+                                else if (dx instanceof BigIntegerTerm)
+                                    tmp = dx.value.toString(radix);
+                                else
+                                    Errors.typeError(Constants.integerAtom, d);
+                            }
                             else
                                 Errors.typeError(Constants.integerAtom, d);
                             output += tmp.toUpperCase();
@@ -352,7 +383,7 @@ function format(env, sink, formatString, formatArgs)
                         {
                             var v = nextArg();
                             Utils.must_be_integer(v);
-                            radix = v.value;
+                            radix = CTable.get(v).value;
                             continue;
                         }
                         case '0':
@@ -386,12 +417,13 @@ function format(env, sink, formatString, formatArgs)
         else
             output += input.charAt(i);
     }
-    if (sink instanceof CompoundTerm && sink.functor.equals(Constants.atomFunctor))
+    if (TAGOF(sink) == CompoundTag && FUNCTOROF(sink) == Constants.atomFunctor)
     {
-        return env.unify(sink.args[0], AtomTerm.get(output));
+        return env.unify(ARGOF(sink, 0), AtomTerm.get(output));
     }
     var bufferObject = Stream.stringBuffer(output.toString());
-    return sink.value.write(sink.value, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;
+    var stream = CTable.get(sink).value;
+    return stream.write(stream, 0, bufferObject.buffer.length, bufferObject.buffer) >= 0;
 }
 
 module.exports.format = [
@@ -408,10 +440,16 @@ module.exports.format = [
 module.exports.sleep = function(interval)
 {
     var i = 0;
-    if (interval instanceof IntegerTerm)
-        i = interval.value * 1000;
-    else if (interval instanceof FloatTerm)
-        i = interval.value * 1000;
+    if (TAGOF(interval) == ConstantTag)
+    {
+        var ix = CTable.get(interval);
+        if (ix instanceof IntegerTerm)
+            i = ix.value * 1000;
+        else if (ix instanceof FloatTerm)
+            i = ix.value * 1000;
+        else
+            Errors.typeError(Constants.numberAtom, interval);
+    }
     else
         Errors.typeError(Constants.numberAtom, interval);
     if (i < 0)

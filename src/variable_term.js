@@ -58,5 +58,9 @@ VariableTerm.prototype.equals = function(o)
             (this.value != null && this.dereference().equals(o.dereference())));
 }
 
+VariableTerm.create = function()
+{
+    return MAKEVAR();
+}
 
 module.exports = VariableTerm;
