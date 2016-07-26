@@ -240,15 +240,23 @@ function compileClause(term, instructions)
     }
 }
 
+
 function compileHead(term, variables, instructions)
 {
+    var ref = instructions.length;
+    var canOptimize = true;
     if (TAGOF(term) == CompoundTag)
     {
         var functor = CTable.get(FUNCTOROF(term));
         for (var i = 0; i < functor.arity; i++)
 	{
-            compileArgument(ARGOF(term, i), variables, instructions, false);
+            canOptimize &= compileArgument(ARGOF(term, i), variables, instructions, false);
 	}
+    }
+    if (canOptimize)
+    {
+        // This is a very simple optimization: If we ONLY have h_void instructions before i_enter then we can entirely omit them
+        instructions.splice(ref, instructions.length);
     }
 }
 
@@ -259,28 +267,35 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
         if (arg == 0) // Anonymous variable _
         {
             instructions.push({opcode: Instructions.h_void})
+            return true;
         }
         else if (variables[arg].fresh)
         {
             variables[arg].fresh = false;
 	    if (embeddedInTerm)
-	    {
+            {
                 instructions.push({opcode: Instructions.h_firstvar,
                                    slot:variables[arg].slot});
+                return false;
 	    }
 	    else
 	    {
                 instructions.push({opcode: Instructions.h_void});
+                return true;
 	    }
 	}
-	else
+        else
+        {
             instructions.push({opcode: Instructions.h_var,
                                slot: variables[arg].slot});
+            return false;
+        }
     }
     else if (TAGOF(arg) == ConstantTag)
     {
         instructions.push({opcode: Instructions.h_atom,
-			   atom: arg});
+                           atom: arg});
+        return false;
     }
     else if (TAGOF(arg) == CompoundTag)
     {
@@ -290,6 +305,7 @@ function compileArgument(arg, variables, instructions, embeddedInTerm)
         for (var i = 0; i < functor.arity; i++)
             compileArgument(ARGOF(arg, i), variables, instructions, true);
         instructions.push({opcode: Instructions.h_pop});
+        return false;
     }
 }
 
