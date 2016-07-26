@@ -360,7 +360,7 @@ function redo_execute(env)
             console.log("Illegal fetch at " + env.PC);
             throw new Error("Illegal fetch");
         }
-        current_opcode = (next_opcode || (next_opcode = opcodes[env.PC]));
+        current_opcode = (next_opcode || opcodes[env.PC]) | 0;
         next_opcode = undefined;
         //if (env.debugger_steps >= 50) return;
         //env.debugger_steps++;
