@@ -2,7 +2,7 @@
 exports=module.exports;
 
 var Constants = require('./constants.js');
-var opcodes = require('./opcodes.js').opcodes;
+var Opcodes = require('./opcodes.js').opcodes;
 var LOOKUP_OPCODE = require('./opcodes.js').opcode_map;
 var Functor = require('./functor.js');
 var Compiler = require('./compiler.js');
@@ -226,7 +226,7 @@ function popArgFrame(env)
 
 function print_opcode(env, opcode)
 {
-    var opcode_info = opcodes[opcode];
+    var opcode_info = Opcodes[opcode];
     var s = opcode_info.label;
     var ptr = env.PC+1;
     for (var j = 0; j < opcode_info.args.length; j++)
@@ -982,7 +982,7 @@ function redo_execute(env)
             }
             default:
 	    {
-                throw new Error("illegal instruction: " + opcodes[env.currentFrame.clause.opcodes[env.PC]].label);
+                throw new Error("illegal instruction: " + Opcodes[env.currentFrame.clause.opcodes[env.PC]].label);
             }
         }
     }
