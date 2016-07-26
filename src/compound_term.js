@@ -3,7 +3,6 @@ exports=module.exports;
 
 var Functor = require('./functor.js');
 var AtomTerm = require('./atom_term.js');
-var Term = require('./term');
 var CTable = require('./ctable');
 var util = require('util');
 
@@ -28,8 +27,6 @@ function CompoundTerm(functor_name, args)
     }
     this.args = args;
 }
-
-CompoundTerm.prototype = new Term;
 
 CompoundTerm.prototype.dereference_recursive = function()
 {

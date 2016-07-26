@@ -9,8 +9,6 @@ function FloatTerm(value)
     this.value = value;
 }
 
-FloatTerm.prototype = new Term;
-
 FloatTerm.prototype.equals = function(o)
 {
     return (o === this) || (o instanceof FloatTerm && ((o || {}).value === this.value));

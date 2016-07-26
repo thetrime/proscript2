@@ -1,8 +1,6 @@
 "use strict";
 exports=module.exports;
 
-var Term = require('./term');
-
 var nextvar = 0;
 
 function VariableTerm(name)
@@ -14,8 +12,6 @@ function VariableTerm(name)
         this.name = name;
     this.value = null;
 }
-
-VariableTerm.prototype = new Term;
 
 VariableTerm.prototype.dereference_recursive = function()
 {

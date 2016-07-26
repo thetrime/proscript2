@@ -1,15 +1,12 @@
 "use strict";
 exports=module.exports;
 
-var Term = require('./term');
 var CTable = require('./ctable');
 
 function IntegerTerm(value)
 {
     this.value = value;
 }
-
-IntegerTerm.prototype = new Term;
 
 IntegerTerm.prototype.equals = function(o)
 {
