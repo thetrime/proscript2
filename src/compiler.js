@@ -243,20 +243,20 @@ function compileClause(term, instructions)
 
 function compileHead(term, variables, instructions)
 {
-    var ref = instructions.length;
-    var canOptimize = true;
+    var optimizeRef = instructions.length;
     if (TAGOF(term) == CompoundTag)
     {
         var functor = CTable.get(FUNCTOROF(term));
         for (var i = 0; i < functor.arity; i++)
 	{
-            canOptimize &= compileArgument(ARGOF(term, i), variables, instructions, false);
+            if (!compileArgument(ARGOF(term, i), variables, instructions, false))
+                optimizeRef = instructions.length;
 	}
     }
-    if (canOptimize)
+    if (optimizeRef != instructions.length)
     {
         // This is a very simple optimization: If we ONLY have h_void instructions before i_enter then we can entirely omit them
-        instructions.splice(ref, instructions.length);
+        instructions.splice(optimizeRef, instructions.length);
     }
 }
 
