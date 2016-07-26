@@ -50,7 +50,7 @@ function Environment()
     this.debug_times = {};
     this.debug_backtracks = 0;
     this.debugger_steps = 0;
-    this.debugging = false;
+    this.debugging = true;
     this.userModule = this.getModule("user");
     // We have to set currentModule here so that we can load the builtins. It will be reset in reset() again to user if it was changed
     this.currentModule = this.userModule;
@@ -106,9 +106,9 @@ Environment.prototype.create_choicepoint = function(data, cleanup)
     var c = new Choicepoint(this, 1);
     if (cleanup != undefined)
         c.cleanup = {foreign: cleanup};
-    this.choicepoints.push(c);
+    this.choicepoints[this.CP++] = c;
     this.currentFrame.reserved_slots[0] = data;
-    return this.choicepoints.length;
+    return this.CP;
 }
 
 Environment.prototype.saveState = function()
@@ -128,6 +128,7 @@ Environment.prototype.saveState = function()
                  // to ... write?
                  argS: this.argS,
                  argSI: this.argSI,
+                 CP: this.CP,
                  argP: this.argP,
                  argI: this.argI,
                  mode: this.mode};
@@ -142,6 +143,7 @@ Environment.prototype.restoreState = function(saved)
     this.choicepoints = saved.choicepoints;
     this.TR = saved.TR;
     this.argSI = saved.argSI;
+    this.CP = saved.CP;
     this.argP = saved.argP;
     this.argI = saved.argI;
     this.trail = saved.trail;
@@ -203,6 +205,7 @@ Environment.prototype.reset = function()
     this.TR = 0;
     this.argS = [];
     this.argSI = 0;
+    this.CP = 0;
     this.argI = 0;
     this.mode = "read";
     this.trail = [];

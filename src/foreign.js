@@ -29,13 +29,13 @@ module.exports["$det"] = function()
 {
     // Since $det is an actual predicate that gets called, we want to look at the /parent/ frame to see if THAT was deterministic
     // Obviously $det/0 itself is always deterministic!
-    console.log("Parent frame " + this.currentFrame.parent.functor + " has choicepoint of " + this.currentFrame.parent.choicepoint + ", there are " + this.choicepoints.length + " active choicepoints");
-    return this.currentFrame.parent.choicepoint == this.choicepoints.length;
+    console.log("Parent frame " + this.currentFrame.parent.functor + " has choicepoint of " + this.currentFrame.parent.choicepoint + ", there are " + this.CP + " active choicepoints");
+    return this.currentFrame.parent.choicepoint == this.CP;
 }
 
 module.exports["$choicepoint_depth"] = function(t)
 {
-    return this.unify(t, IntegerTerm.get(this.choicepoints.length));
+    return this.unify(t, IntegerTerm.get(this.CP));
 }
 
 module.exports.keysort = function(unsorted, sorted)

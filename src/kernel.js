@@ -84,13 +84,13 @@ function set_exception(env, term)
 function backtrack_to(env, choicepoint_index)
 {
     // Undoes to the given choicepoint, undoing everything else in between
-    for (var i = env.choicepoints.length-1; i >= choicepoint_index-1; i--)
+    for (var i = env.CP-1; i >= choicepoint_index-1; i--)
     {
         var oldTR = env.TR;
         env.choicepoints[i].apply(env);
         unwind_trail(env, oldTR);
     }
-    env.choicepoints = env.choicepoints.slice(0, choicepoint_index);
+    env.CP = choicepoint_index;
 }
 
 function backtrack(env)
@@ -100,9 +100,9 @@ function backtrack(env)
     var oldTR = env.TR;
     while (true)
     {
-        if (env.choicepoints.length == 0)
+        if (env.CP == 0)
             return false;
-        var choicepoint = env.choicepoints.pop();
+        var choicepoint = env.choicepoints[--env.CP];
         if (!choicepoint.apply(env))
         {
             // This is a fake choicepoint set up for something like exception handling. We have to keep going
@@ -137,9 +137,9 @@ function resume_cut(env, savedState)
 
 function cut_to(env, point)
 {
-    while (env.choicepoints.length > point)
+    while (env.CP > point)
     {
-        var c = env.choicepoints.pop();
+        var c = env.choicepoints[--env.CP];
         if (c.cleanup != undefined)
         {
             if (c.cleanup.foreign != undefined)
@@ -270,7 +270,7 @@ var exception = undefined;
 
 function execute(env, successHandler, onFailure, onError)
 {
-    env.yieldInfo = {initial_choicepoint_depth: env.choicepoints.length,
+    env.yieldInfo = {initial_choicepoint_depth: env.CP,
                      onSuccess:successHandler,
                      onFailure:onFailure,
                      onError:onError};
@@ -326,7 +326,7 @@ function usercall(env, goal)
     env.nextFrame.functor = Functor.get(AtomTerm.get("<meta-call>"), 1);
     env.nextFrame.clause = compiledCode.clause;
     env.nextFrame.returnPC = env.PC+1;
-    env.nextFrame.choicepoint = env.choicepoints.length;
+    env.nextFrame.choicepoint = env.CP;
     env.argP = env.nextFrame.slots;
     env.argI = 0;
     // Now the arguments need to be filled in. This takes a bit of thought.
@@ -365,8 +365,7 @@ function redo_execute(env)
         //if (env.debugger_steps >= 50) return;
         //env.debugger_steps++;
         //env.debug_ops[current_opcode] = (env.debug_ops[current_opcode] || 0) + 1;
-        //if (env.debugging == true)
-        //    print_instruction(env, current_opcode);
+        //if (env.debugging == true) print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
             case 0: // i_fail
@@ -388,19 +387,19 @@ function redo_execute(env)
             }
             case 2: // i_exit_query
             {
-                env.yieldInfo.onSuccess(env.choicepoints.length != env.yieldInfo.initial_choicepoint_depth);
+                env.yieldInfo.onSuccess(env.CP != env.yieldInfo.initial_choicepoint_depth);
                 //env.debug_times[current_opcode] = (env.debug_times[current_opcode] || 0) + new Date().getTime() - d0
                 return;
             }
             case 3: // i_exitcatch
             {
                 var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
-                if (env.currentFrame.reserved_slots[slot] == env.choicepoints.length)
+                if (env.currentFrame.reserved_slots[slot] == env.CP)
                 {
                     // Goal has exited deterministically, we do not need our backtrack point anymore since there is no way we could
                     // backtrack into Goal and generate an exception.
                     // Note that it is possible, if we executed the handler, that the fake choicepoint has already been deleted
-                    env.choicepoints.pop();
+                    env.CP--;
                 }
                 next_opcode = LOOKUP_OPCODE["i_exit"].opcode;
                 continue next_instruction;
@@ -504,7 +503,7 @@ function redo_execute(env)
 		env.argP = env.nextFrame.slots;
                 env.argI = 0;
                 env.currentFrame = env.nextFrame;
-                env.currentFrame.choicepoint = env.choicepoints.length;
+                env.currentFrame.choicepoint = env.CP;
                 env.nextFrame = new Frame(env);
                 env.PC = 0; // Start from the beginning of the code in the next frame
                 continue;
@@ -518,7 +517,7 @@ function redo_execute(env)
                 c.cleanup = {goal: env.argP[env.argI-1],
                              catcher: env.argP[env.argI-2]};
                 env.argP-=2;
-                env.choicepoints.push(c);
+                env.choicepoints[env.CP++] = c;
                 env.PC++;
                 continue;
             }
@@ -614,7 +613,7 @@ function redo_execute(env)
                 }
                 env.nextFrame.returnPC = env.PC+3;
                 env.currentFrame = env.nextFrame;
-                env.currentFrame.choicepoint = env.choicepoints.length;
+                env.currentFrame.choicepoint = env.CP;
                 // Reset argI to be at the start of the current array. argP SHOULD already be slots for the next frame since we were
                 // just filling it in
                 // FIXME: assert(env.argS.length === 0)
@@ -631,13 +630,13 @@ function redo_execute(env)
                 //    * Create a backtrack point at the start of the frame so we can undo anything in the guarded goal if something goes wrong
                 //    * ensure argP[argI-1] points to the goal
                 //    * Jump to i_usercall to call the goal
-                env.choicepoints.push(new Choicepoint(env, -1));
+                env.choicepoints[env.CP++] = new Choicepoint(env, -1);
                 //console.log("Created fake choicepoint");
                 //console.log("slots contains " + env.currentFrame.slots.length);
                 // Since catch/3 can never itself contain a cut (the bytecode is fixed at i_catch, i_exitcatch), we can afford to tweak the frame a bit
                 // by moving the frames cut choicepoint to the fake choicepoint we have just created, we can simplify b_throw
-                env.currentFrame.choicepoint = env.choicepoints.length;
-                env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
+                env.currentFrame.choicepoint = env.CP;
+                env.currentFrame.reserved_slots[slot] = env.CP;
                 //console.log(env.currentFrame.slots);
                 // Currently argP points to the first slot in the next frame that we have started building since we've done i_enter already
                 // we need to set it back to the slots of the /current/ frame so that i_usercall finds the goal
@@ -671,7 +670,7 @@ function redo_execute(env)
                 //console.log("Cut to " + env.currentFrame.choicepoint);
                 if (!cut_to(env, env.currentFrame.choicepoint))
                     return false;
-                env.currentFrame.choicepoint = env.choicepoints.length;
+                env.currentFrame.choicepoint = env.CP;
                 env.PC++;
                 //console.log("Choicepoints after cut: " + env.choicepoints.length);
                 continue;
@@ -697,7 +696,7 @@ function redo_execute(env)
             case 20: // c_ifthen
             {
                 var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
-                env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
+                env.currentFrame.reserved_slots[slot] = env.CP;
                 env.PC+=3;
                 continue;
             }
@@ -705,8 +704,8 @@ function redo_execute(env)
             {
                 var slot = ((opcodes[env.PC+1] << 8) | (opcodes[env.PC+2]));
                 var address = ((opcodes[env.PC+3] << 24) | (opcodes[env.PC+4] << 16) | (opcodes[env.PC+5] << 8) | (opcodes[env.PC+6] << 0)) + env.PC;
-                env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
-                env.choicepoints.push(new Choicepoint(env, address));
+                env.currentFrame.reserved_slots[slot] = env.CP;
+                env.choicepoints[env.CP++] = new Choicepoint(env, address);
                 env.PC+=7;
                 continue;
             }
@@ -955,13 +954,13 @@ function redo_execute(env)
             case 37: // c_or
             {
                 var address = ((opcodes[env.PC+1] << 24) | (opcodes[env.PC+2] << 16) | (opcodes[env.PC+3] << 8) | (opcodes[env.PC+4] << 0)) + env.PC;
-                env.choicepoints.push(new Choicepoint(env, address));
+                env.choicepoints[env.CP++] = new Choicepoint(env, address);
                 env.PC+=5;
                 continue;
             }
             case 38: // try_me_or_next_clause
             {
-                env.choicepoints.push(new ClauseChoicepoint(env));
+                env.choicepoints[env.CP++] = new ClauseChoicepoint(env);
                 env.PC++;
                 continue;
             }
