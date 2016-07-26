@@ -1,7 +1,6 @@
 "use strict";
 exports=module.exports;
 
-var Term = require('./term');
 var CTable = require('./ctable');
 
 function FloatTerm(value)
