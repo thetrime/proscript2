@@ -127,6 +127,7 @@ Environment.prototype.saveState = function()
                  // and argI to 0. Mode should also always be restored
                  // to ... write?
                  argS: this.argS,
+                 argSI: this.argSI,
                  argP: this.argP,
                  argI: this.argI,
                  mode: this.mode};
@@ -140,7 +141,7 @@ Environment.prototype.restoreState = function(saved)
     this.currentFrame = saved.currentFrame;
     this.choicepoints = saved.choicepoints;
     this.TR = saved.TR;
-    this.argS = saved.argS;
+    this.argSI = saved.argSI;
     this.argP = saved.argP;
     this.argI = saved.argI;
     this.trail = saved.trail;
@@ -201,6 +202,7 @@ Environment.prototype.reset = function()
     this.choicepoints = [];
     this.TR = 0;
     this.argS = [];
+    this.argSI = 0;
     this.argI = 0;
     this.mode = "read";
     this.trail = [];

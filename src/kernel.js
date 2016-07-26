@@ -211,14 +211,14 @@ function cut_to(env, point)
 
 function newArgFrame(env)
 {
-    env.argS.push({p: env.argP,
-                   i: env.argI,
-		   m: env.mode});
+    env.argS[env.argSI++] = {p: env.argP,
+                             i: env.argI,
+                             m: env.mode};
 }
 
 function popArgFrame(env)
 {
-    var argFrame = env.argS.pop();
+    var argFrame = env.argS[--env.argSI];
     env.argP = argFrame.p;
     env.argI = argFrame.i;
     env.mode = argFrame.m;
@@ -365,10 +365,8 @@ function redo_execute(env)
         //if (env.debugger_steps >= 50) return;
         //env.debugger_steps++;
         //env.debug_ops[current_opcode] = (env.debug_ops[current_opcode] || 0) + 1;
-        if (env.debugging == true)
-        {
-            print_instruction(env, current_opcode);
-        }
+        //if (env.debugging == true)
+        //    print_instruction(env, current_opcode);
         switch(current_opcode)
 	{
             case 0: // i_fail
