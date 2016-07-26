@@ -243,6 +243,7 @@ function compileClause(term, instructions)
 
 function compileHead(term, variables, instructions)
 {
+    var qqq = instructions.length;
     var optimizeRef = instructions.length;
     if (TAGOF(term) == CompoundTag)
     {
@@ -253,9 +254,10 @@ function compileHead(term, variables, instructions)
                 optimizeRef = instructions.length;
 	}
     }
-    if (optimizeRef != instructions.length)
+    if (optimizeRef < instructions.length && false)
     {
         // This is a very simple optimization: If we ONLY have h_void instructions before i_enter then we can entirely omit them
+        // FIXME: For some reason this causes things to go horribly wrong. See the test suite
         instructions.splice(optimizeRef, instructions.length);
     }
 }
