@@ -703,7 +703,7 @@ function redo_execute(env)
             case 21: // c_ifthenelse
             {
                 var slot = ((env.currentFrame.clause.opcodes[env.PC+1] << 8) | (env.currentFrame.clause.opcodes[env.PC+2]));
-                var address = (env.currentFrame.clause.opcodes[env.PC+3] << 24) | (env.currentFrame.clause.opcodes[env.PC+4] << 16) | (env.currentFrame.clause.opcodes[env.PC+5] << 8) | (env.currentFrame.clause.opcodes[env.PC+6] << 0) + env.PC;
+                var address = ((env.currentFrame.clause.opcodes[env.PC+3] << 24) | (env.currentFrame.clause.opcodes[env.PC+4] << 16) | (env.currentFrame.clause.opcodes[env.PC+5] << 8) | (env.currentFrame.clause.opcodes[env.PC+6] << 0)) + env.PC;
                 env.currentFrame.reserved_slots[slot] = env.choicepoints.length;
                 env.choicepoints.push(new Choicepoint(env, address));
                 env.PC+=7;
