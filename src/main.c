@@ -2,6 +2,7 @@
 #include "kernel.h"
 #include "constants.h"
 #include "stream.h"
+#include "compiler.h"
 #include "parser.h"
 #include <string.h>
 
@@ -11,6 +12,6 @@ int main()
    char* code = "fox(a,b):- \"hello\".";
    Stream s = stringBufferStream(strdup(code), strlen(code));
    word w = readTerm(s, NULL);
-   PORTRAY(w); printf("\n");
+   Query q = compileQuery(w);
    return -1;
 }

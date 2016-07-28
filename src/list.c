@@ -7,6 +7,16 @@ void init_list(List* list)
    list->length = 0;
 }
 
+List* alloc_list()
+{
+   List* list = malloc(sizeof(List));
+   list->head = NULL;
+   list->tail = NULL;
+   list->length = 0;
+   return list;
+}
+
+// CHECKME: alloc_list() must be free()d
 void free_list(List* list)
 {
    struct cell_t* cell = list->head;
@@ -57,6 +67,20 @@ void list_apply_reverse(List* list, void* data, void (*fn)(word, void*))
       fn(cell->data, data);
       cell = next;
    }
+}
+
+
+int list_contains(List* list, word w)
+{
+   struct cell_t* cell = list->tail;
+   while (cell != NULL)
+   {
+      struct cell_t* next = cell->prev;
+      if (w == cell->data)
+         return 1;
+      cell = next;
+   }
+   return 0;
 }
 
 

@@ -1,3 +1,5 @@
+#ifndef _KERNEL_H
+#define _KERNEL_H
 #include <stdint.h>
 #include <stdlib.h>
 #include "list.h"
@@ -21,6 +23,7 @@
 #define TAG_MASK     0b11
 #define TAGOF(t) (t & TAG_MASK)
 
+word DEREF(word t);
 word MAKE_VAR();
 word MAKE_ATOM(char* data);
 word MAKE_NATOM(char* data, size_t length);
@@ -29,6 +32,7 @@ word MAKE_FUNCTOR(word name, int arity);
 word MAKE_VCOMPOUND(word functor, ...);
 word MAKE_LCOMPOUND(word functor, List* args);
 void PORTRAY(word w);
+void SET_EXCEPTION(word);
 
 enum OPCODE
 {
@@ -90,3 +94,4 @@ typedef enum
    ERROR,
    HALT
 } RC;
+#endif

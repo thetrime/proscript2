@@ -1,12 +1,18 @@
 #include "types.h"
 
 word errorFunctor;
+word typeErrorFunctor;
 word listFunctor;
 word conjunctionFunctor;
 word curlyFunctor;
 word crossModuleCallFunctor;
+word clauseFunctor;
+word disjunctionFunctor;
+word localCutFunctor;
 
 word cutAtom;
+word callableAtom;
+word queryAtom;
 word endOfFileAtom;
 word emptyListAtom;
 word curlyAtom;

@@ -23,7 +23,7 @@ Frame FR, NFR;
 word *ARGP;
 Module currentModule = NULL;
 Choicepoint initialChoicepoint = NULL;
-
+word current_exception = 0;
 
 void fatal(char* string)
 {
@@ -183,6 +183,11 @@ void PORTRAY(word w)
    }
    else
       printf("Bad tag\n");
+}
+
+void SET_EXCEPTION(word w)
+{
+   current_exception = w;
 }
 
 int unify(word a, word b)
