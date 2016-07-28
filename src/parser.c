@@ -8,6 +8,8 @@
 #include "kernel.h"
 #include "hashmap.h"
 #include <assert.h>
+#include "list.h"
+#include "operators.h"
 
 token ListOpenToken_ = {ConstantTokenType}; Token ListOpenToken = &ListOpenToken_;
 token ListCloseToken_ = {ConstantTokenType}; Token ListCloseToken = &ListCloseToken_;
@@ -18,10 +20,12 @@ token CurlyCloseToken_ = {ConstantTokenType}; Token CurlyCloseToken = &CurlyClos
 token BarToken_ = {ConstantTokenType}; Token BarToken = &BarToken_;
 token CommaToken_ = {ConstantTokenType}; Token CommaToken = &CommaToken_;
 token PeriodToken_ = {ConstantTokenType}; Token PeriodToken = &PeriodToken_;
-token DoubleQuoteToken_ = {ConstantTokenType}; Token DoubleQuoteToken = &DoubleQuoteToken_;
 
 word parse_infix(Stream s, word lhs, int precedence, map_t vars);
 word parse_postfix(Stream s, word lhs, int precedence, map_t vars);
+
+
+word syntax_error = 0; // FIXME: Not sure about what to do here
 
 
 void freeToken(Token t)
@@ -31,6 +35,7 @@ void freeToken(Token t)
       case ConstantTokenType:
          return;
       case AtomTokenType:
+         free(t->data.atom_data->data);
          free(t->data.atom_data);
          free(t);
          break;
@@ -39,7 +44,8 @@ void freeToken(Token t)
          free(t);
          break;
       case StringTokenType:
-         free(t->data.string_data);
+         free(t->data.atom_data->data);
+         free(t->data.atom_data);
          free(t);
          break;
       case IntegerTokenType:
@@ -89,7 +95,7 @@ int is_graphic_char(c)
       c == '\\'; // graphic-token-char is either graphic-char or backslash-char
 }
 
-char* CharConversionTable = NULL;
+char* CharConversionTable = NULL; // FIXME
 
 char lookahead = -1;
 void unget_raw_char(int c)
@@ -105,8 +111,10 @@ char get_raw_char_with_conversion(Stream s)
         lookahead = -1;
         return c;
     }
-//    if (!PrologFlag.values['char_conversion'])
-        return get_raw_char(s);
+    if (get_prolog_flag("char_conversion") == falseAtom)
+    {
+       return get_raw_char(s);
+    }
     int t = get_raw_char(s);
     int tt = CharConversionTable[t];
     if (tt == -1)
@@ -121,8 +129,10 @@ char peek_raw_char_with_conversion(Stream s)
     {
         return lookahead;
     }
-    //if (!PrologFlag.values['char_conversion'])
+    if (get_prolog_flag("char_conversion") == falseAtom)
+    {
         return peek_raw_char(s);
+    }
     int t = peek_raw_char(s);
     int tt = CharConversionTable[t];
     if (tt == -1)
@@ -133,14 +143,16 @@ char peek_raw_char_with_conversion(Stream s)
 
 CharBuffer charBuffer()
 {
-   CharBuffer cb = malloc(sizeof(CharBuffer));
+   CharBuffer cb = malloc(sizeof(charbuffer));
    cb->head = NULL;
    cb->tail = NULL;
+   cb->length = 0;
    return cb;
 }
 
 void pushChar(CharBuffer cb, int c)
 {
+   cb->length++;
    if (cb->tail == NULL)
    {
       cb->head = malloc(sizeof(CharCell));
@@ -151,21 +163,21 @@ void pushChar(CharBuffer cb, int c)
    else
    {
       cb->tail->next = malloc(sizeof(CharCell));
-      cb->tail->next->next = NULL;
-      cb->tail->next->data = c;
+      cb->tail = cb->tail->next;
+      cb->tail->data = c;
+      cb->tail->next = NULL;
    }
+}
+
+int bufferLength(CharBuffer buffer)
+{
+   return buffer->length;
 }
 
 char* finalize(CharBuffer buffer)
 {
-   int length = 1; // null-terminator
    CharCell* c = buffer->head;
-   while (c != NULL)
-   {
-      length++;
-      c = c->next;
-   }
-   char* data = malloc(length);
+   char* data = malloc(buffer->length);
    c = buffer->head;
    int i = 0;
    CharCell* d;
@@ -189,11 +201,13 @@ Token SyntaxErrorToken(char* message)
 
 }
 
-Token AtomToken(char* data)
+Token AtomToken(char* data, int length)
 {
    Token t = malloc(sizeof(Token));
    t->type = AtomTokenType;
-   t->data.atom_data = data;
+   t->data.atom_data = malloc(sizeof(atom_data_t));
+   t->data.atom_data->data = data;
+   t->data.atom_data->length = length;
    return t;
 }
 
@@ -214,11 +228,13 @@ Token BigIntegerToken(char* data)
 }
 
 
-Token StringToken(char* data)
+Token StringToken(char* data, int length)
 {
    Token t = malloc(sizeof(Token));
    t->type = StringTokenType;
-   t->data.atom_data = data;
+   t->data.atom_data = malloc(sizeof(atom_data_t));
+   t->data.atom_data->data = data;
+   t->data.atom_data->length = length;
    return t;
 }
 
@@ -290,7 +306,7 @@ Token lex(Stream s)
       if (peek_raw_char_with_conversion(s) == ']')
       {
          get_raw_char_with_conversion(s);
-         return AtomToken("[]");
+         return AtomToken(strdup("[]"), 2);
       }
       return ListOpenToken;
    }
@@ -306,6 +322,8 @@ Token lex(Stream s)
       return ListCloseToken;
    else if (c == '|')
       return BarToken;
+   else if (c == ',')
+      return CommaToken;
    if ((c >= 'A' && c < 'Z') || c == '_')
    {
       CharBuffer sb = charBuffer();
@@ -326,7 +344,7 @@ Token lex(Stream s)
          get_raw_char_with_conversion(s);
          return IntegerToken(get_raw_char_with_conversion(s));
       }
-      // FIXME: Should also hadle 0x and 0b here
+      // FIXME: Should also handle 0x and 0b here
       // Parse a number
       CharBuffer sb = charBuffer();
       pushChar(sb, c);
@@ -448,10 +466,12 @@ Token lex(Stream s)
             }
             pushChar(sb, c);
          }
+         int length = bufferLength(sb);
+         char *data = finalize(sb);
          if (matcher == '"')
-            return StringToken(finalize(sb));
+            return StringToken(data, length);
          else
-            return AtomToken(finalize(sb));
+            return AtomToken(data, length);
       }
       else
       {
@@ -465,69 +485,96 @@ Token lex(Stream s)
             if (c == -1)
                break;
             if (char_atom && is_char(c))
+            {
                pushChar(sb, get_raw_char_with_conversion(s));
+            }
             else if (punctuation_atom && is_graphic_char(c))
+            {
                pushChar(sb, get_raw_char_with_conversion(s));
+            }
             else
                break;
          }
-         return AtomToken(finalize(sb));
+         int length = bufferLength(sb);
+         char* data = finalize(sb);
+         return AtomToken(data, length);
       }
    }
    // This should be unreachable
    return NULL;
 }
 
-Token peeked_token = NULL;
+Token token_lookahead[3];
+int token_lookahead_index = 0;
 
 Token read_token(Stream s)
 {
-   if (peeked_token != NULL)
-   {
-      Token t = peeked_token;
-      peeked_token = NULL;
-      return t;
-   }
+   if (token_lookahead_index > 0)
+      return token_lookahead[--token_lookahead_index];
    return lex(s);
 }
 
 Token peek_token(Stream s)
 {
-   if (peeked_token != NULL)
-      return peeked_token;
-   peeked_token = lex(s);
-   return peeked_token;
+   if (token_lookahead_index > 0)
+      return token_lookahead[token_lookahead_index-1];
+   Token t = lex(s);
+   token_lookahead[token_lookahead_index++] = t;
+   return t;
 }
 
 void unread_token(Stream s, Token t)
 {
-   if (peeked_token == NULL)
-      peeked_token = t;
-   printf("Horrible failure: Attempt to unread a token when we already have one unread\n");
+   if (token_lookahead_index == 3)
+      printf("Horrible failure: Too many unread tokens\n");
+   token_lookahead[token_lookahead_index++] = t;
 }
 
-int find_operator(Token t, Operator* op, OperatorPosition position)
+
+int token_operator(Token t, Operator* op, OperatorPosition position)
 {
-   return 0;
+   if (t->type != AtomTokenType)
+      return 0;
+   return find_operator(t->data.atom_data->data, op, position);
 }
 
-word syntax_error = 0; // FIXME: Not sure about what to do here
+void cons(word cell, void* result)
+{
+   word* r = (word*)result;
+   *r = MAKE_VCOMPOUND(listFunctor, cell, *r);
+}
+
+void curly_cons(word cell, void* result)
+{
+   word* r = (word*)result;
+   *r = MAKE_VCOMPOUND(conjunctionFunctor, cell, *r);
+}
 
 
+word make_list(List* list, word tail)
+{
+   word result = tail;
+   list_apply_reverse(list, &result, cons);
+   return result;
+}
+
+word make_curly(List* list, word tail)
+{
+   word result = tail;
+   list_apply_reverse(list, &result, curly_cons);
+   return MAKE_VCOMPOUND(curlyFunctor, result);
+}
 
 
 word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars)
 {
-   Token token = read_token(s);
-   if (token == NULL)
+   Token t = read_token(s);
+   if (t == NULL)
       return endOfFileAtom;
-//   if (token == ListCloseToken)
-//      return token;
-   word lhs;
+   word lhs = 0;
    Operator prefixOperator;
    Operator infixOperator;
-
-   int hasOp = find_operator(token, &prefixOperator, Prefix);
+   int hasOp = token_operator(t, &prefixOperator, Prefix);
    Token peeked_token = peek_token(s);
    if (peeked_token == ListCloseToken || peeked_token == ParenCloseToken || peeked_token == CommaToken)
       hasOp = 0;
@@ -541,96 +588,196 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
    }
    if (!hasOp)
    {
-      if (token == DoubleQuoteToken)
+      if (t == ListOpenToken || t == CurlyOpenToken)
       {
-         // FIXME: implement...?
+         List list;
+         init_list(&list);
+         while (1)
+         {
+            if (peek_token(s) == ListCloseToken && t == ListOpenToken)
+            {
+               read_token(s);
+               lhs = emptyListAtom;
+               break;
+            }
+            if (peek_token(s) == CurlyCloseToken && t == CurlyOpenToken)
+            {
+               read_token(s);
+               lhs = curlyAtom;
+               break;
+            }
+            word arg = read_expression(s, 1201, 1, 1, vars);
+            Token next = read_token(s);
+            if (next == CommaToken)
+            {
+               list_append(&list, arg);
+               continue;
+            }
+            else if (next == ListCloseToken && t == ListOpenToken)
+            {
+               list_append(&list, arg);
+               lhs = make_list(&list, emptyListAtom);
+               break;
+            }
+            else if (next == CurlyCloseToken && t == CurlyOpenToken)
+            {
+               lhs = make_curly(&list, arg);
+               break;
+            }
+            else if (next == BarToken && t == ListOpenToken)
+            {
+               list_append(&list, arg);
+               word tail = read_expression(s, 1201, 1, 1, vars);
+               lhs = make_list(&list, tail);
+               next = read_token(s);
+               if (next == ListCloseToken)
+                  break;
+               return syntax_error; // Missing ]
+            }
+            else
+               return syntax_error; // Mismatched 'token' at 'next'
+         }
+         free_list(&list);
       }
-      else if (token == ListOpenToken || token == CurlyOpenToken)
+      else if (t == ParenOpenToken)
       {
-         // FIXME: implement
-      }
-      else if (token == ParenOpenToken)
-      {
+         printf("()\n");
          lhs = read_expression(s, 12001, 0, 0, vars);
          Token next = read_token(s);
          if (next != ParenCloseToken)
             return syntax_error; // Mismatched ( at <next>
-         else if (token->type == VariableTokenType)
+         else if (t->type == VariableTokenType)
          {
-            if (token->data.variable_data[0] == '_')
+            if (t->data.variable_data[0] == '_')
                lhs = MAKE_VAR();
             else
             {
-               if (hashmap_get(vars, token->data.variable_data, strlen(token->data.variable_data), (any_t*)&lhs) == MAP_MISSING)
+               if (hashmap_get(vars, t->data.variable_data, (any_t*)&lhs) == MAP_MISSING)
                {
                   lhs = MAKE_VAR();
-                  hashmap_put(vars, strdup(token->data.variable_data), strlen(token->data.variable_data), (any_t)lhs);
+                  hashmap_put(vars, strdup(t->data.variable_data), (any_t)lhs);
                }
             }
          }
       }
-      else if (token == CurlyCloseToken)
+      else if (t == CurlyCloseToken)
          lhs = MAKE_ATOM("}");
       else
       {
-         switch(token->type)
+         switch(t->type)
          {
             case AtomTokenType:
-               lhs = MAKE_ATOM(token->data.atom_data);
+               lhs = MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length);
                break;
             case IntegerTokenType:
-               lhs = MAKE_INTEGER(token->data.integer_data);
+               lhs = MAKE_INTEGER(t->data.integer_data);
                break;
+            case StringTokenType:
+            {
+               if (get_prolog_flag("double_quotes") == codesAtom)
+               {
+                  List list;
+                  init_list(&list);
+                  for (int i = 0; i < t->data.atom_data->length; i++)
+                     list_append(&list, MAKE_INTEGER(t->data.atom_data->data[i]));
+                  lhs = make_list(&list, emptyListAtom);
+                  free_list(&list);
+                  break;
+               }
+               else if (get_prolog_flag("double_quotes") == charsAtom)
+               {
+                  List list;
+                  init_list(&list);
+                  for (int i = 0; i < t->data.atom_data->length; i++)
+                     list_append(&list, MAKE_NATOM(&t->data.atom_data->data[i], 1));
+                  lhs = make_list(&list, emptyListAtom);
+                  free_list(&list);
+                  break;
+               }
+               else if (get_prolog_flag("double_quotes") == atomAtom)
+               {
+                  lhs = MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length);
+                  break;
+               }
+            }
             default:
+
                printf("Not implemented yet\n");
                lhs = 0;
          }
       }
    }
-   else if (prefixOperator.fixity == FX)
+   else if (prefixOperator->fixity == FX)
    {
-      lhs = MAKE_VCOMPOUND(prefixOperator.functor, read_expression(s, prefixOperator.precedence, isArg, isList, vars));
+      lhs = MAKE_VCOMPOUND(prefixOperator->functor, read_expression(s, prefixOperator->precedence, isArg, isList, vars));
    }
-   else if (prefixOperator.fixity == FY)
+   else if (prefixOperator->fixity == FY)
    {
-      lhs = MAKE_VCOMPOUND(prefixOperator.functor, read_expression(s, prefixOperator.precedence+1, isArg, isList, vars));
+      lhs = MAKE_VCOMPOUND(prefixOperator->functor, read_expression(s, prefixOperator->precedence+1, isArg, isList, vars));
    }
    else
       return syntax_error; // parse error
+   // At this point, lhs has been set
    while (1)
    {
-      token = peek_token(s);
-      if (token->type == IntegerTokenType && token->data.integer_data <= 0)
+      Token t1 = peek_token(s);
+      if (t1->type == IntegerTokenType && t1->data.integer_data <= 0)
       {
          read_token(s);
-         token->data.integer_data = -token->data.integer_data;
-         unread_token(s, token);
-         unread_token(s, AtomToken("-"));
+         t1->data.integer_data = -t1->data.integer_data;
+         unread_token(s, t1);
+         unread_token(s, AtomToken(strdup("-"), 1));
       }
-      if (token == ParenOpenToken)
+      if (t1 == ParenOpenToken)
       {
-         // Reading a term
+         // Reading a term. lhs is the name of the functor
+         // First consume the (
+         read_token(s);
+         // Then read each arg into a list
+         List list;
+         init_list(&list);
+         while (1)
+         {
+            list_append(&list, read_expression(s, 1201, 1, 0, vars));
+            Token next = read_token(s);
+            if (next == ParenCloseToken)
+               break;
+            else if (next == CommaToken)
+               continue;
+            else
+            {
+               printf("Syntax error\n");
+               if (next == NULL)
+                  return syntax_error; // end of file in term
+               else
+                  return syntax_error; // Unexpected token 'next'
+            }
+         }
+         lhs = MAKE_LCOMPOUND(MAKE_FUNCTOR(lhs, list_length(&list)), &list);
+         free_list(&list);
+         // Now, where were we?
+         t1 = peek_token(s);
       }
-      if (token == PeriodToken)
+      if (t1 == PeriodToken)
          return lhs;
-      if (token == CommaToken && isArg)
+      if (t1 == CommaToken && isArg)
          return lhs;
-      if (token == BarToken && isList)
+      if (t1 == BarToken && isList)
          return lhs;
-      if (token == NULL)
+      if (t1 == NULL)
          return lhs;
-      if (find_operator(token, &infixOperator, Infix))
+      if (token_operator(t1, &infixOperator, Infix))
       {
-         if (infixOperator.fixity == XFX && precedence > infixOperator.precedence)
-            lhs = parse_infix(s, lhs, infixOperator.precedence, vars);
-         else if (infixOperator.fixity == XFY && precedence > infixOperator.precedence)
-            lhs = parse_infix(s, lhs, infixOperator.precedence+1, vars);
-         else if (infixOperator.fixity == YFX && precedence >= infixOperator.precedence)
-            lhs = parse_infix(s, lhs, infixOperator.precedence, vars);
-         else if (infixOperator.fixity == XF && precedence > infixOperator.precedence)
-            lhs = parse_postfix(s, lhs, infixOperator.precedence, vars);
-         else if (infixOperator.fixity == YF && precedence >= infixOperator.precedence)
-            lhs = parse_postfix(s, lhs, infixOperator.precedence, vars);
+         if (infixOperator->fixity == XFX && precedence > infixOperator->precedence)
+            lhs = parse_infix(s, lhs, infixOperator->precedence, vars);
+         else if (infixOperator->fixity == XFY && precedence > infixOperator->precedence)
+            lhs = parse_infix(s, lhs, infixOperator->precedence+1, vars);
+         else if (infixOperator->fixity == YFX && precedence >= infixOperator->precedence)
+            lhs = parse_infix(s, lhs, infixOperator->precedence, vars);
+         else if (infixOperator->fixity == XF && precedence > infixOperator->precedence)
+            lhs = parse_postfix(s, lhs, infixOperator->precedence, vars);
+         else if (infixOperator->fixity == YF && precedence >= infixOperator->precedence)
+            lhs = parse_postfix(s, lhs, infixOperator->precedence, vars);
          else
             return lhs;
       }
@@ -642,20 +789,20 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
 word parse_infix(Stream s, word lhs, int precedence, map_t vars)
 {
    Token t = read_token(s);
-   word rhs = read_expression(s, precedence, 0, 0, vars);
    assert(t->type == AtomTokenType);
-   return MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_ATOM(t->data.atom_data), 2), lhs, rhs);
+   word rhs = read_expression(s, precedence, 0, 0, vars);
+   return MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 2), lhs, rhs);
 }
 
 word parse_postfix(Stream s, word lhs, int precedence, map_t vars)
 {
    Token t = read_token(s);
    assert(t->type == AtomTokenType);
-   return MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_ATOM(t->data.atom_data), 1), lhs);
+   return MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 1), lhs);
 }
 
 
-int free_key(any_t key, any_t value)
+int free_key(any_t ignored, char* key, any_t value)
 {
    free(key);
    return MAP_OK;
@@ -663,7 +810,7 @@ int free_key(any_t key, any_t value)
 
 word readTerm(Stream stream, void* options)
 {
-   peeked_token = NULL;
+   token_lookahead_index = 0;
    map_t vars = hashmap_new();
    word t = read_expression(stream, 12001, 0, 0, vars);
    any_t tmp;

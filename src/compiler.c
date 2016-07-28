@@ -3,6 +3,7 @@
 
 Query compileQuery(word w)
 {
+   return NULL;
 }
 
 void freeQuery(Query q)

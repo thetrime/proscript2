@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "constants.h"
 #include "ctable.h"
+#include "crc.h"
 #include "compiler.h"
 #include <stdio.h>
 #include <stdarg.h>
@@ -32,15 +33,15 @@ void fatal(char* string)
 
 word MAKE_VAR()
 {
-   word newVar = H;
-   HEAP[H] = H;
+   word newVar = (word)&HEAP[H];
+   HEAP[H] = newVar;
    H++;
    return newVar;
 }
 
 word MAKE_COMPOUND(word functor)
 {
-   word addr = H;
+   word addr = (word)&HEAP[H];
    HEAP[H] = functor;
    H++;
    return addr | COMPOUND_TAG;
@@ -51,7 +52,7 @@ word MAKE_VCOMPOUND(word functor, ...)
    Functor f = getConstant(functor).data.functor_data;
    va_list argp;
    va_start(argp, functor);
-   word addr = H;
+   word addr = (word)&HEAP[H];
    HEAP[H] = functor;
    H++;
    for (int i = 0; i < f->arity; i++)
@@ -59,29 +60,21 @@ word MAKE_VCOMPOUND(word functor, ...)
    return addr | COMPOUND_TAG;
 }
 
-uint32_t hash(void* data, int length)
+void _lcompoundarg(word w, void* ignored)
 {
-   return 0;
+   HEAP[H++] = w;
 }
 
-int atom_compare(Constant a, Constant b)
+word MAKE_LCOMPOUND(word functor, List* list)
 {
-   Atom aa = (Atom)a;
-   Atom bb = (Atom)b;
-   return aa->length == bb->length && strncmp(aa->data, bb->data, aa->length) == 0;
+   Functor f = getConstant(functor).data.functor_data;
+   word addr = (word)&HEAP[H];
+   HEAP[H++] = functor;
+   list_apply(list, NULL, _lcompoundarg);
+   return addr | COMPOUND_TAG;
 }
 
-int integer_compare(Constant a, Constant b)
-{
-   return ((Integer)a)->data == ((Integer)b)->data;
-}
-
-int functor_compare(Constant a, Constant b)
-{
-   return ((Functor)a)->name == ((Functor)b)->name && ((Functor)a)->arity == ((Functor)b)->arity;
-}
-
-Atom allocAtomNoCopy(char* data, int length)
+void* allocAtom(void* data, int length)
 {
    Atom a = malloc(sizeof(atom));
    a->data = data;
@@ -89,53 +82,46 @@ Atom allocAtomNoCopy(char* data, int length)
    return a;
 }
 
-Integer allocInteger(long data)
+
+void* allocInteger(void* data, int len)
 {
    Integer a = malloc(sizeof(integer));
-   a->data = data;
+   a->data = *((long*)data);
    return a;
 }
 
-Functor allocFunctor(word name, int arity)
+
+void* allocFunctor(void* data, int len)
 {
-   Functor a = malloc(sizeof(functor));
-   a->name = name;
-   a->arity = arity;
-   return a;
+   Functor f = malloc(sizeof(functor));
+   f->name = *((word*)data);
+   f->arity = len;
+   return f;
+}
+
+word MAKE_NATOM(char* data, size_t length)
+{
+   return intern(ATOM_TYPE, hash((unsigned char*)data, length), data, length, allocAtom, NULL);
 }
 
 
 word MAKE_ATOM(char* data)
 {
-   Atom a = allocAtomNoCopy(data, strlen(data));
-   int isNew = 0;
-   word result = intern(ATOM_TYPE, (Constant)a, hash(data, strlen(data)), atom_compare, &isNew);
-   if (isNew)
-      a->data = strdup(data);
-   else
-      free(a);
-   return result;
+   return MAKE_NATOM(data, strlen(data));
 }
+
+
 
 word MAKE_INTEGER(long data)
 {
-   Integer i = allocInteger(data);
-   int isNew = 0;
-   word result = intern(INTEGER_TYPE, (Constant)i, data, integer_compare, &isNew);
-   if (!isNew)
-      free(i);
-   return result;
+   return intern(INTEGER_TYPE, data, &data, sizeof(long), allocInteger, NULL);
 }
 
 word MAKE_FUNCTOR(word name, int arity)
 {
-   Functor f = allocFunctor(name, arity);
-   int isNew = 0;
    Atom n = getConstant(name).data.atom_data;
-   word result = intern(FUNCTOR_TYPE, (Constant)f, hash(n->data, n->length) + arity, functor_compare, &isNew);
-   if (!isNew)
-      free(f);
-   return result;
+   word w =  intern(FUNCTOR_TYPE, hash((unsigned char*)n->data, n->length) + arity, &name, arity, allocFunctor, NULL);
+   return w;
 }
 
 void bind(word var, word value)
@@ -175,7 +161,7 @@ void PORTRAY(word w)
       switch(c.type)
       {
          case ATOM_TYPE:
-            printf("%s", c.data.atom_data->data);
+            printf("%.*s", c.data.atom_data->length, c.data.atom_data->data);
             break;
          case INTEGER_TYPE:
             printf("%ld", c.data.integer_data->data);
@@ -186,13 +172,17 @@ void PORTRAY(word w)
    {
       Functor functor = getConstant(FUNCTOROF(w)).data.functor_data;
       PORTRAY(functor->name);
+      printf("(");
       for (int i = 0; i < functor->arity; i++)
       {
          PORTRAY(ARGOF(w, i));
          if (i+1 < functor->arity)
             printf(",");
       }
+      printf(")");
    }
+   else
+      printf("Bad tag\n");
 }
 
 int unify(word a, word b)
@@ -537,7 +527,7 @@ RC execute()
             word t = MAKE_COMPOUND(FR->clause->constants[CODE16(PC+1)]);
             *(ARGP++) = t;
             *(argStackP++) = ARGP;
-            ARGP = ARGPOF(t, 0);
+            ARGP = ARGPOF(t);
             PC+=3;
             continue;
          }
@@ -568,7 +558,7 @@ RC execute()
                if (FUNCTOROF(arg) == functor)
                {
                   *(argStackP++) = ARGP;
-                  ARGP = ARGPOF(arg, 0);
+                  ARGP = ARGPOF(arg);
                   continue;
                }
             }
@@ -577,7 +567,7 @@ RC execute()
                *(argStackP++) = ARGP;
                word t = MAKE_COMPOUND(functor);
                bind(arg, t);
-               ARGP = ARGPOF(t, 0);
+               ARGP = ARGPOF(t);
                mode = WRITE;
             }
             else if (backtrack())

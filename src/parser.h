@@ -1,5 +1,6 @@
 #include "types.h"
 #include "stream.h"
+#include "prolog_flag.h"
 
 typedef enum
 {
@@ -13,13 +14,19 @@ typedef enum
    BigIntegerTokenType
 } TokenType;
 
+
+typedef struct
+{
+   char* data;
+   size_t length;
+} atom_data_t;
+
 typedef struct
 {
    TokenType type;
    union
    {
-      char* atom_data;
-      char* string_data;
+      atom_data_t* atom_data;
       long integer_data;
       double float_data;
       char* syntax_error_data;
@@ -41,32 +48,13 @@ typedef struct CharCell CharCell;
 
 typedef struct
 {
+   int length;
    CharCell* head;
    CharCell* tail;
 } charbuffer;
 
 typedef charbuffer* CharBuffer;
 
-typedef enum
-{
-   FX, FY, XFX, XFY, YFX, XF, YF
-} Fixity;
 
-typedef struct
-{
-   int precedence;
-   Fixity fixity;
-   word functor;
-} Operator;
-
- 
-typedef struct
-{
-} HashMap;
-
-typedef enum
-{
-   Prefix, Infix, Postfix
-} OperatorPosition;
 
 word readTerm(Stream s, void* options);

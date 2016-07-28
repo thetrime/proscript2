@@ -10,6 +10,7 @@ char get_raw_char(Stream s)
 char peek_raw_char(Stream s)
 {
    return peekch(s);
+
 }
 
 int getch(Stream s)
