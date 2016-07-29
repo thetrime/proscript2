@@ -102,6 +102,19 @@ instruction_t* INSTRUCTION_SLOT(unsigned char opcode, int slot)
    return i;
 }
 
+instruction_t* INSTRUCTION_FUNC_SLOT(unsigned char opcode, int(*func)(), int slot)
+{
+   instruction_t* i = malloc(sizeof(instruction_t));
+   i->opcode = opcode;
+   i->constant = (word)-1;
+   i->slot = slot;
+   i->address = (uintptr_t)func;
+   i->size = 7;
+   i->constant_count = 0;
+   return i;
+}
+
+
 instruction_t* INSTRUCTION_SLOT_ADDRESS(unsigned char opcode, int slot, int address)
 {
    instruction_t* i = malloc(sizeof(instruction_t));
@@ -109,7 +122,7 @@ instruction_t* INSTRUCTION_SLOT_ADDRESS(unsigned char opcode, int slot, int addr
    i->constant = (word)-1;
    i->slot = slot;
    i->address = address;
-   i->size = 3;
+   i->size = 7;
    i->constant_count = 0;
    return i;
 }
@@ -290,7 +303,8 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else
       {
-         printf("Failure - cannot call this\n");
+         PORTRAY(term);
+         printf("... Failure - cannot call %d\n", term);
          assert(0);
       }
    }
@@ -562,6 +576,7 @@ Clause assemble(instruction_list_t* instructions)
    context.clause->constant_size = context.constant_count;
 #endif
    instruction_list_apply(instructions, &context, _assemble);
+   printf("%d vs %d\n", context.codep, context.size);
    assert(context.codep == context.size);
    assert(context.consp == context.constant_count);
 
@@ -576,7 +591,7 @@ int free_varinfo(any_t ignored, word key, any_t value)
 
 int compile_clause(word term, instruction_list_t* instructions)
 {
-//   printf("Compiling "); PORTRAY(term); printf("\n");
+   printf("Compiling "); PORTRAY(term); printf("\n");
    int arg_slots = 0; // Number of slots that will be used for passing the args of the predicate
    wmap_t variables = whashmap_new();
    if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == clauseFunctor)
@@ -696,5 +711,28 @@ Clause compile_predicate(Predicate p)
          cell = cell->next;
       };
    }
+   return clause;
+}
+
+Clause foreign_predicate_c(int(*func)())
+{
+   instruction_list_t instructions;
+   init_instruction_list(&instructions);
+   push_instruction(&instructions, INSTRUCTION_FUNC_SLOT(I_FOREIGN, func, 0));
+   push_instruction(&instructions, INSTRUCTION(I_FOREIGN_RETRY));
+   Clause clause = assemble(&instructions);
+   deinit_instruction_list(&instructions);
+   return clause;
+}
+
+Clause foreign_predicate_js(word func)
+{
+   printf("Got %lu\n", func);
+   instruction_list_t instructions;
+   init_instruction_list(&instructions);
+   push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_JS, 0, func));
+   push_instruction(&instructions, INSTRUCTION(I_FOREIGN_RETRY));
+   Clause clause = assemble(&instructions);
+   deinit_instruction_list(&instructions);
    return clause;
 }

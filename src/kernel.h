@@ -89,4 +89,5 @@ word getException();
 word clause_functor(word);
 void consult_string(char*);
 void print_clause(Clause);
+void initialize_kernel();
 #endif

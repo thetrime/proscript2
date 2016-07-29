@@ -54,7 +54,6 @@ Module currentModule = NULL;
 Module userModule = NULL;
 Choicepoint initialChoicepoint = NULL;
 word current_exception = 0;
-int initialized = 0;
 
 void fatal(char* string)
 {
@@ -149,22 +148,25 @@ void* allocFunctor(void* data, int len)
    return f;
 }
 
+EMSCRIPTEN_KEEPALIVE
 word MAKE_NATOM(char* data, size_t length)
 {
    return intern(ATOM_TYPE, hash((unsigned char*)data, length), data, length, allocAtom, NULL);
 }
 
-
+EMSCRIPTEN_KEEPALIVE
 word MAKE_ATOM(char* data)
 {
    return MAKE_NATOM(data, strlen(data));
 }
 
+EMSCRIPTEN_KEEPALIVE
 word MAKE_INTEGER(long data)
 {
    return intern(INTEGER_TYPE, data, &data, sizeof(long), allocInteger, NULL);
 }
 
+EMSCRIPTEN_KEEPALIVE
 word MAKE_FUNCTOR(word name, int arity)
 {
    Atom n = getConstant(name).data.atom_data;
@@ -470,17 +472,14 @@ Frame allocFrame()
    return f;
 }
 
-void initialize()
+void initialize_kernel()
 {
    userModule = create_module(MAKE_ATOM("user"));
    currentModule = userModule;
-   initialized = 1;
 }
 
 RC execute()
 {
-   if (!initialized)
-      initialize();
    while (!halted)
    {
       //printf("@%p: %s\n", PC, instruction_info[*PC].name);
@@ -503,15 +502,15 @@ RC execute()
             if (FR->slots[CODE16(PC+1)] == (word)CP)
                CP = CP->CP;
             goto i_exit;
-         case I_FOREIGN:
-            FR->slots[CODE16(PC+3)] = (word)0;
+         case I_FOREIGN_JS:
+            FR->slots[CODE16(PC+5)] = (word)0;
             // fall-through
-         case I_FOREIGNRETRY:
+         case I_FOREIGN_RETRY:
          {
             RC rc = FAIL;
             Functor f = getConstant(FR->functor).data.functor_data;
 #ifdef EMSCRIPTEN
-            rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(PC+3)], f->name, f->arity, ARGP);
+            rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(PC+5)], CODE32(PC+1), f->arity, ARGP);
 #endif
             if (rc == FAIL)
             {
@@ -922,8 +921,6 @@ word clause_functor(word t)
 
 void consult_string(char* string)
 {
-   if (!initialized)
-      initialize();
    Stream s = stringBufferStream(string, strlen(string));
    word clause;
    while ((clause = read_term(s, NULL)) != endOfFileAtom)

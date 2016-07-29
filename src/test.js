@@ -1,3 +1,4 @@
+/*
 var env = new Prolog.Environment();
 var arg = new Prolog.VariableTerm("Input");
 env.consultURL("http://localhost:8080/bin/x.pl", function()
@@ -30,3 +31,4 @@ function onError(error)
 {
     console.log("Error: " + PORTRAY(error));
 }
+*/
