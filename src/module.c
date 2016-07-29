@@ -15,7 +15,7 @@ Predicate lookup_predicate(Module module, word functor)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return p;
-   printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" (%lu, %p)\n", functor, module);
+   //printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" (%lu, %p)\n", functor, module);
    return NULL;
 }
 
@@ -43,7 +43,7 @@ void add_clause(Module module, word functor, word clause)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
-      printf("Adding clause to existing predicate of "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
+   //printf("Adding clause to existing predicate of "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
       (*(p->tail)) = malloc(sizeof(predicate_cell_t));
       (*(p->tail))->term = clause;
       (*(p->tail))->next = NULL;
@@ -51,7 +51,7 @@ void add_clause(Module module, word functor, word clause)
    }
    else
    {
-      printf("Adding clause to new predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("(%lu, %p)\n", functor, module);
+   //printf("Adding clause to new predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("(%lu, %p)\n", functor, module);
       p = malloc(sizeof(predicate));
       p->head = malloc(sizeof(predicate_cell_t));
       p->head->term = clause;

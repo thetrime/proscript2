@@ -280,7 +280,7 @@ int cut_to(Choicepoint point)
       if (CP == NULL) // Fatal, I guess?
          fatal("Cut to non-existent choicepoint");
       Choicepoint c = CP;
-      CP = CP->previous;
+      CP = CP->CP;
       if (c->cleanup != NULL)
       {
          if (c->cleanup->foreign != NULL)
@@ -299,16 +299,32 @@ int cut_to(Choicepoint point)
    return 1;
 }
 
+int apply_choicepoint(Choicepoint c)
+{
+   PC = c->PC;
+   FR = c->FR;
+   NFR = c->NFR;
+   SP = c->SP;
+   CP = c->CP;
+   TR = c->TR;
+   FR->clause = c->clause;
+   currentModule = c->module;
+   ARGP = FR->slots;
+   return (PC != 0);
+}
+
 int backtrack()
 {
+   //printf("Backtracking: %p\n", CP);
    unsigned int oldTR = TR;
    while(1)
    {
       if (CP == NULL)
          return 0;
-      if (!CP->apply())
+      if (!apply_choicepoint(CP))
          continue;
       unwind_trail(oldTR);
+      return 1;
    }
 }
 
@@ -320,7 +336,7 @@ int backtrack_to(Choicepoint c)
       if (CP == NULL)
          return 0;
       unsigned int oldTR = TR;
-      CP->apply(); // Modifies CP
+      apply_choicepoint(CP); // Modifies CP
       unwind_trail(oldTR);
    }
    return 1;
@@ -360,14 +376,20 @@ word copy_term(word term)
    return result;
 }
 
-void CreateChoicepoint(unsigned int address)
+void CreateChoicepoint(unsigned char* address, Clause clause)
 {
-   assert(0);
-}
-
-void CreateClauseChoicepoint()
-{
-   assert(0);
+   Choicepoint c = (Choicepoint)&STACK[SP];
+   c->SP = SP;
+   c->CP = CP;
+   CP = c;
+   SP += sizeof(choicepoint);
+   c->FR = FR;
+   c->clause = clause;
+   c->module = currentModule;
+   c->NFR = NFR;
+   c->functor = FR->functor;
+   c->TR = TR;
+   c->PC = address;
 }
 
 uint8_t failOp = I_FAIL;
@@ -457,8 +479,7 @@ RC execute()
       initialize();
    while (!halted)
    {
-      char qqq = *PC;
-      printf("@%p: %s\n", PC, instruction_info[*PC].name);
+      //printf("@%p: %s\n", PC, instruction_info[*PC].name);
       switch(*PC)
       {
          case I_FAIL:
@@ -476,7 +497,7 @@ RC execute()
             return SUCCESS_WITH_CHOICES;
          case I_EXITCATCH:
             if (FR->slots[CODE16(PC+1)] == (word)CP)
-               CP = CP->previous;
+               CP = CP->CP;
             goto i_exit;
          case I_FOREIGN:
             FR->slots[CODE16(PC+3)] = (word)0;
@@ -607,7 +628,7 @@ RC execute()
          }
          case I_CATCH:
          {
-            CreateChoicepoint(-1);
+            CreateChoicepoint(0, FR->clause);
             FR->choicepoint = CP;
             FR->slots[CODE16(PC+1)] = (word)CP;
             ARGP = &FR->slots[1];
@@ -659,7 +680,7 @@ RC execute()
             continue;
          case C_IF_THEN_ELSE:
             FR->slots[CODE16(PC+1)] = (word)CP;
-            CreateChoicepoint(CODE32(PC+3));
+            CreateChoicepoint(PC+CODE32(PC+3), FR->clause);
             PC+=7;
             continue;
          case I_UNIFY:
@@ -776,11 +797,11 @@ RC execute()
          {
             word atom = FR->clause->constants[CODE16(PC+1)];
             word arg = DEREF(*(ARGP++));
+            PC+=3;
             if (arg == atom)
                continue;
             else if (TAGOF(arg) == VARIABLE_TAG)
             {
-               PC+=3;
                bind(arg, atom);
                continue;
             }
@@ -805,13 +826,15 @@ RC execute()
             PC += CODE32(PC+1);
             continue;
          case C_OR:
-            CreateChoicepoint(CODE32(PC+1));
+            CreateChoicepoint(PC+CODE32(PC+1), FR->clause);
             PC += 5;
             continue;
          case TRY_ME_OR_NEXT_CLAUSE:
-            CreateClauseChoicepoint();
+         {
+            CreateChoicepoint(FR->clause->next->code, FR->clause->next);
             PC++;
             continue;
+         }
          case TRUST_ME:
             PC++;
             continue;
@@ -853,7 +876,6 @@ RC execute_query(word goal)
    NFR = allocFrame();
    NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<query>"), 1);
    NFR->returnPC = FR->clause->code;
-   printf("Should return to %p, which is %d\n", NFR->returnPC, *(NFR->returnPC));
    NFR->clause = query->clause;
    NFR->choicepoint = CP;
 
@@ -865,6 +887,14 @@ RC execute_query(word goal)
    PC = FR->clause->code;
    return execute();
 }
+
+RC backtrack_query()
+{
+   if (backtrack())
+      return execute();
+   return FAIL;
+}
+
 
 word getException()
 {

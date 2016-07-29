@@ -570,6 +570,7 @@ Clause assemble(instruction_list_t* instructions)
 
 int compile_clause(word term, instruction_list_t* instructions)
 {
+//   printf("Compiling "); PORTRAY(term); printf("\n");
    int arg_slots = 0; // Number of slots that will be used for passing the args of the predicate
    wmap_t variables = whashmap_new();
    if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == clauseFunctor)
@@ -658,6 +659,8 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
    compile_clause(term, &instructions);
    Clause clause = assemble(&instructions);
    deinit_instruction_list(&instructions);
+   //printf("Just compiled this:\n");
+   //print_clause(clause);
    return clause;
 }
 
@@ -678,7 +681,8 @@ Clause compile_predicate(Predicate p)
       Clause* ptr = &clause;
       while(cell != NULL)
       {
-         *ptr = compile_predicate_clause(cell->term, cell->next != NULL, p->meta);
+         Clause q = compile_predicate_clause(cell->term, cell->next != NULL, p->meta);
+         *ptr = q;
          ptr = &((*ptr)->next);
          cell = cell->next;
       };

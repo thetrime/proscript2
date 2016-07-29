@@ -96,8 +96,15 @@ typedef cleanup* Cleanup;
 
 struct choicepoint
 {
-   int (*apply)();
-   struct choicepoint* previous;
+   unsigned char* PC;
+   struct frame* FR;
+   struct frame* NFR;
+   uintptr_t SP;
+   uintptr_t TR;
+   struct choicepoint* CP;
+   word functor;
+   Clause clause;
+   Module module;
    Cleanup cleanup;
 };
 typedef struct choicepoint choicepoint;
