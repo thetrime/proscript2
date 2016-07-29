@@ -123,7 +123,7 @@ word MAKE_LCOMPOUND(word functor, List* list)
 void* allocAtom(void* data, int length)
 {
    Atom a = malloc(sizeof(atom));
-   a->data = data;
+   a->data = strdup(data);
    a->length = length;
    return a;
 }
@@ -655,7 +655,7 @@ RC execute()
             FR = NFR;
             NFR = allocFrame();
             PC = FR->clause->code;
-            // free_query(query); We cannot free this here! But when DO we free it?
+            free_query(query);
             continue;
          }
          case I_CUT:
@@ -885,6 +885,7 @@ RC execute_query(word goal)
       FR->slots[i] = query->variables[i];
    NFR = allocFrame();
    PC = FR->clause->code;
+   free_query(query);
    return execute();
 }
 
@@ -933,6 +934,7 @@ void consult_string(char* string)
          add_clause(currentModule, functor, clause);
       }
    }
+   freeStream(s);
    // In case this has changed, set it back after consulting any file
    currentModule = userModule;
 }

@@ -568,6 +568,11 @@ Clause assemble(instruction_list_t* instructions)
    return context.clause;
 }
 
+void free_varinfo(void* ignored, word key, void* value)
+{
+   free(value);
+}
+
 int compile_clause(word term, instruction_list_t* instructions)
 {
 //   printf("Compiling "); PORTRAY(term); printf("\n");
@@ -592,6 +597,7 @@ int compile_clause(word term, instruction_list_t* instructions)
 
       if (!compile_body(body, variables, instructions, 1, &next_reserved, -1))
       {
+         whashmap_free(variables);
          if (TAGOF(body) == COMPOUND_TAG && FUNCTOROF(body) == crossModuleCallFunctor)
             return type_error(callableAtom, ARGOF(body, 1));
          else
@@ -609,6 +615,8 @@ int compile_clause(word term, instruction_list_t* instructions)
       compile_head(term, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_EXIT_FACT));
    }
+   whashmap_iterate(variables, free_varinfo, NULL);
+   whashmap_free(variables);
    return 1;
 }
 
@@ -636,7 +644,7 @@ Query compile_query(word term)
    return q;
 }
 
-void freeQuery(Query q)
+void free_query(Query q)
 {
    free(q->variables);
    free(q);

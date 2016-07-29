@@ -570,19 +570,19 @@ word make_curly(List* list, word tail)
 
 word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars)
 {
-   Token t = read_token(s);
-   if (t == NULL)
+   Token t0 = read_token(s);
+   if (t0 == NULL)
       return endOfFileAtom;
    word lhs = 0;
    Operator prefixOperator;
    Operator infixOperator;
-   int hasOp = token_operator(t, &prefixOperator, Prefix);
+   int hasOp = token_operator(t0, &prefixOperator, Prefix);
    Token peeked_token = peek_token(s);
    if (peeked_token == ListCloseToken || peeked_token == ParenCloseToken || peeked_token == CommaToken)
       hasOp = 0;
    if (peeked_token == ParenOpenToken)
    {
-      read_token(s);
+      read_token(s); // Dont need to free this - guaranteed to be constant
       Token pp = peek_token(s);
       unread_token(s, ParenOpenToken);
       if (pp != ParenOpenToken)
@@ -590,21 +590,21 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
    }
    if (!hasOp)
    {
-      if (t == ListOpenToken || t == CurlyOpenToken)
+      if (t0 == ListOpenToken || t0 == CurlyOpenToken)
       {
          List list;
          init_list(&list);
          while (1)
          {
-            if (peek_token(s) == ListCloseToken && t == ListOpenToken)
+            if (peek_token(s) == ListCloseToken && t0 == ListOpenToken)
             {
-               read_token(s);
+               read_token(s);  // Dont need to free this - guaranteed to be constant
                lhs = emptyListAtom;
                break;
             }
-            if (peek_token(s) == CurlyCloseToken && t == CurlyOpenToken)
+            if (peek_token(s) == CurlyCloseToken && t0 == CurlyOpenToken)
             {
-               read_token(s);
+               read_token(s);  // Dont need to free this - guaranteed to be constant
                lhs = curlyAtom;
                break;
             }
@@ -615,18 +615,18 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                list_append(&list, arg);
                continue;
             }
-            else if (next == ListCloseToken && t == ListOpenToken)
+            else if (next == ListCloseToken && t0 == ListOpenToken)
             {
                list_append(&list, arg);
                lhs = make_list(&list, emptyListAtom);
                break;
             }
-            else if (next == CurlyCloseToken && t == CurlyOpenToken)
+            else if (next == CurlyCloseToken && t0 == CurlyOpenToken)
             {
                lhs = make_curly(&list, arg);
                break;
             }
-            else if (next == BarToken && t == ListOpenToken)
+            else if (next == BarToken && t0 == ListOpenToken)
             {
                list_append(&list, arg);
                word tail = read_expression(s, 1201, 1, 1, vars);
@@ -637,11 +637,14 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                return syntax_error; // Missing ]
             }
             else
+            {
+               freeToken(next);
                return syntax_error; // Mismatched 'token' at 'next'
+            }
          }
          free_list(&list);
       }
-      else if (t == ParenOpenToken)
+      else if (t0 == ParenOpenToken)
       {
          printf("()\n");
          lhs = read_expression(s, 12001, 0, 0, vars);
@@ -649,30 +652,30 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
          if (next != ParenCloseToken)
             return syntax_error; // Mismatched ( at <next>
       }
-      else if (t->type == VariableTokenType)
+      else if (t0->type == VariableTokenType)
       {
-         if (t->data.variable_data[0] == '_')
+         if (t0->data.variable_data[0] == '_')
             lhs = MAKE_VAR();
          else
          {
-            if (hashmap_get(vars, t->data.variable_data, (any_t*)&lhs) == MAP_MISSING)
+            if (hashmap_get(vars, t0->data.variable_data, (any_t*)&lhs) == MAP_MISSING)
             {
                lhs = MAKE_VAR();
-               hashmap_put(vars, strdup(t->data.variable_data), (any_t)lhs);
+               hashmap_put(vars, strdup(t0->data.variable_data), (any_t)lhs);
             }
          }
       }
-      else if (t == CurlyCloseToken)
+      else if (t0 == CurlyCloseToken)
          lhs = MAKE_ATOM("}");
       else
       {
-         switch(t->type)
+         switch(t0->type)
          {
             case AtomTokenType:
-               lhs = MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length);
+               lhs = MAKE_NATOM(t0->data.atom_data->data, t0->data.atom_data->length);
                break;
             case IntegerTokenType:
-               lhs = MAKE_INTEGER(t->data.integer_data);
+               lhs = MAKE_INTEGER(t0->data.integer_data);
                break;
             case StringTokenType:
             {
@@ -680,8 +683,8 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                {
                   List list;
                   init_list(&list);
-                  for (int i = 0; i < t->data.atom_data->length; i++)
-                     list_append(&list, MAKE_INTEGER(t->data.atom_data->data[i]));
+                  for (int i = 0; i < t0->data.atom_data->length; i++)
+                     list_append(&list, MAKE_INTEGER(t0->data.atom_data->data[i]));
                   lhs = make_list(&list, emptyListAtom);
                   free_list(&list);
                   break;
@@ -690,15 +693,15 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                {
                   List list;
                   init_list(&list);
-                  for (int i = 0; i < t->data.atom_data->length; i++)
-                     list_append(&list, MAKE_NATOM(&t->data.atom_data->data[i], 1));
+                  for (int i = 0; i < t0->data.atom_data->length; i++)
+                     list_append(&list, MAKE_NATOM(&t0->data.atom_data->data[i], 1));
                   lhs = make_list(&list, emptyListAtom);
                   free_list(&list);
                   break;
                }
                else if (get_prolog_flag("double_quotes") == atomAtom)
                {
-                  lhs = MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length);
+                  lhs = MAKE_NATOM(t0->data.atom_data->data, t0->data.atom_data->length);
                   break;
                }
             }
@@ -719,22 +722,24 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
    }
    else
       return syntax_error; // parse error
-   // At this point, lhs has been set
+   // At this point, lhs has been set. We no longer need t0
+   freeToken(t0);
    while (1)
    {
       Token t1 = peek_token(s);
       if (t1->type == IntegerTokenType && t1->data.integer_data <= 0)
       {
-         read_token(s);
-         t1->data.integer_data = -t1->data.integer_data;
-         unread_token(s, t1);
+         Token t2 = read_token(s);
+         t2->data.integer_data = -t2->data.integer_data;
+         unread_token(s, t2);
+         // Must not free t2 since we will read it later
          unread_token(s, AtomToken(strdup("-"), 1));
       }
-      if (t1 == ParenOpenToken)
+      else if (t1 == ParenOpenToken)
       {
          // Reading a term. lhs is the name of the functor
          // First consume the (
-         read_token(s);
+         read_token(s); // No need to free as guaranteed to be constant
          // Then read each arg into a list
          List list;
          init_list(&list);
@@ -750,9 +755,14 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
             {
                printf("Syntax error\n");
                if (next == NULL)
+               {
                   return syntax_error; // end of file in term
+               }
                else
+               {
+                  freeToken(next);
                   return syntax_error; // Unexpected token 'next'
+               }
             }
          }
          lhs = MAKE_LCOMPOUND(MAKE_FUNCTOR(lhs, list_length(&list)), &list);
@@ -760,15 +770,15 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
          // Now, where were we?
          t1 = peek_token(s);
       }
-      if (t1 == PeriodToken)
+      else if (t1 == PeriodToken)
          return lhs;
-      if (t1 == CommaToken && isArg)
+      else if (t1 == CommaToken && isArg)
          return lhs;
-      if (t1 == BarToken && isList)
+      else if (t1 == BarToken && isList)
          return lhs;
-      if (t1 == NULL)
+      else if (t1 == NULL)
          return lhs;
-      if (token_operator(t1, &infixOperator, Infix))
+      else if (token_operator(t1, &infixOperator, Infix))
       {
          if (infixOperator->fixity == XFX && precedence > infixOperator->precedence)
             lhs = parse_infix(s, lhs, infixOperator->precedence, vars);
@@ -793,14 +803,18 @@ word parse_infix(Stream s, word lhs, int precedence, map_t vars)
    Token t = read_token(s);
    assert(t->type == AtomTokenType);
    word rhs = read_expression(s, precedence, 0, 0, vars);
-   return MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 2), lhs, rhs);
+   word result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 2), lhs, rhs);
+   freeToken(t);
+   return result;
 }
 
 word parse_postfix(Stream s, word lhs, int precedence, map_t vars)
 {
    Token t = read_token(s);
    assert(t->type == AtomTokenType);
-   return MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 1), lhs);
+   word result =  MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 1), lhs);
+   freeToken(t);
+   return result;
 }
 
 

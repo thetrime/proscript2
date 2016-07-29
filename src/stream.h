@@ -28,4 +28,5 @@ int getb(Stream s);
 int peekb(Stream s);
 
 Stream stringBufferStream(char* data, int length);
+void freeStream(Stream s);
 #endif
