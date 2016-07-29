@@ -3,6 +3,11 @@
 #include "ctable.h"
 #include "crc.h"
 #include "compiler.h"
+#include "errors.h"
+#include "module.h"
+#include "stream.h"
+#include "parser.h"
+#include "prolog_flag.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -11,6 +16,7 @@
 instruction_info_t instruction_info[] = {
 #define INSTRUCTION(a) {#a, 0},
 #define INSTRUCTION_CONST(a) {#a, HAS_CONST},
+#define INSTRUCTION_CONST_SLOT(a) {#a, HAS_CONST | HAS_SLOT},
 #define INSTRUCTION_SLOT(a) {#a, HAS_SLOT},
 #define INSTRUCTION_ADDRESS(a) {#a, HAS_ADDRESS},
 #define INSTRUCTION_SLOT_ADDRESS(a) {#a, HAS_ADDRESS | HAS_SLOT},
@@ -18,6 +24,7 @@ instruction_info_t instruction_info[] = {
 #include "instructions"
 #undef INSTRUCTION
 #undef INSTRUCTION_CONST
+#undef INSTRUCTION_CONST_SLOT
 #undef INSTRUCTION_SLOT
 #undef INSTRUCTION_ADDRESS
 #undef INSTRUCTION_SLOT_ADDRESS
@@ -29,16 +36,21 @@ int halted = 0;
 Choicepoint CP = NULL;
 unsigned int TR;
 uintptr_t H = 0;
+uintptr_t SP = 0;
+
 word trail[1024];
 word HEAP[65535];
+word STACK[65535];
 word* argStack[64];
 word** argStackP = argStack;
 
 Frame FR, NFR;
 word *ARGP;
 Module currentModule = NULL;
+Module userModule = NULL;
 Choicepoint initialChoicepoint = NULL;
 word current_exception = 0;
+int initialized = 0;
 
 void fatal(char* string)
 {
@@ -72,6 +84,20 @@ word MAKE_VCOMPOUND(word functor, ...)
    H++;
    for (int i = 0; i < f->arity; i++)
       HEAP[H++] = va_arg(argp, word);
+   return addr | COMPOUND_TAG;
+}
+
+// You MUST call MAKE_ACOMPOUND with a functor as the first arg
+word MAKE_ACOMPOUND(word functor, word* values)
+{
+   constant c = getConstant(functor);
+   assert(c.type == FUNCTOR_TYPE);
+   Functor f = c.data.functor_data;
+   word addr = (word)&HEAP[H];
+   HEAP[H] = functor;
+   H++;
+   for (int i = 0; i < f->arity; i++)
+      HEAP[H++] = values[i];
    return addr | COMPOUND_TAG;
 }
 
@@ -129,8 +155,6 @@ word MAKE_ATOM(char* data)
 {
    return MAKE_NATOM(data, strlen(data));
 }
-
-
 
 word MAKE_INTEGER(long data)
 {
@@ -288,36 +312,131 @@ int backtrack()
    }
 }
 
-
-
-word instantiationError()
+int backtrack_to(Choicepoint c)
 {
-   return MAKE_VCOMPOUND(errorFunctor, instantiationErrorAtom, MAKE_VAR());
+   // Undoes to the given choicepoint, undoing everything else in between
+   while (CP != c)
+   {
+      if (CP == NULL)
+         return 0;
+      unsigned int oldTR = TR;
+      CP->apply(); // Modifies CP
+      unwind_trail(oldTR);
+   }
+   return 1;
 }
 
-void set_exception(word e)
+word _copy_term(word t, List* variables, word* new_vars)
 {
+   if (TAGOF(t) == VARIABLE_TAG)
+   {
+      return new_vars[list_index(variables, t)];
+   }
+   else if (TAGOF(t) == COMPOUND_TAG)
+   {
+      Functor functor = getConstant(FUNCTOROF(t)).data.functor_data;
+      word new_args[functor->arity];
+      for (int i = 0; i < functor->arity; i++)
+         new_args[i] = _copy_term(ARGOF(t, i), variables, new_vars);
+      return MAKE_ACOMPOUND(FUNCTOROF(t), new_args);
+   }
+   // For everything else, just return the term itself
+   return t;
+}
+
+word copy_term(word term)
+{
+   term = DEREF(term);
+   List variables;
+   init_list(&variables);
+   find_variables(term, &variables);
+   int variable_count = list_length(&variables);
+   word* new_vars = malloc(sizeof(word) * variable_count);
+   for (int i = 0; i < variable_count; i++)
+      new_vars[i] = MAKE_VAR();
+   word result = _copy_term(term, &variables, new_vars);
+   free(new_vars);
+   free_list(&variables);
+   return result;
 }
 
 void CreateChoicepoint(unsigned int address)
 {
+   assert(0);
 }
 
 void CreateClauseChoicepoint()
 {
+   assert(0);
 }
 
+uint8_t failOp = I_FAIL;
+clause failClause = {NULL, &failOp, NULL, 1, 0};
+
+uint8_t exitQueryOp = I_EXIT_QUERY;
+clause exitQueryClause = {NULL, &exitQueryOp, NULL, 1, 0};
+
+
+Clause get_predicate_code(Predicate p)
+{
+   if (p->firstClause == NULL)
+      p->firstClause = compile_predicate(p);
+   return p->firstClause;
+}
+
+int load_frame_code(word functor, Module optionalContext, Frame frame)
+{
+   Module module = (optionalContext != NULL)?optionalContext:currentModule;
+   Predicate p = lookup_predicate(module, functor);
+   if (p == NULL && currentModule != userModule)
+   {
+      // try again in module(user)
+      p = lookup_predicate(userModule, functor);
+      if (p != NULL)
+      {
+         currentModule = userModule;
+         frame->contextModule = userModule;
+      }
+   }
+   else if (p != NULL)
+   {
+      frame->contextModule = module;
+   }
+
+   if (p == NULL)
+   {
+      Functor f = getConstant(functor).data.functor_data;
+      if (get_prolog_flag("unknown") == errorAtom)
+      {
+         existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity)));
+         return 0;
+      }
+      else if (get_prolog_flag("unknown") == failAtom)
+      {
+         frame->clause = &failClause;
+         return 1;
+      }
+      else if (get_prolog_flag("unknown") == warningAtom)
+      {
+         printf("No such predicate "); PORTRAY(f->name); printf("/%d\n", f->arity);
+         frame->clause = &failClause;
+         return 1;
+      }
+   }
+   frame->clause = get_predicate_code(p);
+   //print_clause(frame->clause);
+   return 1;
+}
 
 Frame allocFrame()
 {
-   Frame f = malloc(sizeof(frame));
+   Frame f = (Frame)&STACK[SP];
+   SP += sizeof(frame);
    f->parent = FR;
    if (FR != NULL)
       f->depth = FR->depth+1;
    else
       f->depth = 0;
-   f->slots = malloc(c->slots * sizeof(word));
-   f->reserved_slots = malloc(c->reserved_slots * sizeof(word));
    f->clause = NULL;
    f->contextModule = currentModule;
    f->returnPC = 0;
@@ -325,21 +444,20 @@ Frame allocFrame()
    return f;
 }
 
-Module getModule(constant name)
+void initialize()
 {
-   return NULL;
+   userModule = create_module(MAKE_ATOM("user"));
+   currentModule = userModule;
+   initialized = 1;
 }
-
-int get_code(constant functor)
-{
-   return 0;
-}
-
 
 RC execute()
 {
+   if (!initialized)
+      initialize();
    while (!halted)
    {
+      char qqq = *PC;
       printf("@%p: %s\n", PC, instruction_info[*PC].name);
       switch(*PC)
       {
@@ -357,17 +475,17 @@ RC execute()
                return SUCCESS;
             return SUCCESS_WITH_CHOICES;
          case I_EXITCATCH:
-            if (FR->reserved_slots[CODE16(PC+1)] == (word)CP)
+            if (FR->slots[CODE16(PC+1)] == (word)CP)
                CP = CP->previous;
             goto i_exit;
          case I_FOREIGN:
-            FR->reserved_slots[0] = (word)0;
+            FR->slots[CODE16(PC+3)] = (word)0;
             // fall-through
          case I_FOREIGNRETRY:
          {
             RC rc = FAIL;
 #ifdef EMSCRIPTEN
-            rc = EM_ASM_INT({execute_foreign($0, $1)}, FR->reserved_slots[0], &FR->slots);
+            rc = EM_ASM_INT({execute_foreign($0, $1)}, FR->slots[CODE16(PC+3)], &FR->slots);
 #endif
             if (rc == FAIL)
             {
@@ -383,19 +501,21 @@ RC execute()
             else if (rc == ERROR)
                goto b_throw_foreign;
          }
-         case I_EXIT:
          i_exit:
-         case I_EXITFACT:
+         case I_EXIT:
+         case I_EXIT_FACT:
+         {
             PC = FR->returnPC;
             FR = FR->parent;
             NFR = allocFrame();
             ARGP = NFR->slots;
             continue;
+         }
          case I_DEPART:
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
             NFR->functor = functor;
-            if (!get_code(getConstant(functor)))
+            if (!load_frame_code(functor, NULL, NFR))
                goto b_throw_foreign;
             NFR->returnPC = FR->returnPC;
             NFR->parent = FR->parent;
@@ -413,17 +533,57 @@ RC execute()
             continue;
          }
          case B_THROW:
-            set_exception(*(ARGP-1));
+            SET_EXCEPTION(*(ARGP-1));
             // fall-through
          case B_THROW_FOREIGN:
          b_throw_foreign:
          {
-            // Not implemented yet
+            if (current_exception == 0)
+               assert(0 && "throw but not exception?");
+            word backtrace = 0;
+            if (FUNCTOROF(current_exception) == errorFunctor && (TAGOF(ARGOF(current_exception, 1)) == VARIABLE_TAG))
+               backtrace = ARGOF(current_exception, 1);
+
+            while(FR != NULL)
+            {
+               if (backtrace != 0)
+               {
+                  if (FR->parent == NULL)
+                  {
+                     Functor f = getConstant(FR->functor).data.functor_data;
+                     unify(backtrace, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity)));
+                     backtrace = 0;
+                  }
+                  else
+                  {
+                     word bnext = MAKE_VAR();
+                     Functor f = getConstant(FR->functor).data.functor_data;
+                     unify(backtrace, MAKE_VCOMPOUND(listFunctor, bnext, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
+                     backtrace = bnext;
+                  }
+               }
+               if (FR->functor == catchFunctor)
+               {
+                  backtrack_to(FR->choicepoint);
+                  if (unify(copy_term(current_exception), FR->slots[1]))
+                  {
+                     // Success! Exception is successfully handled. Now we just have to do i_usercall after adjusting the registers to point to the handler
+                     // Things get a bit weird here because we are breaking the usual logic flow by ripping the VM out of whatever state it was in and starting
+                     // it off in a totally different place. We have to reset argP, argI and PC then pretend the next instruction was i_usercall
+                     ARGP = FR->slots + 3;
+                     PC = &FR->clause->code[12];
+                     FR->functor = caughtFunctor;
+                     goto i_usercall;
+                  }
+               }
+               FR = FR->parent;
+            }
+            return ERROR;
          }
          case I_SWITCH_MODULE:
          {
             word moduleName = FR->clause->constants[CODE16(PC+1)];
-            currentModule = getModule(getConstant(moduleName));
+            currentModule = find_module(moduleName);
             FR->contextModule = currentModule;
             PC+=3;
             continue;
@@ -435,7 +595,7 @@ RC execute()
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
             NFR->functor = functor;
-            if (!get_code(getConstant(functor)))
+            if (!load_frame_code(functor, NULL, NFR))
                goto b_throw_foreign;
             NFR->returnPC = PC+3;
             ARGP = NFR->slots;
@@ -449,17 +609,18 @@ RC execute()
          {
             CreateChoicepoint(-1);
             FR->choicepoint = CP;
-            FR->reserved_slots[CODE16(PC+1)] = (word)CP;
+            FR->slots[CODE16(PC+1)] = (word)CP;
             ARGP = &FR->slots[1];
             PC+=2;
             continue;
          }
          case I_USERCALL:
+         i_usercall:
          {
             word goal = DEREF(*(ARGP-1));
             if (TAGOF(goal) == VARIABLE_TAG)
             {
-               set_exception(instantiationError());
+               instantiation_error();
                goto b_throw_foreign;
             }
             Query query = compile_query(goal);
@@ -483,21 +644,21 @@ RC execute()
             PC++;
             continue;
          case C_CUT:
-            if (cut_to((Choicepoint)FR->reserved_slots[CODE16(PC+1)]) == YIELD)
+            if (cut_to((Choicepoint)FR->slots[CODE16(PC+1)]) == YIELD)
                return YIELD;
             PC+=3;
             continue;
          case C_LCUT:
-            if (cut_to((Choicepoint)FR->reserved_slots[CODE16(PC+1)] + 1) == YIELD)
+            if (cut_to((Choicepoint)FR->slots[CODE16(PC+1)] + 1) == YIELD)
                return YIELD;
             PC+=3;
             continue;
          case C_IF_THEN:
-            FR->reserved_slots[CODE16(PC+1)] = (word)CP;
+            FR->slots[CODE16(PC+1)] = (word)CP;
             PC+=3;
             continue;
          case C_IF_THEN_ELSE:
-            FR->reserved_slots[CODE16(PC+1)] = (word)CP;
+            FR->slots[CODE16(PC+1)] = (word)CP;
             CreateChoicepoint(CODE32(PC+3));
             PC+=7;
             continue;
@@ -618,7 +779,11 @@ RC execute()
             if (arg == atom)
                continue;
             else if (TAGOF(arg) == VARIABLE_TAG)
+            {
+               PC+=3;
                bind(arg, atom);
+               continue;
+            }
             else if (backtrack())
                continue;
             return FAIL;
@@ -655,7 +820,7 @@ RC execute()
             unsigned int slot = CODE16(PC+1);
             word value = DEREF(FR->slots[slot]);
             if (!(TAGOF(value) == COMPOUND_TAG && FUNCTOROF(value) == crossModuleCallFunctor))
-               FR->slots[slot] = MAKE_VCOMPOUND(crossModuleCallFunctor, FR->parent->contextModule->term, value);
+               FR->slots[slot] = MAKE_VCOMPOUND(crossModuleCallFunctor, FR->parent->contextModule->name, value);
             PC+=3;
             continue;
          }
@@ -675,20 +840,96 @@ RC execute_query(word goal)
    goal = DEREF(goal);
    if (TAGOF(goal) == VARIABLE_TAG)
    {
-      set_exception(instantiationError());
+      instantiation_error();
       return ERROR;
    }
    Query query = compile_query(goal);
    FR = allocFrame();
-   word functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
-   FR->functor = functor;
-   FR->clause = query->clause;
+   FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
    FR->returnPC = NULL;
-   FR->choicepoint = CP;
+   FR->clause = &exitQueryClause;
+   FR->choicepoint = NULL;
+
+   NFR = allocFrame();
+   NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<query>"), 1);
+   NFR->returnPC = FR->clause->code;
+   printf("Should return to %p, which is %d\n", NFR->returnPC, *(NFR->returnPC));
+   NFR->clause = query->clause;
+   NFR->choicepoint = CP;
+
+   FR = NFR;
    ARGP = FR->slots;
    for (int i = 0; i < query->variable_count; i++)
       FR->slots[i] = query->variables[i];
    NFR = allocFrame();
    PC = FR->clause->code;
    return execute();
+}
+
+word getException()
+{
+   return current_exception;
+}
+
+word clause_functor(word t)
+{
+   if (TAGOF(t) == CONSTANT_TAG)
+   {
+      constant c = getConstant(t);
+      if (c.type == ATOM_TYPE)
+         return MAKE_FUNCTOR(t, 0);
+   }
+   else if (FUNCTOROF(t) == clauseFunctor)
+      return clause_functor(ARGOF(t, 0));
+   return FUNCTOROF(t);
+}
+
+void consult_string(char* string)
+{
+   if (!initialized)
+      initialize();
+   Stream s = stringBufferStream(string, strlen(string));
+   word clause;
+   while ((clause = read_term(s, NULL)) != endOfFileAtom)
+   {
+      if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
+      {
+         assert(0);
+      }
+      else
+      {
+         // Ordinary clause
+         word functor = clause_functor(clause);
+         add_clause(currentModule, functor, clause);
+      }
+   }
+   // In case this has changed, set it back after consulting any file
+   currentModule = userModule;
+}
+
+void print_clause(Clause clause)
+{
+   for (int i = 0; i < clause->code_size; i++)
+   {
+      printf("@%d: %s ", i, instruction_info[clause->code[i]].name);
+      if (instruction_info[clause->code[i]].flags & HAS_CONST)
+      {
+         int index = (clause->code[i+1] << 8) | (clause->code[i+2]);
+         i+=2;
+         PORTRAY(clause->constants[index]); printf(" ");
+      }
+      if (instruction_info[clause->code[i]].flags & HAS_ADDRESS)
+      {
+         long address = (clause->code[i+1] << 24) | (clause->code[i+2] << 16) | (clause->code[i+3] << 8) | (clause->code[i+4]);
+         i+=4;
+         printf("%lu ", address);
+      }
+      if (instruction_info[clause->code[i]].flags & HAS_SLOT)
+      {
+         int slot = (clause->code[i+1] << 8) | (clause->code[i+2]);
+         i+=2;
+         printf("%d ", slot);
+      }
+      printf("\n");
+   }
 }

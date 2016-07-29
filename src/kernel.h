@@ -31,6 +31,7 @@ word MAKE_INTEGER(long data);
 word MAKE_FUNCTOR(word name, int arity);
 word MAKE_VCOMPOUND(word functor, ...);
 word MAKE_LCOMPOUND(word functor, List* args);
+word MAKE_ACOMPOUND(word functor, word* args);
 void PORTRAY(word w);
 void SET_EXCEPTION(word);
 
@@ -38,6 +39,7 @@ enum OPCODE
 {
 #define INSTRUCTION(a) a,
 #define INSTRUCTION_CONST(a) a,
+#define INSTRUCTION_CONST_SLOT(a) a,
 #define INSTRUCTION_SLOT(a) a,
 #define INSTRUCTION_ADDRESS(a) a,
 #define INSTRUCTION_SLOT_ADDRESS(a) a,
@@ -45,6 +47,7 @@ enum OPCODE
 #include "instructions"
 #undef INSTRUCTION
 #undef INSTRUCTION_CONST
+#undef INSTRUCTION_CONST_SLOT
 #undef INSTRUCTION_SLOT
 #undef INSTRUCTION_ADDRESS
 #undef INSTRUCTION_SLOT_ADDRESS
@@ -82,5 +85,8 @@ typedef enum
 
 RC execute_query(word);
 RC backtrack_query();
-
+word getException();
+word clause_functor(word);
+void consult_string(char*);
+void print_clause(Clause);
 #endif

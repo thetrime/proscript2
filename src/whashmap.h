@@ -6,10 +6,11 @@
  * Modified by Pete Warden to fix a serious performance problem, support strings as keys
  * and removed thread synchronization - http://petewarden.typepad.com
  */
-#ifndef __HASHMAP_H__
-#define __HASHMAP_H__
+#ifndef __WHASHMAP_H__
+#define __WHASHMAP_H__
 
-#include "types.h"
+#include <stdint.h>
+typedef uintptr_t word;
 
 #define MAP_MISSING -3  /* No such element */
 #define MAP_FULL -2 	/* Hashmap is full */
@@ -80,4 +81,4 @@ extern void whashmap_free(wmap_t in);
  */
 extern int whashmap_length(wmap_t in);
 
-#endif // __HASHMAP_H__
+#endif // __WHASHMAP_H__

@@ -26,5 +26,6 @@ void list_apply(List* list, void*, void (*fn)(word, void*));
 void list_apply_reverse(List* list, void*, void (*fn)(word, void*));
 int list_length(List* list);
 int list_contains(List* list, word);
+int list_index(List* list, word);
 
 #endif

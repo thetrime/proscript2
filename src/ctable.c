@@ -24,13 +24,13 @@ int atom_compare(void* data, int len, word w)
 int integer_compare(void* data, int len, word w)
 {
    Integer i = getConstant(w).data.integer_data;
-   return i->data == (long)data;
+   return i->data == *((long*)data);
 }
 
 int functor_compare(void* data, int len, word w)
 {
    Functor f = getConstant(w).data.functor_data;
-   return f->name == (word)data && f->arity == len;
+   return f->name == *((word*)data) && f->arity == len;
 }
 
 void initialize_ctable()

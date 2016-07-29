@@ -810,7 +810,7 @@ int free_key(any_t ignored, char* key, any_t value)
    return MAP_OK;
 }
 
-word readTerm(Stream stream, void* options)
+word read_term(Stream stream, void* options)
 {
    token_lookahead_index = 0;
    map_t vars = hashmap_new();

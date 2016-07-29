@@ -490,7 +490,11 @@ int get_reserved_slots(word t)
          return get_reserved_slots(ARGOF(t, 0)) + get_reserved_slots(ARGOF(t, 1));
       if (FUNCTOROF(t) == localCutFunctor)
          return get_reserved_slots(ARGOF(t, 0)) + get_reserved_slots(ARGOF(t, 1)) + 1;
+      if (FUNCTOROF(t) == notFunctor)
+         return get_reserved_slots(ARGOF(t, 0)) + 1;
    }
+   if (t == catchAtom)
+      return 1;
    return 0;
 }
 
@@ -597,12 +601,12 @@ int compile_clause(word term, instruction_list_t* instructions)
    {
       // Fact
       if (TAGOF(term) == COMPOUND_TAG)
-         arg_slots = getConstant(term).data.functor_data->arity;
+         arg_slots = getConstant(FUNCTOROF(term)).data.functor_data->arity;
       else
          arg_slots = 0;
       analyze_variables(term, 1, 0, variables, &arg_slots);
       compile_head(term, variables, instructions);
-      push_instruction(instructions, INSTRUCTION(I_EXITFACT));
+      push_instruction(instructions, INSTRUCTION(I_EXIT_FACT));
    }
    return 1;
 }

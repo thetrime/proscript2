@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "whashmap.h"
 
 #ifndef _TYPES_H
 typedef uintptr_t word;
@@ -14,7 +15,8 @@ typedef functor* Functor;
 
 typedef struct
 {
-   word term;
+   word name;
+   wmap_t predicates;
 } module;
 typedef module* Module;
 
@@ -23,10 +25,8 @@ struct clause
    word* constants;
    uint8_t* code;
    struct clause* next;
-#ifdef DEBUG
    int code_size;
    int constant_size;
-#endif
 };
 typedef struct clause clause;
 typedef clause* Clause;
@@ -42,6 +42,8 @@ typedef struct predicate_cell_t predicate_cell_t;
 typedef struct
 {
    predicate_cell_t* head;
+   predicate_cell_t** tail;
+   Clause firstClause;
    char* meta;
 } predicate;
 
@@ -105,13 +107,12 @@ struct frame
 {
    struct frame* parent;
    int depth;
-   word* slots;
-   word* reserved_slots;
    Clause clause;
    Module contextModule;
    unsigned char* returnPC;
    Choicepoint choicepoint;
    word functor;
+   word slots[0];
 };
 typedef struct frame frame;
 typedef frame* Frame;

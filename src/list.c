@@ -74,6 +74,21 @@ int list_contains(List* list, word w)
    return 0;
 }
 
+int list_index(List* list, word w)
+{
+   struct cell_t* cell = list->tail;
+   int i = 0;
+   while (cell != NULL)
+   {
+      struct cell_t* next = cell->prev;
+      if (w == cell->data)
+         return i;
+      i++;
+      cell = next;
+   }
+   return -1;
+}
+
 
 int list_length(List* list)
 {

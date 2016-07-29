@@ -57,4 +57,4 @@ typedef charbuffer* CharBuffer;
 
 
 
-word readTerm(Stream s, void* options);
+word read_term(Stream s, void* options);
