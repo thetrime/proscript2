@@ -174,6 +174,11 @@ int bufferLength(CharBuffer buffer)
    return buffer->length;
 }
 
+void free_buffer(CharBuffer buffer)
+{
+   free(buffer);
+}
+
 char* finalize(CharBuffer buffer)
 {
    CharCell* c = buffer->head;
@@ -325,6 +330,8 @@ Token lex(Stream s)
       return BarToken;
    else if (c == ',')
       return CommaToken;
+   else if (c == '.')
+      return PeriodToken;
    if ((c >= 'A' && c < 'Z') || c == '_')
    {
       CharBuffer sb = charBuffer();
@@ -405,16 +412,19 @@ Token lex(Stream s)
    }
    else
    {
-      CharBuffer sb = charBuffer();
       int is_escape = 0;
       if (c == '\'' || c == '"')
       {
+         CharBuffer sb = charBuffer();
          int matcher = c;
          while (1)
          {
             c = get_raw_char_with_conversion(s);
             if (c == -1)
+            {
+               free_buffer(sb);
                return SyntaxErrorToken("end of file in atom");
+            }
             if (c == '\\')
             {
                if (is_escape)
@@ -502,8 +512,7 @@ Token lex(Stream s)
          return AtomToken(data, length);
       }
    }
-   // This should be unreachable
-   return NULL;
+   assert(0 && "This should not be reachable");
 }
 
 Token token_lookahead[3];

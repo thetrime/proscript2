@@ -123,7 +123,7 @@ StringBuffer allocStringBuffer(char* data, int len)
 void freeStringBuffer(void* t)
 {
    StringBuffer sb = t;
-   free(sb->data);
+   //free(sb->data);  This is the responsibility of the caller to free
    free(sb);
 }
 
