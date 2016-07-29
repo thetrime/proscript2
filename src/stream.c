@@ -143,6 +143,8 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
    s->tell = tell;
    s->free = free;
    s->data = data;
+   s->buffer_ptr = 0;
+   s->filled_buffer_size = 0;
    return s;
 }
 

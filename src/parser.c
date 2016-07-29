@@ -177,7 +177,7 @@ int bufferLength(CharBuffer buffer)
 char* finalize(CharBuffer buffer)
 {
    CharCell* c = buffer->head;
-   char* data = malloc(buffer->length);
+   char* data = malloc(buffer->length + 1);
    c = buffer->head;
    int i = 0;
    CharCell* d;
@@ -188,13 +188,14 @@ char* finalize(CharBuffer buffer)
       free(c);
       c = d;
    }
+   data[i++] = '\0';
    free(buffer);
    return data;
 }
 
 Token SyntaxErrorToken(char* message)
 {
-   Token t = malloc(sizeof(Token));
+   Token t = malloc(sizeof(token));
    t->type = SyntaxErrorTokenType;
    t->data.syntax_error_data = message;
    return t;
@@ -203,7 +204,7 @@ Token SyntaxErrorToken(char* message)
 
 Token AtomToken(char* data, int length)
 {
-   Token t = malloc(sizeof(Token));
+   Token t = malloc(sizeof(token));
    t->type = AtomTokenType;
    t->data.atom_data = malloc(sizeof(atom_data_t));
    t->data.atom_data->data = data;
@@ -213,7 +214,7 @@ Token AtomToken(char* data, int length)
 
 Token VariableToken(char* name)
 {
-   Token t = malloc(sizeof(Token));
+   Token t = malloc(sizeof(token));
    t->type = VariableTokenType;
    t->data.variable_data = name;
    return t;
@@ -221,7 +222,7 @@ Token VariableToken(char* name)
 
 Token BigIntegerToken(char* data)
 {
-   Token t = malloc(sizeof(Token));
+   Token t = malloc(sizeof(token));
    t->type = BigIntegerTokenType;
    t->data.biginteger_data = data;
    return t;
@@ -230,7 +231,7 @@ Token BigIntegerToken(char* data)
 
 Token StringToken(char* data, int length)
 {
-   Token t = malloc(sizeof(Token));
+   Token t = malloc(sizeof(token));
    t->type = StringTokenType;
    t->data.atom_data = malloc(sizeof(atom_data_t));
    t->data.atom_data->data = data;
@@ -240,7 +241,7 @@ Token StringToken(char* data, int length)
 
 Token IntegerToken(long data)
 {
-   Token t = malloc(sizeof(Token));
+   Token t = malloc(sizeof(token));
    t->type = IntegerTokenType;
    t->data.integer_data = data;
    return t;
@@ -248,7 +249,7 @@ Token IntegerToken(long data)
 
 Token FloatToken(double data)
 {
-   Token t = malloc(sizeof(Token));
+   Token t = malloc(sizeof(token));
    t->type = FloatTokenType;
    t->data.float_data = data;
    return t;
@@ -327,6 +328,7 @@ Token lex(Stream s)
    if ((c >= 'A' && c < 'Z') || c == '_')
    {
       CharBuffer sb = charBuffer();
+      pushChar(sb, c);
       while (1)
       {
          c = peek_raw_char_with_conversion(s);
@@ -646,17 +648,17 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
          Token next = read_token(s);
          if (next != ParenCloseToken)
             return syntax_error; // Mismatched ( at <next>
-         else if (t->type == VariableTokenType)
+      }
+      else if (t->type == VariableTokenType)
+      {
+         if (t->data.variable_data[0] == '_')
+            lhs = MAKE_VAR();
+         else
          {
-            if (t->data.variable_data[0] == '_')
-               lhs = MAKE_VAR();
-            else
+            if (hashmap_get(vars, t->data.variable_data, (any_t*)&lhs) == MAP_MISSING)
             {
-               if (hashmap_get(vars, t->data.variable_data, (any_t*)&lhs) == MAP_MISSING)
-               {
-                  lhs = MAKE_VAR();
-                  hashmap_put(vars, strdup(t->data.variable_data), (any_t)lhs);
-               }
+               lhs = MAKE_VAR();
+               hashmap_put(vars, strdup(t->data.variable_data), (any_t)lhs);
             }
          }
       }

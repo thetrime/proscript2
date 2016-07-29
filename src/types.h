@@ -18,13 +18,34 @@ typedef struct
 } module;
 typedef module* Module;
 
-typedef struct
+struct clause
 {
    word* constants;
    uint8_t* code;
-} clause;
+   struct clause* next;
+#ifdef DEBUG
+   int code_size;
+   int constant_size;
+#endif
+};
+typedef struct clause clause;
 typedef clause* Clause;
 
+struct predicate_cell_t
+{
+   word term;
+   struct predicate_cell_t* next;
+};
+
+typedef struct predicate_cell_t predicate_cell_t;
+
+typedef struct
+{
+   predicate_cell_t* head;
+   char* meta;
+} predicate;
+
+typedef predicate* Predicate;
 
 typedef struct
 {

@@ -14,7 +14,7 @@
 #define CODE32(t) ((*(t) << 24) | ((*(t+1)) << 16) | ((*(t+2)) << 8) | (*(t+3)))
 #define FUNCTOR_VALUE(t) ((Functor)CTable[t])
 #define FUNCTOROF(t) (*((Word)(t & ~TAG_MASK)))
-#define ARGOF(t, i) ((word)(((Word*)(t & ~TAG_MASK))+i+1))
+#define ARGOF(t, i) DEREF(((word)(((Word*)(t & ~TAG_MASK))+i+1)))
 #define ARGPOF(t) ((Word)(((Word*)(t & ~TAG_MASK))+1)) // FIXME: These cannot both be right!
 
 #define VARIABLE_TAG 0b00
@@ -36,48 +36,33 @@ void SET_EXCEPTION(word);
 
 enum OPCODE
 {
-   I_FAIL,
-   I_ENTER,
-   I_EXIT_QUERY,
-   I_EXITCATCH,
-   I_FOREIGN,
-   I_FOREIGNRETRY,
-   I_EXIT,
-   I_EXITFACT,
-   I_DEPART,
-   B_CLEANUP_CHOICEPOINT,
-   B_THROW,
-   B_THROW_FOREIGN,
-   I_SWITCH_MODULE,
-   I_EXITMODULE,
-   I_CALL,
-   I_CATCH,
-   I_USERCALL,
-   I_CUT,
-   C_CUT,
-   C_LCUT,
-   C_IFTHEN,
-   C_IFTHENELSE,
-   I_UNIFY,
-   B_FIRSTVAR,
-   B_ARGVAR,
-   B_VAR,
-   B_POP,
-   B_ATOM,
-   B_VOID,
-   B_FUNCTOR,
-   H_FIRSTVAR,
-   H_FUNCTOR,
-   H_POP,
-   H_ATOM,
-   H_VOID,
-   H_VAR,
-   C_JUMP,
-   C_OR,
-   TRY_ME_OR_NEXT_CLAUSE,
-   TRUST_ME,
-   S_QUALIFY
+#define INSTRUCTION(a) a,
+#define INSTRUCTION_CONST(a) a,
+#define INSTRUCTION_SLOT(a) a,
+#define INSTRUCTION_ADDRESS(a) a,
+#define INSTRUCTION_SLOT_ADDRESS(a) a,
+#define END_INSTRUCTIONS NOP
+#include "instructions"
+#undef INSTRUCTION
+#undef INSTRUCTION_CONST
+#undef INSTRUCTION_SLOT
+#undef INSTRUCTION_ADDRESS
+#undef INSTRUCTION_SLOT_ADDRESS
+#undef END_INSTRUCTIONS
 };
+
+
+typedef struct
+{
+   const char* name;
+   int flags;
+} instruction_info_t;
+
+#define HAS_CONST 1
+#define HAS_SLOT 2
+#define HAS_ADDRESS 4
+
+extern instruction_info_t instruction_info[];
 
 enum MODE
 {
@@ -94,4 +79,8 @@ typedef enum
    ERROR,
    HALT
 } RC;
+
+RC execute_query(word);
+RC backtrack_query();
+
 #endif

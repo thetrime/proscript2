@@ -8,6 +8,21 @@
 #include <string.h>
 #include <assert.h>
 
+instruction_info_t instruction_info[] = {
+#define INSTRUCTION(a) {#a, 0},
+#define INSTRUCTION_CONST(a) {#a, HAS_CONST},
+#define INSTRUCTION_SLOT(a) {#a, HAS_SLOT},
+#define INSTRUCTION_ADDRESS(a) {#a, HAS_ADDRESS},
+#define INSTRUCTION_SLOT_ADDRESS(a) {#a, HAS_ADDRESS | HAS_SLOT},
+#define END_INSTRUCTIONS {"NOP", 0}
+#include "instructions"
+#undef INSTRUCTION
+#undef INSTRUCTION_CONST
+#undef INSTRUCTION_SLOT
+#undef INSTRUCTION_ADDRESS
+#undef INSTRUCTION_SLOT_ADDRESS
+#undef END_INSTRUCTIONS
+};
 
 uint8_t* PC;
 int halted = 0;
@@ -65,8 +80,13 @@ void _lcompoundarg(word w, void* ignored)
    HEAP[H++] = w;
 }
 
+// You can call MAKE_LCOMPOUND with either an atom or a functor as the first arg.
+// If you call it with an atom, it will make a functor with arity list->size for you
 word MAKE_LCOMPOUND(word functor, List* list)
 {
+   constant c = getConstant(functor);
+   if (c.type == ATOM_TYPE)
+      functor = MAKE_FUNCTOR(functor, list_length(list));
    Functor f = getConstant(functor).data.functor_data;
    word addr = (word)&HEAP[H];
    HEAP[H++] = functor;
@@ -154,7 +174,7 @@ void PORTRAY(word w)
 {
    w = DEREF(w);
    if (TAGOF(w) == VARIABLE_TAG)
-      printf("_%lu\n", w);
+      printf("_G%lu", w);
    else if (TAGOF(w) == CONSTANT_TAG)
    {
       constant c = getConstant(w);
@@ -166,6 +186,10 @@ void PORTRAY(word w)
          case INTEGER_TYPE:
             printf("%ld", c.data.integer_data->data);
             break;
+         case FUNCTOR_TYPE:
+            PORTRAY(c.data.functor_data->name); printf("/%d", c.data.functor_data->arity);
+            break;
+
       }
    }
    else if (TAGOF(w) == COMPOUND_TAG)
@@ -286,16 +310,19 @@ void CreateClauseChoicepoint()
 
 Frame allocFrame()
 {
-   Frame frame = malloc(sizeof(frame));
-   frame->parent = FR;
-   frame->depth = (FR != NULL)?FR->depth+1:0;
-   frame->slots = NULL; // !!! FIXME
-   frame->reserved_slots = NULL; // FIXME
-   frame->clause = NULL;
-   frame->contextModule = currentModule;
-   frame->returnPC = 0;
-   frame->choicepoint = CP;
-   return frame;
+   Frame f = malloc(sizeof(frame));
+   f->parent = FR;
+   if (FR != NULL)
+      f->depth = FR->depth+1;
+   else
+      f->depth = 0;
+   f->slots = malloc(c->slots * sizeof(word));
+   f->reserved_slots = malloc(c->reserved_slots * sizeof(word));
+   f->clause = NULL;
+   f->contextModule = currentModule;
+   f->returnPC = 0;
+   f->choicepoint = CP;
+   return f;
 }
 
 Module getModule(constant name)
@@ -313,6 +340,7 @@ RC execute()
 {
    while (!halted)
    {
+      printf("@%p: %s\n", PC, instruction_info[*PC].name);
       switch(*PC)
       {
          case I_FAIL:
@@ -434,7 +462,7 @@ RC execute()
                set_exception(instantiationError());
                goto b_throw_foreign;
             }
-            Query query = compileQuery(goal);
+            Query query = compile_query(goal);
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
             NFR->clause = query->clause;
             NFR->returnPC = PC+1;
@@ -444,8 +472,8 @@ RC execute()
                NFR->slots[i] = query->variables[i];
             FR = NFR;
             NFR = allocFrame();
-            PC = NFR->clause->code;
-            freeQuery(query);
+            PC = FR->clause->code;
+            // free_query(query); We cannot free this here! But when DO we free it?
             continue;
          }
          case I_CUT:
@@ -464,11 +492,11 @@ RC execute()
                return YIELD;
             PC+=3;
             continue;
-         case C_IFTHEN:
+         case C_IF_THEN:
             FR->reserved_slots[CODE16(PC+1)] = (word)CP;
             PC+=3;
             continue;
-         case C_IFTHENELSE:
+         case C_IF_THEN_ELSE:
             FR->reserved_slots[CODE16(PC+1)] = (word)CP;
             CreateChoicepoint(CODE32(PC+3));
             PC+=7;
@@ -639,4 +667,28 @@ RC execute()
       }
    }
    return HALT;
+}
+
+
+RC execute_query(word goal)
+{
+   goal = DEREF(goal);
+   if (TAGOF(goal) == VARIABLE_TAG)
+   {
+      set_exception(instantiationError());
+      return ERROR;
+   }
+   Query query = compile_query(goal);
+   FR = allocFrame();
+   word functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
+   FR->functor = functor;
+   FR->clause = query->clause;
+   FR->returnPC = NULL;
+   FR->choicepoint = CP;
+   ARGP = FR->slots;
+   for (int i = 0; i < query->variable_count; i++)
+      FR->slots[i] = query->variables[i];
+   NFR = allocFrame();
+   PC = FR->clause->code;
+   return execute();
 }

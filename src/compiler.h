@@ -1,4 +1,5 @@
 #include "types.h"
 
-Query compileQuery(word);
-void freeQuery(Query);
+Query compile_query(word);
+void free_query(Query);
+Clause compile_predicate(Predicate p);

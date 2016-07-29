@@ -7,16 +7,7 @@ void init_list(List* list)
    list->length = 0;
 }
 
-List* alloc_list()
-{
-   List* list = malloc(sizeof(List));
-   list->head = NULL;
-   list->tail = NULL;
-   list->length = 0;
-   return list;
-}
 
-// CHECKME: alloc_list() must be free()d
 void free_list(List* list)
 {
    struct cell_t* cell = list->head;
