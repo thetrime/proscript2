@@ -5,12 +5,22 @@
 #include "compiler.h"
 #include "parser.h"
 #include <string.h>
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
+#endif
 
 
-int main()
+//int main()
+//{
+//   initialize_constants();
+//   return 0;
+//}
+
+EMSCRIPTEN_KEEPALIVE
+void do_test()
 {
-   initialize_constants();
-
    consult_string("fox(a, b). fox(c, d). fox(c, x).");
 
    word x = MAKE_ATOM("c");
@@ -43,8 +53,6 @@ int main()
          PORTRAY(y); printf("\n");
       }
    }
-
-   return -1;
 }
 
 /*

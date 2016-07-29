@@ -568,9 +568,10 @@ Clause assemble(instruction_list_t* instructions)
    return context.clause;
 }
 
-void free_varinfo(void* ignored, word key, void* value)
+int free_varinfo(any_t ignored, word key, any_t value)
 {
    free(value);
+   return MAP_OK;
 }
 
 int compile_clause(word term, instruction_list_t* instructions)

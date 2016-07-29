@@ -1,3 +1,7 @@
+#ifdef EMSCRIPTEN
+#include <emscripten/emscripten.h>
+#endif
+
 #include "kernel.h"
 #include "constants.h"
 #include "ctable.h"
@@ -168,16 +172,16 @@ word MAKE_FUNCTOR(word name, int arity)
    return w;
 }
 
-void bind(word var, word value)
+void _bind(word var, word value)
 {
    trail[TR++] = var;
    *((Word)var) = value;
 }
 
-word link(word value)
+word _link(word value)
 {
    word v = MAKE_VAR();
-   bind(v, value);
+   _bind(v, value);
    return v;
 }
 
@@ -198,7 +202,7 @@ void PORTRAY(word w)
 {
    w = DEREF(w);
    if (TAGOF(w) == VARIABLE_TAG)
-      printf("_G%lu", w);
+      printf("_G%d", (w - (word)HEAP));
    else if (TAGOF(w) == CONSTANT_TAG)
    {
       constant c = getConstant(w);
@@ -246,12 +250,12 @@ int unify(word a, word b)
       return 1;
    if (TAGOF(a) == VARIABLE_TAG)
    {
-      bind(a, b);
+      _bind(a, b);
       return 1;
    }
    if (TAGOF(b) == VARIABLE_TAG)
    {
-      bind(b, a);
+      _bind(b, a);
       return 1;
    }
    if ((TAGOF(a) == COMPOUND_TAG) && (TAGOF(b) == COMPOUND_TAG) && (FUNCTOROF(a) == FUNCTOROF(b)))
@@ -505,8 +509,9 @@ RC execute()
          case I_FOREIGNRETRY:
          {
             RC rc = FAIL;
+            Functor f = getConstant(FR->functor).data.functor_data;
 #ifdef EMSCRIPTEN
-            rc = EM_ASM_INT({execute_foreign($0, $1)}, FR->slots[CODE16(PC+3)], &FR->slots);
+            rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(PC+3)], f->name, f->arity, ARGP);
 #endif
             if (rc == FAIL)
             {
@@ -699,7 +704,7 @@ RC execute()
          }
          case B_FIRSTVAR:
             FR->slots[CODE16(PC+1)] = MAKE_VAR();
-            *ARGP = link(FR->slots[CODE16(PC+1)]);
+            *ARGP = _link(FR->slots[CODE16(PC+1)]);
             PC+=3;
             continue;
          case B_ARGVAR:
@@ -709,7 +714,7 @@ RC execute()
             if (TAGOF(arg) == VARIABLE_TAG)
             {
                *ARGP = MAKE_VAR();
-               bind(*(ARGP++), arg);
+               _bind(*(ARGP++), arg);
             }
             else
                *(ARGP++) = arg;
@@ -721,7 +726,7 @@ RC execute()
             unsigned int slot = CODE16(PC+1);
             if (FR->slots[slot] == 0)
                FR->slots[slot] = MAKE_VAR();
-            *(ARGP++) = link(FR->slots[slot]);
+            *(ARGP++) = _link(FR->slots[slot]);
             PC+=3;
             continue;
          }
@@ -751,12 +756,12 @@ RC execute()
             if (mode == WRITE)
             {
                FR->slots[CODE16(PC+1)] = MAKE_VAR();
-               bind(*(ARGP++),FR->slots[CODE16(PC+1)]);
+               _bind(*(ARGP++),FR->slots[CODE16(PC+1)]);
             }
             else
             {
                if (TAGOF(*ARGP) == VARIABLE_TAG)
-                  FR->slots[CODE16(PC+1)] = link(*(ARGP++));
+                  FR->slots[CODE16(PC+1)] = _link(*(ARGP++));
                else
                   FR->slots[CODE16(PC+1)] = *(ARGP++);
             }
@@ -781,7 +786,7 @@ RC execute()
             {
                *(argStackP++) = ARGP;
                word t = MAKE_COMPOUND(functor);
-               bind(arg, t);
+               _bind(arg, t);
                ARGP = ARGPOF(t);
                mode = WRITE;
             }
@@ -802,7 +807,7 @@ RC execute()
                continue;
             else if (TAGOF(arg) == VARIABLE_TAG)
             {
-               bind(arg, atom);
+               _bind(arg, atom);
                continue;
             }
             else if (backtrack())
