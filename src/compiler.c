@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <inttypes.h>
 
 typedef struct
 {
@@ -23,7 +24,7 @@ struct instruction_t
    unsigned char opcode;
    word constant;
    int slot;
-   long address;
+   uintptr_t address;
    int size;
    int constant_count;
 };
@@ -109,32 +110,32 @@ instruction_t* INSTRUCTION_FUNC_SLOT(unsigned char opcode, int(*func)(), int slo
    i->constant = (word)-1;
    i->slot = slot;
    i->address = (uintptr_t)func;
-   i->size = 7;
+   i->size = 3+sizeof(word);
    i->constant_count = 0;
    return i;
 }
 
 
-instruction_t* INSTRUCTION_SLOT_ADDRESS(unsigned char opcode, int slot, int address)
+instruction_t* INSTRUCTION_SLOT_ADDRESS(unsigned char opcode, int slot, uintptr_t address)
 {
    instruction_t* i = malloc(sizeof(instruction_t));
    i->opcode = opcode;
    i->constant = (word)-1;
    i->slot = slot;
    i->address = address;
-   i->size = 7;
+   i->size = 3+sizeof(word);
    i->constant_count = 0;
    return i;
 }
 
-instruction_t* INSTRUCTION_ADDRESS(unsigned char opcode, int address)
+instruction_t* INSTRUCTION_ADDRESS(unsigned char opcode, uintptr_t address)
 {
    instruction_t* i = malloc(sizeof(instruction_t));
    i->opcode = opcode;
    i->constant = (word)-1;
    i->slot = -1;
    i->address = address;
-   i->size = 3;
+   i->size = 1+sizeof(word);
    i->constant_count = 0;
    return i;
 }
@@ -304,7 +305,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       else
       {
          PORTRAY(term);
-         printf("... Failure - cannot call %d\n", term);
+         printf("... Failure - cannot call %" PRIuPTR "\n", term);
          assert(0);
       }
    }
@@ -543,10 +544,33 @@ void _assemble(void *p, instruction_t* i)
    }
    if (i->address != -1)
    {
-      context->clause->code[context->codep++] = (i->address >> 24) & 0xff;
-      context->clause->code[context->codep++] = (i->address >> 16) & 0xff;
-      context->clause->code[context->codep++] = (i->address >>  8) & 0xff;
-      context->clause->code[context->codep++] = (i->address >>  0) & 0xff;
+      if (sizeof(word) == 4)
+      {
+         context->clause->code[context->codep++] = (i->address >> 24) & 0xff;
+         context->clause->code[context->codep++] = (i->address >> 16) & 0xff;
+         context->clause->code[context->codep++] = (i->address >>  8) & 0xff;
+         context->clause->code[context->codep++] = (i->address >>  0) & 0xff;
+      }
+      else if (sizeof(word) == 8)
+      {
+         context->clause->code[context->codep++] = (i->address >> 56) & 0xff;
+         context->clause->code[context->codep++] = (i->address >> 48) & 0xff;
+         context->clause->code[context->codep++] = (i->address >> 40) & 0xff;
+         context->clause->code[context->codep++] = (i->address >> 32) & 0xff;
+         context->clause->code[context->codep++] = (i->address >> 24) & 0xff;
+         context->clause->code[context->codep++] = (i->address >> 16) & 0xff;
+         context->clause->code[context->codep++] = (i->address >>  8) & 0xff;
+         context->clause->code[context->codep++] = (i->address >>  0) & 0xff;
+      }
+      else if (sizeof(word) == 2)
+      {
+         context->clause->code[context->codep++] = (i->address >>  8) & 0xff;
+         context->clause->code[context->codep++] = (i->address >>  0) & 0xff;
+      }
+      else
+         assert(0 && "What kind of CPU IS this?");
+
+
    }
    if (i->slot != -1)
    {
@@ -576,7 +600,6 @@ Clause assemble(instruction_list_t* instructions)
    context.clause->constant_size = context.constant_count;
 #endif
    instruction_list_apply(instructions, &context, _assemble);
-   printf("%d vs %d\n", context.codep, context.size);
    assert(context.codep == context.size);
    assert(context.consp == context.constant_count);
 
@@ -718,7 +741,7 @@ Clause foreign_predicate_c(int(*func)())
 {
    instruction_list_t instructions;
    init_instruction_list(&instructions);
-   push_instruction(&instructions, INSTRUCTION_FUNC_SLOT(I_FOREIGN, func, 0));
+   push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN, 0, (word)func));
    push_instruction(&instructions, INSTRUCTION(I_FOREIGN_RETRY));
    Clause clause = assemble(&instructions);
    deinit_instruction_list(&instructions);
@@ -730,7 +753,7 @@ Clause foreign_predicate_js(word func)
    instruction_list_t instructions;
    init_instruction_list(&instructions);
    push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_JS, 0, func));
-   push_instruction(&instructions, INSTRUCTION(I_FOREIGN_RETRY));
+   push_instruction(&instructions, INSTRUCTION(I_FOREIGN_JS_RETRY));
    Clause clause = assemble(&instructions);
    deinit_instruction_list(&instructions);
    return clause;

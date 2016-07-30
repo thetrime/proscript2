@@ -12,6 +12,16 @@
 
 #define CODE16(t) ((*(t) << 8) | (*(t+1)))
 #define CODE32(t) ((*(t) << 24) | ((*(t+1)) << 16) | ((*(t+2)) << 8) | (*(t+3)))
+#define CODE64(t) ((((word)*(t)) << 56)| (((word)*(t+1)) << 48)| (((word)*(t+2)) << 40)| (((word)*(t+3)) << 32)| (((word)*(t+4)) << 24)| (((word)*(t+5)) << 16)| (((word)*(t+6)) <<  8)| (((word)*(t+7)) <<  0))
+
+#if UINTPTR_MAX == 0xffffffffffffffff
+#define CODEPTR(t) CODE64(t)
+#elif UINTPTR_MAX == 0xffffffff
+#define CODEPTR(t) CODE32(t)
+#elif UINTPTR_MAX == 0xffff
+#define CODEPTR(t) CODE16(t)
+#endif
+
 #define FUNCTOR_VALUE(t) ((Functor)CTable[t])
 #define FUNCTOROF(t) (*((Word)(t & ~TAG_MASK)))
 #define ARGOF(t, i) DEREF(((word)(((Word*)(t & ~TAG_MASK))+i+1)))
@@ -75,7 +85,7 @@ enum MODE
 
 typedef enum
 {
-   SUCCESS,
+   SUCCESS = 1,
    SUCCESS_WITH_CHOICES,
    FAIL,
    YIELD,

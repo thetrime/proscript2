@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <inttypes.h>
 #include <string.h>
 #include <assert.h>
 
@@ -78,6 +79,10 @@ word MAKE_COMPOUND(word functor)
    word addr = (word)&HEAP[H];
    HEAP[H] = functor;
    H++;
+   // Make all the args vars
+   int arity = getConstant(functor).data.functor_data->arity;
+   for (int i = 0; i < arity; i++)
+      MAKE_VAR();
    return addr | COMPOUND_TAG;
 }
 
@@ -208,7 +213,7 @@ void PORTRAY(word w)
 {
    w = DEREF(w);
    if (TAGOF(w) == VARIABLE_TAG)
-      printf("_G%d", (w - (word)HEAP));
+      printf("_G%" PRIuPTR, (w - (word)HEAP));
    else if (TAGOF(w) == CONSTANT_TAG)
    {
       constant c = getConstant(w);
@@ -254,16 +259,16 @@ int unify(word a, word b)
    a = DEREF(a);
    b = DEREF(b);
    if (a == b)
-      return 1;
+      return SUCCESS;
    if (TAGOF(a) == VARIABLE_TAG)
    {
       _bind(a, b);
-      return 1;
+      return SUCCESS;
    }
    if (TAGOF(b) == VARIABLE_TAG)
    {
       _bind(b, a);
-      return 1;
+      return SUCCESS;
    }
    if ((TAGOF(a) == COMPOUND_TAG) && (TAGOF(b) == COMPOUND_TAG) && (FUNCTOROF(a) == FUNCTOROF(b)))
    {
@@ -271,7 +276,7 @@ int unify(word a, word b)
       for (int i = 0; i < arity; i++)
          if (!unify(ARGOF(a, i), ARGOF(b, i)))
             return 0;
-      return 1;
+      return SUCCESS;
    }
    return 0;
 }
@@ -489,7 +494,7 @@ RC execute()
 {
    while (!halted)
    {
-      //printf("@%p: %s\n", PC, instruction_info[*PC].name);
+      printf("@%p: %s\n", PC, instruction_info[*PC].name);
       switch(*PC)
       {
          case I_FAIL:
@@ -509,24 +514,55 @@ RC execute()
             if (FR->slots[CODE16(PC+1)] == (word)CP)
                CP = CP->CP;
             goto i_exit;
+         case I_FOREIGN:
          case I_FOREIGN_JS:
             FR->slots[CODE16(PC+5)] = (word)0;
             // fall-through
+         case I_FOREIGN_JS_RETRY:
          case I_FOREIGN_RETRY:
          {
             RC rc = FAIL;
             Functor f = getConstant(FR->functor).data.functor_data;
+            if (*PC == I_FOREIGN_RETRY || *PC == I_FOREIGN)
+            {
+               printf("Calling %p with %p (%p)\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR->slots);
+               switch(f->arity)
+               {
+                  case 0: rc = ((int (*)())((word)(CODEPTR(PC+1))))(); break;
+                  case 1: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(*ARGP); break;
+                  case 2: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1)); break;
+                  case 3: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2)); break;
+                  case 4: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3)); break;
+                  case 5: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4)); break;
+                  case 6: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5)); break;
+                  case 7: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6)); break;
+                  case 8: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7)); break;
+                  case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), *(ARGP+8)); break;
+                  default:
+                     // Too many args! This should be impossible since the installer would have rejected it
+                     rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
+               }
+            }
+            else
+            {
 #ifdef EMSCRIPTEN
-            rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(PC+5)], CODE32(PC+1), f->arity, ARGP);
+               rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(PC+5)], CODEPTR(PC+1), f->arity, ARGP);
+#else
+               rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
 #endif
+            }
             if (rc == FAIL)
             {
+               printf("Foreign Fail\n");
                if (backtrack())
                   continue;
                return FAIL;
             }
             else if (rc == SUCCESS)
+            {
+               printf("Foreign Success!\n");
                goto i_exit;
+            }
             else if (rc == YIELD)
             { // Not implemented yet
             }
@@ -691,8 +727,8 @@ RC execute()
             continue;
          case C_IF_THEN_ELSE:
             FR->slots[CODE16(PC+1)] = (word)CP;
-            CreateChoicepoint(PC+CODE32(PC+3), FR->clause);
-            PC+=7;
+            CreateChoicepoint(PC+CODEPTR(PC+3), FR->clause);
+            PC+=3 + sizeof(word);
             continue;
          case I_UNIFY:
          {
@@ -710,7 +746,7 @@ RC execute()
          }
          case B_FIRSTVAR:
             FR->slots[CODE16(PC+1)] = MAKE_VAR();
-            *ARGP = _link(FR->slots[CODE16(PC+1)]);
+            *(ARGP++) = _link(FR->slots[CODE16(PC+1)]);
             PC+=3;
             continue;
          case B_ARGVAR:
@@ -795,6 +831,7 @@ RC execute()
                _bind(arg, t);
                ARGP = ARGPOF(t);
                mode = WRITE;
+               continue;
             }
             else if (backtrack())
                continue;
@@ -834,11 +871,11 @@ RC execute()
             PC+=3;
             continue;
          case C_JUMP:
-            PC += CODE32(PC+1);
+            PC += CODEPTR(PC+1);
             continue;
          case C_OR:
-            CreateChoicepoint(PC+CODE32(PC+1), FR->clause);
-            PC += 5;
+            CreateChoicepoint(PC+CODEPTR(PC+1), FR->clause);
+            PC += 1 + sizeof(word);
             continue;
          case TRY_ME_OR_NEXT_CLAUSE:
          {
@@ -860,8 +897,7 @@ RC execute()
          }
          default:
          {
-            printf("Illegal instruction\n");
-            return ERROR;
+            assert(0 && "Illegal instruction\n");
          }
       }
    }

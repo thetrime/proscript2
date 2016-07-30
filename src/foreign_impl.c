@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "errors.h"
+#include <stdio.h>
 
 PREDICATE(=, 2, (word a, word b)
 {
@@ -84,6 +85,7 @@ PREDICATE(@>=, 2, (word a, word b)
 
 PREDICATE(functor, 3, (word term, word name, word arity)
 {
+   printf("Hello from functor("); PORTRAY(term); printf(","); PORTRAY(name); printf(","); PORTRAY(arity); printf(")\n");
    if (TAGOF(term) == VARIABLE_TAG)
    {
       if (!(must_be_positive_integer(arity) &&
@@ -104,6 +106,7 @@ PREDICATE(functor, 3, (word term, word name, word arity)
       return unify(name, term) && unify(arity, MAKE_INTEGER(0));
    else if (TAGOF(term) == COMPOUND_TAG)
    {
+      printf("Hello\n");
       Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
       return unify(name, f->name) && unify(arity, MAKE_INTEGER(f->arity));
    }

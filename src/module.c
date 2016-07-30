@@ -22,9 +22,11 @@ int define_foreign_predicate_c(Module module, word functor, int(*func)(), int fl
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return 0;
+   printf("Defining foreign (C) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" as %p\n", func);
    p = malloc(sizeof(predicate));
    p->meta = NULL;
    p->firstClause = foreign_predicate_c(func);
+   whashmap_put(module->predicates, functor, p);
    return 1;
 }
 
@@ -34,7 +36,7 @@ int define_foreign_predicate_js(Module module, word functor, word func)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return 0;
-   printf("Defining foreign predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
+   printf("Defining foreign (JS) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
    p = malloc(sizeof(predicate));
    p->meta = NULL;
    p->firstClause = foreign_predicate_js(func);
@@ -48,7 +50,7 @@ Predicate lookup_predicate(Module module, word functor)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return p;
-   printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" (%u, %p)\n", functor, module);
+   printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
    return NULL;
 }
 

@@ -1,5 +1,5 @@
-#ARCH=c
-ARCH=js
+ARCH=c
+#ARCH=js
 
 ifeq ($(ARCH),js)
 CC=emcc
@@ -11,6 +11,7 @@ BOOTFILE=src/pre.js
 else
 CC=gcc
 TARGET=build/proscript
+CFLAGS=-g
 BOOTFILE=main.o
 BOOT=main.o
 endif

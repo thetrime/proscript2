@@ -21,7 +21,8 @@
 EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
-   consult_string("fox(a, b). fox(c, d):- badger(a). fox(c, x).");
+   //consult_string("fox(a, b). fox(c, d):- badger(a). fox(c, x).");
+   consult_string("fox(a, b). fox(c, X/Y):- functor(boing(cat, dog), X, Y). fox(c, x).");
 
    word x = MAKE_ATOM("c");
    word y = MAKE_VAR();
