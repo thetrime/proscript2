@@ -1,5 +1,7 @@
 #ifdef EMSCRIPTEN
 #include <emscripten/emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
 #endif
 
 #include "kernel.h"

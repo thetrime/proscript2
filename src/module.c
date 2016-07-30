@@ -1,5 +1,7 @@
 #ifdef EMSCRIPTEN
 #include <emscripten/emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
 #endif
 
 #include "module.h"
@@ -15,7 +17,6 @@ void initialize_modules()
    modules = whashmap_new();
 }
 
-EMSCRIPTEN_KEEPALIVE
 int define_foreign_predicate_c(Module module, word functor, int(*func)(), int flags)
 {
    Predicate p;

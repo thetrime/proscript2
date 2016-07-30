@@ -1,10 +1,21 @@
+#ARCH=c
+ARCH=js
+
+ifeq ($(ARCH),js)
 CC=emcc
 TARGET=build/proscript.js
 #CFLAGS=-O2
 CFLAGS=-g -s NO_EXIT_RUNTIME=1
 BOOT=--pre-js $(BOOTFILE)
 BOOTFILE=src/pre.js
-OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o main.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o
+else
+CC=gcc
+TARGET=build/proscript
+BOOTFILE=main.o
+BOOT=main.o
+endif
+
+OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o
 
 $(TARGET):	$(OBJECTS) $(BOOTFILE)
 		$(CC) $(CFLAGS) $(OBJECTS) $(BOOT) -o $@
