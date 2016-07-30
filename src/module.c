@@ -16,7 +16,7 @@ void initialize_modules()
 }
 
 EMSCRIPTEN_KEEPALIVE
-int define_foreign_predicate_c(Module module, word functor, int(*func)())
+int define_foreign_predicate_c(Module module, word functor, int(*func)(), int flags)
 {
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
@@ -47,7 +47,7 @@ Predicate lookup_predicate(Module module, word functor)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return p;
-   printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" (%lu, %p)\n", functor, module);
+   printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" (%u, %p)\n", functor, module);
    return NULL;
 }
 

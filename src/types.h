@@ -72,6 +72,14 @@ typedef struct
 
 typedef integer* Integer;
 
+typedef struct
+{
+   double data;
+} _float;
+
+typedef _float* Float;
+
+
 struct constant
 {
    int type;
@@ -80,6 +88,7 @@ struct constant
       Atom atom_data;
       Integer integer_data;
       Functor functor_data;
+      Float float_data;
       // ...
    } data;
 };

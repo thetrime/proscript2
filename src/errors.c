@@ -17,3 +17,9 @@ int existence_error(word type, word value)
    SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(existenceErrorFunctor, type, value), MAKE_VAR()));
    return 0;
 }
+
+int domain_error(word domain, word value)
+{
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(domainErrorFunctor, domain, value), MAKE_VAR()));
+   return 0;
+}

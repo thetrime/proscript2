@@ -33,7 +33,7 @@ word MAKE_VCOMPOUND(word functor, ...);
 word MAKE_LCOMPOUND(word functor, List* args);
 word MAKE_ACOMPOUND(word functor, word* args);
 void PORTRAY(word w);
-void SET_EXCEPTION(word);
+int SET_EXCEPTION(word);
 
 enum OPCODE
 {
@@ -90,4 +90,5 @@ word clause_functor(word);
 void consult_string(char*);
 void print_clause(Clause);
 void initialize_kernel();
+int unify(word a, word b);
 #endif

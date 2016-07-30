@@ -727,7 +727,6 @@ Clause foreign_predicate_c(int(*func)())
 
 Clause foreign_predicate_js(word func)
 {
-   printf("Got %lu\n", func);
    instruction_list_t instructions;
    init_instruction_list(&instructions);
    push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_JS, 0, func));

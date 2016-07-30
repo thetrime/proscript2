@@ -12,6 +12,8 @@
 #include "stream.h"
 #include "parser.h"
 #include "prolog_flag.h"
+#include "foreign.h"
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -239,9 +241,10 @@ void PORTRAY(word w)
       printf("Bad tag\n");
 }
 
-void SET_EXCEPTION(word w)
+int SET_EXCEPTION(word w)
 {
    current_exception = w;
+   return 0;
 }
 
 int unify(word a, word b)
@@ -476,6 +479,8 @@ void initialize_kernel()
 {
    userModule = create_module(MAKE_ATOM("user"));
    currentModule = userModule;
+   initialize_foreign();
+   // FIXME: initialize bootstrapped builtins
 }
 
 RC execute()
