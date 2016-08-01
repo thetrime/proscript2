@@ -112,15 +112,19 @@ int term_difference(word a, word b)
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
 #define PREDICATE(name, arity, body) static int TOKENPASTE2(PRED_, __LINE__) body
+#define NONDET_PREDICATE(name, arity, body) static int TOKENPASTE2(PRED_, __LINE__) body
 #include "foreign_impl.c"
 #undef PREDICATE
+#undef NONDET_PREDICATE
 
 void initialize_foreign()
 {
  Module m = find_module(MAKE_ATOM("user"));
 #define PREDICATE(name, arity, body) define_foreign_predicate_c(m, MAKE_FUNCTOR(MAKE_ATOM(#name), arity), TOKENPASTE2(PRED_, __LINE__), 0);
+#define NONDET_PREDICATE(name, arity, body) define_foreign_predicate_c(m, MAKE_FUNCTOR(MAKE_ATOM(#name), arity), TOKENPASTE2(PRED_, __LINE__), NON_DETERMINISTIC);
 #include "foreign_impl.c"
 #undef PREDICATE
+#undef NONDET_PREDICATE
 #undef TOKENPASTE
 #undef TOKENPASTE2
 

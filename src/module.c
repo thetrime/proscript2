@@ -7,6 +7,7 @@
 #include "module.h"
 #include "kernel.h"
 #include "whashmap.h"
+#include "ctable.h"
 #include "compiler.h"
 #include <stdio.h>
 
@@ -25,7 +26,7 @@ int define_foreign_predicate_c(Module module, word functor, int(*func)(), int fl
    printf("Defining foreign (C) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" as %p\n", func);
    p = malloc(sizeof(predicate));
    p->meta = NULL;
-   p->firstClause = foreign_predicate_c(func);
+   p->firstClause = foreign_predicate_c(func, getConstant(functor).data.functor_data->arity, flags);
    whashmap_put(module->predicates, functor, p);
    return 1;
 }

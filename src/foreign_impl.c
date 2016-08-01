@@ -85,7 +85,6 @@ PREDICATE(@>=, 2, (word a, word b)
 
 PREDICATE(functor, 3, (word term, word name, word arity)
 {
-   printf("Hello from functor("); PORTRAY(term); printf(","); PORTRAY(name); printf(","); PORTRAY(arity); printf(")\n");
    if (TAGOF(term) == VARIABLE_TAG)
    {
       if (!(must_be_positive_integer(arity) &&
@@ -111,5 +110,41 @@ PREDICATE(functor, 3, (word term, word name, word arity)
       return unify(name, f->name) && unify(arity, MAKE_INTEGER(f->arity));
    }
    return type_error(compoundAtom, term);
+})
 
+NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
+{
+   if (!(must_be_integer(low) && must_be_integer(high)))
+      return FAIL;
+   long _low = getConstant(low).data.integer_data->data;
+   long _high = getConstant(high).data.integer_data->data;
+   if ((TAGOF(value) == VARIABLE_TAG) && _high > _low)
+   {
+      // Nondet case
+      long current;
+      if (backtrack == 0)
+         current = 0;
+      else
+         current = getConstant(backtrack).data.integer_data->data;
+      if (current+1 <= _high)
+         make_foreign_choicepoint(MAKE_INTEGER(current+1));
+      return unify(value, MAKE_INTEGER(current));
+   }
+   else if (_high == _low)
+   {
+      // Det case
+      return unify(value, low);
+   }
+   else if (TAGOF(value) == CONSTANT_TAG)
+   {
+      // Det case
+      constant c = getConstant(value);
+      if (c.type == INTEGER_TYPE)
+      {
+         return c.data.integer_data->data >= _high && c.data.integer_data->data <= _low;
+      }
+      return type_error(integerAtom, value);
+   }
+   else
+      return type_error(integerAtom, value);
 })

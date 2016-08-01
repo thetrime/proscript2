@@ -98,7 +98,13 @@ RC backtrack_query();
 word getException();
 word clause_functor(word);
 void consult_string(char*);
+void consult_file(char*);
 void print_clause(Clause);
 void initialize_kernel();
 int unify(word a, word b);
+
+#define NON_DETERMINISTIC 1
+
+void make_foreign_choicepoint(word);
+
 #endif

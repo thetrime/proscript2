@@ -165,3 +165,26 @@ Stream stringBufferStream(char* data, int length)
                       freeStringBuffer,
                       allocStringBuffer(data, length));
 }
+
+int file_read(Stream stream, int length, unsigned char* buffer)
+{
+   return fread(buffer, sizeof(unsigned char), length, ((FILE*)stream->data));
+}
+
+int file_close(Stream stream)
+{
+   return fclose(((FILE*)stream->data));
+}
+
+Stream fileReadStream(char* filename)
+{
+   printf("Opening file %s\n", filename);
+   FILE* fd = fopen(filename, "rb");
+   return allocStream(file_read,
+                      NULL,
+                      NULL,
+                      file_close,
+                      NULL,
+                      NULL,
+                      fd);
+}

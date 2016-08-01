@@ -28,5 +28,6 @@ int getb(Stream s);
 int peekb(Stream s);
 
 Stream stringBufferStream(char* data, int length);
+Stream fileReadStream(char* filename);
 void freeStream(Stream s);
 #endif

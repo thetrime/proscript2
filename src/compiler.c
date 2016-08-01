@@ -737,12 +737,17 @@ Clause compile_predicate(Predicate p)
    return clause;
 }
 
-Clause foreign_predicate_c(int(*func)())
+Clause foreign_predicate_c(int(*func)(), int arity, int flags)
 {
    instruction_list_t instructions;
    init_instruction_list(&instructions);
-   push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN, 0, (word)func));
-   push_instruction(&instructions, INSTRUCTION(I_FOREIGN_RETRY));
+   if (flags & NON_DETERMINISTIC)
+   {
+      push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_NONDET, arity+1, (word)func));
+      push_instruction(&instructions, INSTRUCTION(I_FOREIGN_RETRY));
+   }
+   else
+      push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN, arity+1, (word)func));
    Clause clause = assemble(&instructions);
    deinit_instruction_list(&instructions);
    return clause;

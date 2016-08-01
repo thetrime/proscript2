@@ -38,4 +38,5 @@ ATOM(catch, "catch")
 ATOM(procedure, "procedure")
 ATOM(compound, "compound")
 ATOM(notLessThanZero, "not_less_than_zero")
+ATOM(integer, "integer")
 

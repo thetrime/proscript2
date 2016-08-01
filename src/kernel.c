@@ -515,41 +515,25 @@ RC execute()
                CP = CP->CP;
             goto i_exit;
          case I_FOREIGN:
-         case I_FOREIGN_JS:
-            FR->slots[CODE16(PC+5)] = (word)0;
-            // fall-through
-         case I_FOREIGN_JS_RETRY:
-         case I_FOREIGN_RETRY:
          {
             RC rc = FAIL;
             Functor f = getConstant(FR->functor).data.functor_data;
-            if (*PC == I_FOREIGN_RETRY || *PC == I_FOREIGN)
+            printf("Calling %p with %p (%p)\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR->slots);
+            switch(f->arity)
             {
-               printf("Calling %p with %p (%p)\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR->slots);
-               switch(f->arity)
-               {
-                  case 0: rc = ((int (*)())((word)(CODEPTR(PC+1))))(); break;
-                  case 1: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(*ARGP); break;
-                  case 2: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1)); break;
-                  case 3: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2)); break;
-                  case 4: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3)); break;
-                  case 5: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4)); break;
-                  case 6: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5)); break;
-                  case 7: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6)); break;
-                  case 8: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7)); break;
-                  case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), *(ARGP+8)); break;
-                  default:
-                     // Too many args! This should be impossible since the installer would have rejected it
-                     rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
-               }
-            }
-            else
-            {
-#ifdef EMSCRIPTEN
-               rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(PC+5)], CODEPTR(PC+1), f->arity, ARGP);
-#else
-               rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
-#endif
+               case 0: rc = ((int (*)())((word)(CODEPTR(PC+1))))(); break;
+               case 1: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(*ARGP); break;
+               case 2: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1)); break;
+               case 3: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2)); break;
+               case 4: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3)); break;
+               case 5: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4)); break;
+               case 6: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5)); break;
+               case 7: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6)); break;
+               case 8: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7)); break;
+               case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), *(ARGP+8)); break;
+               default:
+                  // Too many args! This should be impossible since the installer would have rejected it
+                  rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
             }
             if (rc == FAIL)
             {
@@ -561,6 +545,67 @@ RC execute()
             else if (rc == SUCCESS)
             {
                printf("Foreign Success!\n");
+               goto i_exit;
+            }
+            else if (rc == YIELD)
+            { // Not implemented yet
+            }
+            else if (rc == ERROR)
+               goto b_throw_foreign;
+         }
+         case I_FOREIGN_NONDET:
+         case I_FOREIGN_JS:
+            //printf("Setting slot %d to NULL\n", CODE16(PC+1+sizeof(word)));
+            FR->slots[CODE16(PC+1+sizeof(word))] = (word)0;
+            // We have to move PC forward since the retry step will rewind it
+            PC += (3+sizeof(word));
+            // fall-through
+         case I_FOREIGN_JS_RETRY:
+         case I_FOREIGN_RETRY:
+         {
+            RC rc = FAIL;
+            Functor f = getConstant(FR->functor).data.functor_data;
+            if (*PC == I_FOREIGN_RETRY || *PC == I_FOREIGN_NONDET)
+            {
+               // Go back to the actual FOREIGN_NONDET or FOREIGN_JS call
+               PC -= (3+sizeof(word));
+               unsigned char* foreign_ptr = PC+1+sizeof(word);
+               //printf("Calling %p with %p (%p)\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR->slots);
+               switch(f->arity)
+               {
+                  case 0: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(FR->slots[CODE16(foreign_ptr)]); break;
+                  case 1: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(*ARGP, FR->slots[CODE16(foreign_ptr)]); break;
+                  case 2: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 3: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 4: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 5: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 6: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 7: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 8: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), *(ARGP+8), FR->slots[CODE16(foreign_ptr)]); break;
+                  default:
+                     // Too many args! This should be impossible since the installer would have rejected it
+                     rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
+               }
+            }
+            else
+            {
+#ifdef EMSCRIPTEN
+               rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(foreign_ptr)], CODEPTR(PC+1), f->arity, ARGP);
+#else
+               rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
+#endif
+            }
+            if (rc == FAIL)
+            {
+               //printf("Foreign Fail\n");
+               if (backtrack())
+                  continue;
+               return FAIL;
+            }
+            else if (rc == SUCCESS)
+            {
+               //printf("Foreign Success!\n");
                goto i_exit;
             }
             else if (rc == YIELD)
@@ -962,6 +1007,28 @@ word clause_functor(word t)
    return FUNCTOROF(t);
 }
 
+void consult_file(char* filename)
+{
+   Stream s = fileReadStream(filename);
+   word clause;
+   while ((clause = read_term(s, NULL)) != endOfFileAtom)
+   {
+      if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
+      {
+         assert(0);
+      }
+      else
+      {
+         // Ordinary clause
+         word functor = clause_functor(clause);
+         add_clause(currentModule, functor, clause);
+      }
+   }
+   freeStream(s);
+   // In case this has changed, set it back after consulting any file
+   currentModule = userModule;
+}
+
 void consult_string(char* string)
 {
    Stream s = stringBufferStream(string, strlen(string));
@@ -1009,4 +1076,21 @@ void print_clause(Clause clause)
       }
       printf("\n");
    }
+}
+
+void make_foreign_choicepoint(word w)
+{
+   FR->slots[CODE16(PC+1+sizeof(word))] = w;
+   Choicepoint c = (Choicepoint)&STACK[SP];
+   c->SP = SP;
+   c->CP = CP;
+   CP = c;
+   SP += sizeof(choicepoint);
+   c->FR = FR;
+   c->clause = FR->clause;
+   c->module = currentModule;
+   c->NFR = NFR;
+   c->functor = FR->functor;
+   c->TR = TR;
+   c->PC = PC+3+sizeof(word);
 }

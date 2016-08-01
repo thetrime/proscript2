@@ -22,7 +22,8 @@ EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
    //consult_string("fox(a, b). fox(c, d):- badger(a). fox(c, x).");
-   consult_string("fox(a, b). fox(c, X/Y):- functor(boing(cat, dog), X, Y). fox(c, x).");
+   //consult_string("fox(a, b). fox(c, X/Y):- functor(boing(cat, dog), X, Y). fox(c, x).");
+   consult_file("test.pl");
 
    word x = MAKE_ATOM("c");
    word y = MAKE_VAR();
@@ -41,7 +42,7 @@ void do_test()
       PORTRAY(y); printf("\n");
       while(result == SUCCESS_WITH_CHOICES)
       {
-         printf("backtracking for other solutions...");
+         printf("backtracking for other solutions...\n");
          result = backtrack_query();
          if (result == ERROR)
          {
