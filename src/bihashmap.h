@@ -39,12 +39,13 @@ typedef any_t bimap_t;
  * compare_t is a function pointer that can be used to compare a key to check
  * for hash conflicts
  */
-typedef int(*compare_t)(any_t, int, uintptr_t);
+typedef int(*compare1_t)(any_t, uintptr_t);
+typedef int(*compare2_t)(any_t, int, uintptr_t);
 
 /*
  * Return an empty hashmap. Returns NULL if empty.
 */
-extern bimap_t bihashmap_new(compare_t);
+extern bimap_t bihashmap_new(compare1_t, compare2_t);
 
 /*
  * Iteratively call f with argument (item, key1, key2, data) for
@@ -58,7 +59,7 @@ extern int bihashmap_iterate(bimap_t in, PBFany f, any_t item);
 /*
  * Add an element to the hashmap. Return MAP_OK or MAP_OMEM.
  */
-extern int bihashmap_put(bimap_t in, uint32_t hashcode, any_t key1, int key2, uintptr_t value);
+extern int bihashmap_put(bimap_t in, uint32_t hashcode, any_t key, uintptr_t value);
 
 /*
  * Get an element from the hashmap. Return MAP_OK or MAP_MISSING.

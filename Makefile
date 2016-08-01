@@ -1,5 +1,5 @@
-#ARCH=c
-ARCH=js
+ARCH=c
+#ARCH=js
 
 FILESYSTEM=test.pl
 
@@ -7,7 +7,7 @@ ifeq ($(ARCH),js)
 CC=emcc
 TARGET=build/proscript.js
 #CFLAGS=-O2
-CFLAGS=-g -s NO_EXIT_RUNTIME=1
+CFLAGS=-O1 -s NO_EXIT_RUNTIME=1 -s TOTAL_MEMORY=134217738
 BOOT=--pre-js $(BOOTFILE)
 BOOTFILE=src/pre.js
 BOOT_FS=--embed-file $(FILESYSTEM)

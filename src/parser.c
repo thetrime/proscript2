@@ -544,29 +544,19 @@ void unread_token(Stream s, Token t)
 
 int token_operator(Token t, Operator* op, OperatorPosition position)
 {
+   if (t->type == ConstantTokenType)
+   {
+      if (t == CommaToken)
+         return find_operator(",", op, position);
+   }
    if (t->type != AtomTokenType)
       return 0;
    return find_operator(t->data.atom_data->data, op, position);
 }
-
-void cons(word cell, void* result)
-{
-   word* r = (word*)result;
-   *r = MAKE_VCOMPOUND(listFunctor, cell, *r);
-}
-
 void curly_cons(word cell, void* result)
 {
    word* r = (word*)result;
    *r = MAKE_VCOMPOUND(conjunctionFunctor, cell, *r);
-}
-
-
-word make_list(List* list, word tail)
-{
-   word result = tail;
-   list_apply_reverse(list, &result, cons);
-   return result;
 }
 
 word make_curly(List* list, word tail)
@@ -627,7 +617,7 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
             else if (next == ListCloseToken && t0 == ListOpenToken)
             {
                list_append(&list, arg);
-               lhs = make_list(&list, emptyListAtom);
+               lhs = term_from_list(&list, emptyListAtom);
                break;
             }
             else if (next == CurlyCloseToken && t0 == CurlyOpenToken)
@@ -639,7 +629,7 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
             {
                list_append(&list, arg);
                word tail = read_expression(s, 1201, 1, 1, vars);
-               lhs = make_list(&list, tail);
+               lhs = term_from_list(&list, tail);
                next = read_token(s);
                if (next == ListCloseToken)
                   break;
@@ -694,7 +684,7 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                   init_list(&list);
                   for (int i = 0; i < t0->data.atom_data->length; i++)
                      list_append(&list, MAKE_INTEGER(t0->data.atom_data->data[i]));
-                  lhs = make_list(&list, emptyListAtom);
+                  lhs = term_from_list(&list, emptyListAtom);
                   free_list(&list);
                   break;
                }
@@ -704,7 +694,7 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                   init_list(&list);
                   for (int i = 0; i < t0->data.atom_data->length; i++)
                      list_append(&list, MAKE_NATOM(&t0->data.atom_data->data[i], 1));
-                  lhs = make_list(&list, emptyListAtom);
+                  lhs = term_from_list(&list, emptyListAtom);
                   free_list(&list);
                   break;
                }
@@ -810,9 +800,21 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
 word parse_infix(Stream s, word lhs, int precedence, map_t vars)
 {
    Token t = read_token(s);
-   assert(t->type == AtomTokenType);
+   assert(t->type == AtomTokenType || t == CommaToken);
+   char* data;
+   int len;
+   if (t->type == AtomTokenType)
+   {
+      data = t->data.atom_data->data;
+      len = t->data.atom_data->length;
+   }
+   else if (t == CommaToken)
+   {
+      data = ",";
+      len = 1;
+   }
    word rhs = read_expression(s, precedence, 0, 0, vars);
-   word result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 2), lhs, rhs);
+   word result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(data, len), 2), lhs, rhs);
    freeToken(t);
    return result;
 }
@@ -820,7 +822,7 @@ word parse_infix(Stream s, word lhs, int precedence, map_t vars)
 word parse_postfix(Stream s, word lhs, int precedence, map_t vars)
 {
    Token t = read_token(s);
-   assert(t->type == AtomTokenType);
+   assert(t->type == AtomTokenType || t == CommaToken);
    word result =  MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 1), lhs);
    freeToken(t);
    return result;
@@ -841,5 +843,6 @@ word read_term(Stream stream, void* options)
    any_t tmp;
    hashmap_iterate(vars, free_key, &tmp);
    hashmap_free(vars);
+   //printf("Read term: "); PORTRAY(t); printf("\n");
    return t;
 }

@@ -26,6 +26,7 @@ int define_foreign_predicate_c(Module module, word functor, int(*func)(), int fl
    printf("Defining foreign (C) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" as %p\n", func);
    p = malloc(sizeof(predicate));
    p->meta = NULL;
+   p->flags = PREDICATE_FOREIGN;
    p->firstClause = foreign_predicate_c(func, getConstant(functor).data.functor_data->arity, flags);
    whashmap_put(module->predicates, functor, p);
    return 1;
@@ -40,6 +41,7 @@ int define_foreign_predicate_js(Module module, word functor, word func)
    printf("Defining foreign (JS) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
    p = malloc(sizeof(predicate));
    p->meta = NULL;
+   p->flags = PREDICATE_FOREIGN;
    p->firstClause = foreign_predicate_js(func);
    whashmap_put(module->predicates, functor, p);
    return 1;
@@ -51,7 +53,7 @@ Predicate lookup_predicate(Module module, word functor)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return p;
-   printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
+   //printf("Unable to find "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
    return NULL;
 }
 
@@ -78,7 +80,7 @@ void add_clause(Module module, word functor, word clause)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
-   //printf("Adding clause to existing predicate of "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
+      //printf("Adding clause to existing predicate of "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
       (*(p->tail)) = malloc(sizeof(predicate_cell_t));
       (*(p->tail))->term = clause;
       (*(p->tail))->next = NULL;

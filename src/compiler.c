@@ -420,7 +420,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
          Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
          for (int i = 0; i < f->arity; i++)
             compile_term_creation(ARGOF(term, i), variables, instructions);
-         push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_EXIT, FUNCTOROF(term)));
+         push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, FUNCTOROF(term)));
       }
    }
    else
@@ -614,7 +614,7 @@ int free_varinfo(any_t ignored, word key, any_t value)
 
 int compile_clause(word term, instruction_list_t* instructions)
 {
-   printf("Compiling "); PORTRAY(term); printf("\n");
+         //printf("Compiling "); PORTRAY(term); printf("\n");
    int arg_slots = 0; // Number of slots that will be used for passing the args of the predicate
    wmap_t variables = whashmap_new();
    if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == clauseFunctor)
@@ -633,7 +633,6 @@ int compile_clause(word term, instruction_list_t* instructions)
       compile_head(head, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_ENTER));
       int next_reserved = 0;
-
       if (!compile_body(body, variables, instructions, 1, &next_reserved, -1))
       {
          whashmap_free(variables);

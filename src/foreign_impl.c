@@ -105,12 +105,165 @@ PREDICATE(functor, 3, (word term, word name, word arity)
       return unify(name, term) && unify(arity, MAKE_INTEGER(0));
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      printf("Hello\n");
       Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
       return unify(name, f->name) && unify(arity, MAKE_INTEGER(f->arity));
    }
    return type_error(compoundAtom, term);
 })
+
+NONDET_PREDICATE(arg, 3, (word n, word term, word arg, word backtrack)
+{
+   if (!must_be_bound(term))
+      return 0;
+   if (TAGOF(term) != COMPOUND_TAG)
+      type_error(compoundAtom, term);
+   if (TAGOF(n) == VARIABLE_TAG)
+   {
+      // -,+,? mode
+      Functor functor = getConstant(FUNCTOROF(term)).data.functor_data;
+      long index = backtrack == 0?0:getConstant(backtrack).data.integer_data->data;
+      if (index + 1 < functor->arity)
+         make_foreign_choicepoint(MAKE_INTEGER(index+1));
+      if (index >= functor->arity)
+         return 0;
+      return (unify(n, MAKE_INTEGER(index+1)) && // arg is 1-based, but all our terms are 0-based
+              unify(ARGOF(term, index), arg));
+   }
+   if (!must_be_positive_integer(n))
+      return 0;
+   long _n = getConstant(n).data.integer_data->data;
+   Functor functor = getConstant(FUNCTOROF(term)).data.functor_data;
+   if (_n > functor->arity)
+      return FAIL; // N is too big
+   else if (_n < 1)
+      return FAIL; // N is too small
+   return unify(ARGOF(term, _n-1), arg);
+
+})
+
+PREDICATE(=.., 2, (word term, word univ)
+{
+   if (TAGOF(term) == CONSTANT_TAG)
+   {
+      List list;
+      word w;
+      init_list(&list);
+      list_append(&list, term);
+      w = term_from_list(&list, emptyListAtom);
+      free_list(&list);
+      return unify(univ, w);
+   }
+   else if (TAGOF(term) == COMPOUND_TAG)
+   {
+      List list;
+      word w;
+      init_list(&list);
+      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      list_append(&list, f->name);
+      for (int i = 0; i < f->arity; i++)
+         list_append(&list, ARGOF(term, i));
+      w = term_from_list(&list, emptyListAtom);
+      free_list(&list);
+      return unify(univ, w);
+   }
+   else if (TAGOF(term) == VARIABLE_TAG)
+   {
+      List list;
+      init_list(&list);
+      if (!populate_list_from_term(&list, univ))
+      {
+         free_list(&list);
+         return 0; // Error
+      }
+      word fname = list_shift(&list);
+      if (!must_be_bound(fname))
+      {
+         free_list(&list);
+         return 0; // Error
+      }
+      int rc = unify(term, MAKE_LCOMPOUND(fname, &list));
+      free_list(&list);
+      return rc;
+   }
+   return type_error(compoundAtom, term);
+})
+
+PREDICATE(copy_term, 2, (word term, word copy)
+{
+   return unify(copy, copy_term(term));
+})
+
+
+NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
+{
+   if (TAGOF(body) == CONSTANT_TAG)
+   {
+      constant c = getConstant(body);
+      if (c.type == INTEGER_TYPE || c.type == FLOAT_TYPE)
+         type_error(callableAtom, body);
+   }
+   Module module;
+   word functor;
+   if (!head_functor(head, &module, &functor))
+   {
+      return 0; // Error
+   }
+   Predicate p = lookup_predicate(module, functor);
+   if (p == NULL)
+      return FAIL;
+   if (p->flags && PREDICATE_FOREIGN)
+      permission_error(accessAtom, privateProcedureAtom, predicate_indicator(head));
+   predicate_cell_t* c = backtrack == 0?p->head:GET_POINTER(backtrack);
+   if (c == NULL)
+      return FAIL;
+   if (c->next != NULL)
+      make_foreign_choicepoint(MAKE_POINTER(c->next));
+   word clause = c->term;
+   if (TAGOF(clause) == COMPOUND_TAG)
+   {
+      return unify(ARGOF(clause,0), head) && unify(ARGOF(clause,1), body);
+   }
+   else
+   {
+      return unify(clause, head) && unify(trueAtom, body);
+   }
+
+})
+
+NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
+{
+   if (TAGOF(indicator) != VARIABLE_TAG)
+   {
+      if ((TAGOF(indicator) != COMPOUND_TAG && FUNCTOROF(indicator) == predicateIndicatorFunctor))
+         type_error(predicateIndicatorAtom, indicator);
+      if ((TAGOF(ARGOF(indicator, 0)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 0)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 0)).type != ATOM_TYPE))
+         type_error(predicateIndicatorAtom, indicator);
+      if ((TAGOF(ARGOF(indicator, 1)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 1)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 1)).type != INTEGER_TYPE))
+         type_error(predicateIndicatorAtom, indicator);
+   }
+   // Now indicator is either unbound or bound to /(A,B)
+   // FIXME: assumes current module
+   word predicates;
+   if (backtrack == 0)
+   {
+      List list;
+      init_list(&list);
+      whashmap_iterate(get_current_module()->predicates, build_predicate_list, &list);
+      predicates = term_from_list(&list, emptyListAtom);
+      free_list(&list);
+   }
+   else
+      predicates = backtrack;
+   if (ARGOF(predicates, 1) != emptyListAtom)
+      make_foreign_choicepoint(ARGOF(predicates, 1));
+   return unify(indicator, predicate_indicator(ARGOF(predicates, 0)));
+
+})
+
+
+
+
+
 
 NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
 {
@@ -126,6 +279,7 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
          current = 0;
       else
          current = getConstant(backtrack).data.integer_data->data;
+      //printf("Current: %d (out of %d)\n", current, _high);
       if (current+1 <= _high)
          make_foreign_choicepoint(MAKE_INTEGER(current+1));
       return unify(value, MAKE_INTEGER(current));

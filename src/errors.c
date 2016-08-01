@@ -23,3 +23,9 @@ int domain_error(word domain, word value)
    SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(domainErrorFunctor, domain, value), MAKE_VAR()));
    return 0;
 }
+
+int permission_error(word operation, word type, word culprit)
+{
+ SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(permissionErrorFunctor, operation, type, culprit), MAKE_VAR()));
+   return 0;
+}

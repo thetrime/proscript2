@@ -21,6 +21,7 @@
 EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
+
    //consult_string("fox(a, b). fox(c, d):- badger(a). fox(c, x).");
    //consult_string("fox(a, b). fox(c, X/Y):- functor(boing(cat, dog), X, Y). fox(c, x).");
    consult_file("test.pl");
@@ -49,10 +50,15 @@ void do_test()
             printf("Error: "); PORTRAY(getException()); printf("\n");
          }
          else if (result == FAIL)
+         {
             printf("Failed\n");
-         printf("Success! %d\n", result);
-         PORTRAY(x); printf("\n");
-         PORTRAY(y); printf("\n");
+         }
+         else
+         {
+            printf("Success! %d\n", result);
+            PORTRAY(x); printf("\n");
+            PORTRAY(y); printf("\n");
+         }
       }
    }
 }

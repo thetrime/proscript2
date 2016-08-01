@@ -85,13 +85,15 @@ enum MODE
 
 typedef enum
 {
+   FAIL = 0,
    SUCCESS = 1,
    SUCCESS_WITH_CHOICES,
-   FAIL,
    YIELD,
    ERROR,
    HALT
 } RC;
+
+#define PREDICATE_FOREIGN 1
 
 RC execute_query(word);
 RC backtrack_query();
@@ -102,9 +104,16 @@ void consult_file(char*);
 void print_clause(Clause);
 void initialize_kernel();
 int unify(word a, word b);
-
+word copy_term(word term);
 #define NON_DETERMINISTIC 1
 
 void make_foreign_choicepoint(word);
+
+int head_functor(word clause, Module* module, word* functor);
+word predicate_indicator(word term);
+word MAKE_POINTER(void* data);
+void* GET_POINTER(word data);
+Module get_current_module();
+
 
 #endif

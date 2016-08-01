@@ -60,6 +60,8 @@ Module userModule = NULL;
 Choicepoint initialChoicepoint = NULL;
 word current_exception = 0;
 
+
+void print_instruction();
 void fatal(char* string)
 {
    printf("Fatal: %s\n", string);
@@ -174,6 +176,19 @@ word MAKE_INTEGER(long data)
 {
    return intern(INTEGER_TYPE, data, &data, sizeof(long), allocInteger, NULL);
 }
+
+EMSCRIPTEN_KEEPALIVE
+word MAKE_POINTER(void* data)
+{
+   return (word)data;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void* GET_POINTER(word data)
+{
+   return (void*)data;
+}
+
 
 EMSCRIPTEN_KEEPALIVE
 word MAKE_FUNCTOR(word name, int arity)
@@ -318,6 +333,7 @@ int cut_to(Choicepoint point)
 int apply_choicepoint(Choicepoint c)
 {
    PC = c->PC;
+   H = c->H;
    FR = c->FR;
    NFR = c->NFR;
    SP = c->SP;
@@ -397,6 +413,7 @@ void CreateChoicepoint(unsigned char* address, Clause clause)
    Choicepoint c = (Choicepoint)&STACK[SP];
    c->SP = SP;
    c->CP = CP;
+   c->H = H;
    CP = c;
    SP += sizeof(choicepoint);
    c->FR = FR;
@@ -494,7 +511,7 @@ RC execute()
 {
    while (!halted)
    {
-      printf("@%p: %s\n", PC, instruction_info[*PC].name);
+      //print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -518,7 +535,7 @@ RC execute()
          {
             RC rc = FAIL;
             Functor f = getConstant(FR->functor).data.functor_data;
-            printf("Calling %p with %p (%p)\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR->slots);
+            //printf("Calling %p with %p (%p)\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR->slots);
             switch(f->arity)
             {
                case 0: rc = ((int (*)())((word)(CODEPTR(PC+1))))(); break;
@@ -537,14 +554,14 @@ RC execute()
             }
             if (rc == FAIL)
             {
-               printf("Foreign Fail\n");
+               //printf("Foreign Fail\n");
                if (backtrack())
                   continue;
                return FAIL;
             }
             else if (rc == SUCCESS)
             {
-               printf("Foreign Success!\n");
+               //printf("Foreign Success!\n");
                goto i_exit;
             }
             else if (rc == YIELD)
@@ -1080,6 +1097,31 @@ void print_clause(Clause clause)
    }
 }
 
+void print_instruction()
+{
+   printf("@%p: %s ", PC, instruction_info[*PC].name);
+   unsigned char* ptr = PC+1;
+   if (instruction_info[*PC].flags & HAS_CONST)
+   {
+      int index = CODE16(ptr);
+      ptr+=2;
+      PORTRAY(FR->clause->constants[index]); printf(" ");
+   }
+   if (instruction_info[*PC].flags & HAS_ADDRESS)
+   {
+      uintptr_t address = CODEPTR(ptr);
+      ptr+=sizeof(word);
+      printf("%"PRIuPTR" ", address);
+   }
+   if (instruction_info[*PC].flags & HAS_SLOT)
+   {
+      int slot = CODE16(ptr);
+      ptr+=2;
+      printf("%d ", slot);
+   }
+   printf("\n");
+}
+
 void make_foreign_choicepoint(word w)
 {
    FR->slots[CODE16(PC+1+sizeof(word))] = w;
@@ -1095,4 +1137,55 @@ void make_foreign_choicepoint(word w)
    c->functor = FR->functor;
    c->TR = TR;
    c->PC = PC+3+sizeof(word);
+}
+
+int head_functor(word head, Module* module, word* functor)
+{
+   if (TAGOF(head) == CONSTANT_TAG)
+   {
+      *module = FR->contextModule;
+      *functor = MAKE_FUNCTOR(head, 0); // atom
+      return 1;
+   }
+   else if (TAGOF(head) == COMPOUND_TAG)
+   {
+      if (FUNCTOROF(head) == crossModuleCallFunctor)
+      {
+         *module = find_module(ARGOF(head, 0));
+         *functor = FUNCTOROF(ARGOF(head, 1));
+      }
+      *functor =  FUNCTOROF(head);
+      *module = FR->contextModule;
+      return 1;
+   }
+   return type_error(callableAtom, head);
+}
+
+
+word predicate_indicator(word term)
+{
+   if (TAGOF(term) == CONSTANT_TAG)
+   {
+      constant c = getConstant(term);
+      if (c.type == FUNCTOR_TYPE)
+         return MAKE_VCOMPOUND(predicateIndicatorFunctor, c.data.functor_data->name, MAKE_INTEGER(c.data.functor_data->arity));
+      else
+         return MAKE_VCOMPOUND(predicateIndicatorFunctor, term, MAKE_INTEGER(0));
+   }
+   else if (TAGOF(term) == COMPOUND_TAG)
+   {
+      if (FUNCTOROF(term) == crossModuleCallFunctor)
+      {
+         Functor f = getConstant(FUNCTOROF(ARGOF(term, 1))).data.functor_data;
+         return MAKE_VCOMPOUND(predicateIndicatorFunctor, MAKE_VCOMPOUND(crossModuleCallFunctor, ARGOF(term, 0), f->name), MAKE_INTEGER(f->arity));
+      }
+      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      return MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity));
+   }
+   return term;
+}
+
+Module get_current_module()
+{
+   return FR->contextModule;
 }

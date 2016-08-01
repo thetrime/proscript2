@@ -1,6 +1,11 @@
-fox(a,b).
-fox(c, X/Y):-
-        functor(boing(cat, dog), X, Y).
-fox(c, x).
 fox(c, A):-
-        between(1, 3, A).
+        current_predicate(cat/A).
+
+cow(x):-
+        boing.
+
+cow(y):-
+        bing, bang, bong.
+
+cat(a,b,c).
+cat(a,b).

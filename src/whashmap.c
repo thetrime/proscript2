@@ -22,9 +22,9 @@ typedef struct _hashmap_element{
 /* A hashmap has some maximum size and current size,
  * as well as the data to hold. */
 typedef struct _hashmap_map{
-	int table_size;
-	int size;
-	hashmap_element *data;
+        int table_size;
+        int size;
+        hashmap_element *data;
 } hashmap_map;
 
 /*
@@ -218,6 +218,7 @@ int whashmap_iterate(wmap_t in, PWFany f, any_t item) {
 
     return MAP_OK;
 }
+
 
 /*
  * Remove an element with that key from the map

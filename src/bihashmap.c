@@ -19,8 +19,7 @@
 /* We need to keep keys and values */
 typedef struct _hashmap_element
 {
-   any_t key1;
-   int key2;
+   any_t key;
    int in_use;
    uint32_t hashcode;
    uintptr_t data;
@@ -32,14 +31,15 @@ typedef struct _hashmap_map
 {
    int table_size;
    int size;
-   compare_t compare;
+   compare1_t compare1;
+   compare2_t compare2;
    hashmap_element *data;
 } hashmap_map;
 
 /*
  * Return an empty hashmap, or NULL on failure.
  */
-bimap_t bihashmap_new(compare_t compare)
+bimap_t bihashmap_new(compare1_t compare1, compare2_t compare2)
 {
    hashmap_map* m = (hashmap_map*) malloc(sizeof(hashmap_map));
    if(!m) goto err;
@@ -48,7 +48,8 @@ bimap_t bihashmap_new(compare_t compare)
 
    m->table_size = INITIAL_SIZE;
    m->size = 0;
-   m->compare = compare;
+   m->compare1 = compare1;
+   m->compare2 = compare2;
 
    return m;
   err:
@@ -62,7 +63,7 @@ bimap_t bihashmap_new(compare_t compare)
  * Return the integer of the location in data
  * to store the point to the item, or MAP_FULL.
  */
-int bihashmap_hash(bimap_t in, uint32_t hashcode, void* key1, int key2){
+int bihashmap_hash2(bimap_t in, uint32_t hashcode, void* key1, int key2){
 	int curr;
 	int i;
 
@@ -81,11 +82,36 @@ int bihashmap_hash(bimap_t in, uint32_t hashcode, void* key1, int key2){
         {
            if(m->data[curr].in_use == 0)
               return curr;
-           if(m->data[curr].in_use == 1 && m->compare(key1, key2, m->data[curr].data) == 1)
+           if(m->data[curr].in_use == 1 && m->compare2(key1, key2, m->data[curr].data) == 1)
               return curr;
            curr = (curr + 1) % m->table_size;
-	}
+        }
+	return MAP_FULL;
+}
 
+int bihashmap_hash1(bimap_t in, uint32_t hashcode, any_t key){
+	int curr;
+	int i;
+
+	/* Cast the hashmap */
+	hashmap_map* m = (hashmap_map *) in;
+
+	/* If full, return immediately */
+        if(m->size >= (m->table_size/2))
+           return MAP_FULL;
+
+	/* Find the best index */
+        curr = hashcode % m->table_size;
+
+	/* Linear probing */
+        for(i = 0; i< MAX_CHAIN_LENGTH; i++)
+        {
+           if(m->data[curr].in_use == 0)
+              return curr;
+           if(m->data[curr].in_use == 1 && m->compare1(key, m->data[curr].data) == 1)
+              return curr;
+           curr = (curr + 1) % m->table_size;
+        }
 	return MAP_FULL;
 }
 
@@ -118,8 +144,7 @@ int bihashmap_rehash(bimap_t in)
 
       if (curr[i].in_use == 0)
          continue;
-
-      status = bihashmap_put(m, curr[i].hashcode, curr[i].key1, curr[i].key2, curr[i].data);
+      status = bihashmap_put(m, curr[i].hashcode, curr[i].key, curr[i].data);
       if (status != MAP_OK)
          return status;
    }
@@ -132,7 +157,7 @@ int bihashmap_rehash(bimap_t in)
 /*
  * Add a pointer to the hashmap with some key
  */
-int bihashmap_put(bimap_t in, uint32_t hashcode, void* key1, int key2, uintptr_t value)
+int bihashmap_put(bimap_t in, uint32_t hashcode, any_t key, uintptr_t value)
 {
    int index;
    hashmap_map* m;
@@ -141,19 +166,18 @@ int bihashmap_put(bimap_t in, uint32_t hashcode, void* key1, int key2, uintptr_t
    m = (hashmap_map *) in;
 
    /* Find a place to put our value */
-   index = bihashmap_hash(in, hashcode, key1, key2);
+   index = bihashmap_hash1(in, hashcode, key);
    while(index == MAP_FULL)
    {
       if (bihashmap_rehash(in) == MAP_OMEM)
          return MAP_OMEM;
-      index = bihashmap_hash(in, hashcode, key1, key2);
+      index = bihashmap_hash1(in, hashcode, key);
    }
-
    /* Set the data */
    m->data[index].data = value;
-   m->data[index].key1 = key1;
-   m->data[index].key2 = key2;
+   m->data[index].key = key;
    m->data[index].in_use = 1;
+   m->data[index].hashcode = hashcode;
    m->size++;
    return MAP_OK;
 }
@@ -179,7 +203,7 @@ int bihashmap_get(bimap_t in, uint32_t hashcode, void* key1, int key2, uintptr_t
         int in_use = m->data[curr].in_use;
         if (in_use == 1)
         {
-           if (m->compare(key1, key2, m->data[curr].data))
+           if (m->compare2(key1, key2, m->data[curr].data))
            {
               *arg = (m->data[curr].data);
               return MAP_OK;
@@ -192,34 +216,6 @@ int bihashmap_get(bimap_t in, uint32_t hashcode, void* key1, int key2, uintptr_t
 
    /* Not found */
    return MAP_MISSING;
-}
-
-/*
- * Iterate the function parameter over each element in the hashmap.  The
- * additional any_t argument is passed to the function as its first
- * argument and the hashmap element is the second.
- */
-int bihashmap_iterate(bimap_t in, PBFany f, any_t item) {
-   int i;
-
-   /* Cast the hashmap */
-   hashmap_map* m = (hashmap_map*) in;
-
-   /* On empty hashmap, return immediately */
-   if (bihashmap_length(m) <= 0)
-      return MAP_MISSING;
-
-   /* Linear probing */
-   for (i = 0; i< m->table_size; i++)
-   {
-      if(m->data[i].in_use != 0)
-      {
-         int status = f(item, m->data[i].key1, m->data[i].key2, m->data[i].data);
-         if (status != MAP_OK)
-            return status;
-      }
-   }
-   return MAP_OK;
 }
 
 /*
@@ -242,13 +238,12 @@ int bihashmap_remove(bimap_t in, uint32_t hashcode, void* key1, int key2){
       int in_use = m->data[curr].in_use;
       if (in_use == 1)
       {
-         if (m->compare(key1, key2, m->data[curr].data))
+         if (m->compare2(key1, key2, m->data[curr].data))
          {
             /* Blank out the fields */
             m->data[curr].in_use = 0;
             m->data[curr].data = 0;
-            m->data[curr].key1 = NULL;
-            m->data[curr].key2 = 0;
+            m->data[curr].key = NULL;
             /* Reduce the size */
             m->size--;
             return MAP_OK;

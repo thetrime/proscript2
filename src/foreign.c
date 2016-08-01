@@ -109,6 +109,13 @@ int term_difference(word a, word b)
 }
 
 
+int build_predicate_list(void* list, word key, any_t ignored)
+{
+   list_append((List*)list, key);
+   printf("Appending "); PORTRAY(key); printf("\n");
+   return MAP_OK;
+}
+
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
 #define PREDICATE(name, arity, body) static int TOKENPASTE2(PRED_, __LINE__) body

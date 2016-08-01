@@ -179,10 +179,8 @@ int file_close(Stream stream)
 
 Stream fileReadStream(char* filename)
 {
-   printf("Opening file %s\n", filename);
    FILE* fd = fopen(filename, "rb");
    assert(fd != NULL);
-   printf("Result: %p\n", fd);
    return allocStream(file_read,
                       NULL,
                       NULL,

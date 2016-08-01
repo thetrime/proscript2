@@ -24,7 +24,10 @@ Module.onRuntimeInitialized = function()
     }
     console.log("Hello from an initialized system!");
     Module.define_foreign("badger", badger);
+    var d0 = new Date().getTime();
     Module._do_test(); // foobar was exported
+    var d1 = new Date().getTime();
+    console.log("Execution time: " + (d1-d0) + "ms");
 };
 
 

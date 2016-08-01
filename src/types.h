@@ -45,6 +45,7 @@ typedef struct
    predicate_cell_t** tail;
    Clause firstClause;
    char* meta;
+   int flags;
 } predicate;
 
 typedef predicate* Predicate;
@@ -110,6 +111,7 @@ struct choicepoint
    struct frame* NFR;
    uintptr_t SP;
    uintptr_t TR;
+   int H;
    struct choicepoint* CP;
    word functor;
    Clause clause;

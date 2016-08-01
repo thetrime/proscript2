@@ -1,4 +1,6 @@
 #include "list.h"
+#include "kernel.h"
+#include "constants.h"
 
 void init_list(List* list)
 {
@@ -93,4 +95,42 @@ int list_index(List* list, word w)
 int list_length(List* list)
 {
    return list->length;
+}
+
+void cons(word cell, void* result)
+{
+   word* r = (word*)result;
+   *r = MAKE_VCOMPOUND(listFunctor, cell, *r);
+}
+
+word term_from_list(List* list, word tail)
+{
+   word result = tail;
+   list_apply_reverse(list, &result, cons);
+   return result;
+}
+
+word list_shift(List* list)
+{
+   word result = list->head->data;
+   struct cell_t* new_head = list->head->next;
+   if (new_head == NULL) // List was a singleton. Tail and head are now null
+      list->tail = NULL;
+   else if (new_head->next == NULL) // List had 2 items. Tail and head are the same and the list is a singleton
+      list->tail = new_head;
+   else
+      new_head->next->prev = new_head; // General case.
+   free(list->head);
+   list->head = new_head;
+   return result;
+}
+
+int populate_list_from_term(List* list, word w)
+{
+   while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
+   {
+      list_append(list, ARGOF(w, 0));
+      w = ARGOF(w, 1);
+   }
+   return w == emptyListAtom;
 }
