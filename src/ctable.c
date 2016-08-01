@@ -3,9 +3,10 @@
 #include "ctable.h"
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 constant* CTable = NULL;
-bimap_t map[4];
+bimap_t map[5];
 int CTableSize = 0;
 int CNext = 0;
 
@@ -54,12 +55,26 @@ int functor_compare2(void* data, int len, word w)
    return f->name == *((word*)data) && f->arity == len;
 }
 
+int float_compare1(void* data, word w)
+{
+   Float g = (Float)data;
+   Float f = getConstant(w).data.float_data;
+   return f->data == g->data;
+}
+
+int float_compare2(void* data, int len, word w)
+{
+   Float f = getConstant(w).data.float_data;
+   return f->data == *((double*)data);
+}
+
 void initialize_ctable()
 {
    CTableSize = 256;
    map[ATOM_TYPE] = bihashmap_new(atom_compare1, atom_compare2);
    map[INTEGER_TYPE] = bihashmap_new(integer_compare1, integer_compare2);
    map[FUNCTOR_TYPE] = bihashmap_new(functor_compare1, functor_compare2);
+   map[FLOAT_TYPE] = bihashmap_new(float_compare1, float_compare2);
    CTable = calloc(CTableSize, sizeof(constant));
 }
 
@@ -90,8 +105,10 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
       case ATOM_TYPE: CTable[CNext++].data.atom_data = (Atom)created; break;
       case FUNCTOR_TYPE: CTable[CNext++].data.functor_data = (Functor)created; break;
       case INTEGER_TYPE: CTable[CNext++].data.integer_data = (Integer)created; break;
+      case FLOAT_TYPE: CTable[CNext++].data.float_data = (Float)created; break;
+      default:
+         assert(0);
    }
-
    if (isNew != NULL)
       *isNew = 1;
    bihashmap_put(map[type], hashcode, created, w);

@@ -38,6 +38,7 @@ word MAKE_VAR();
 word MAKE_ATOM(char* data);
 word MAKE_NATOM(char* data, size_t length);
 word MAKE_INTEGER(long data);
+word MAKE_FLOAT(double data);
 word MAKE_FUNCTOR(word name, int arity);
 word MAKE_VCOMPOUND(word functor, ...);
 word MAKE_LCOMPOUND(word functor, List* args);

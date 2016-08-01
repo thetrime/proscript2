@@ -676,6 +676,9 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
             case IntegerTokenType:
                lhs = MAKE_INTEGER(t0->data.integer_data);
                break;
+            case FloatTokenType:
+               lhs = MAKE_FLOAT(t0->data.float_data);
+               break;
             case StringTokenType:
             {
                if (get_prolog_flag("double_quotes") == codesAtom)
@@ -726,6 +729,10 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
    while (1)
    {
       Token t1 = peek_token(s);
+      if (t1 == NULL)
+      {
+         return lhs;
+      }
       if (t1->type == IntegerTokenType && t1->data.integer_data <= 0)
       {
          Token t2 = read_token(s);

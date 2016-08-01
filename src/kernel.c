@@ -151,12 +151,30 @@ void* allocInteger(void* data, int len)
 }
 
 
+void* allocFloat(void* data, int len)
+{
+   Float a = malloc(sizeof(_float));
+   a->data = *((double*)data);
+   return a;
+}
+
 void* allocFunctor(void* data, int len)
 {
    Functor f = malloc(sizeof(functor));
    f->name = *((word*)data);
    f->arity = len;
    return f;
+}
+
+uint32_t hash64(uint64_t key)
+{
+   key = (~key) + (key << 18);
+   key = key ^ (key >> 31);
+   key = key * 21;
+   key = key ^ (key >> 11);
+   key = key + (key << 6);
+   key = key ^ (key >> 22);
+   return (uint32_t) key;
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -176,6 +194,13 @@ word MAKE_INTEGER(long data)
 {
    return intern(INTEGER_TYPE, data, &data, sizeof(long), allocInteger, NULL);
 }
+
+EMSCRIPTEN_KEEPALIVE
+word MAKE_FLOAT(double data)
+{
+   return intern(FLOAT_TYPE, hash64((uint64_t)data), &data, sizeof(double), allocFloat, NULL);
+}
+
 
 EMSCRIPTEN_KEEPALIVE
 word MAKE_POINTER(void* data)
@@ -243,6 +268,11 @@ void PORTRAY(word w)
          case FUNCTOR_TYPE:
             PORTRAY(c.data.functor_data->name); printf("/%d", c.data.functor_data->arity);
             break;
+         case FLOAT_TYPE:
+            printf("%f", c.data.float_data->data);
+            break;
+         default:
+            assert(0);
 
       }
    }

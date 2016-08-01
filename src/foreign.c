@@ -112,7 +112,6 @@ int term_difference(word a, word b)
 int build_predicate_list(void* list, word key, any_t ignored)
 {
    list_append((List*)list, key);
-   printf("Appending "); PORTRAY(key); printf("\n");
    return MAP_OK;
 }
 
