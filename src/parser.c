@@ -111,7 +111,7 @@ char get_raw_char_with_conversion(Stream s)
         lookahead = -1;
         return c;
     }
-    if (get_prolog_flag("char_conversion") == falseAtom)
+    if (get_prolog_flag("char_conversion") == offAtom)
     {
        return get_raw_char(s);
     }
@@ -129,7 +129,7 @@ char peek_raw_char_with_conversion(Stream s)
     {
         return lookahead;
     }
-    if (get_prolog_flag("char_conversion") == falseAtom)
+    if (get_prolog_flag("char_conversion") == offAtom)
     {
         return peek_raw_char(s);
     }

@@ -1219,3 +1219,8 @@ Module get_current_module()
 {
    return FR->contextModule;
 }
+
+void halt(int i)
+{
+   halted = 1;
+}

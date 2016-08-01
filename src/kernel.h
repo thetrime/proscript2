@@ -115,6 +115,6 @@ word predicate_indicator(word term);
 word MAKE_POINTER(void* data);
 void* GET_POINTER(word data);
 Module get_current_module();
-
+void halt(int code);
 
 #endif

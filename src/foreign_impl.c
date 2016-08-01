@@ -2,48 +2,67 @@
 #include "errors.h"
 #include "stream.h"
 #include "parser.h"
+#include "prolog_flag.h"
 #include <stdio.h>
 
+// 8.2.1
 PREDICATE(=, 2, (word a, word b)
 {
    return unify(a,b);
 })
 
+// 8.2.2
+PREDICATE(unify_with_occurs_check, 2, (word a, word b)
+{
+   assert(0 && "Not implemented");
+})
+
+// 8.2.3 \= is always compiled
+
+
+// 8.3.1
 PREDICATE(var, 1, (word a)
 {
    return TAGOF(a) == VARIABLE_TAG;
 })
 
+// 8.3.2
 PREDICATE(atom, 1, (word a)
 {
    return TAGOF(a) == CONSTANT_TAG && getConstant(a).type == ATOM_TYPE;
 })
 
+// 8.3.3
 PREDICATE(integer, 1, (word a)
 {
    return TAGOF(a) == CONSTANT_TAG && getConstant(a).type == INTEGER_TYPE;
 })
 
+// 8.3.4
 PREDICATE(float, 1, (word a)
 {
    return TAGOF(a) == CONSTANT_TAG && getConstant(a).type == FLOAT_TYPE;
 })
 
+// 8.3.5
 PREDICATE(atomic, 1, (word a)
 {
    return TAGOF(a) == CONSTANT_TAG;
 })
 
+// 8.3.6
 PREDICATE(compound, 1, (word a)
 {
    return TAGOF(a) == COMPOUND_TAG;
 })
 
+// 8.3.7
 PREDICATE(nonvar, 1, (word a)
 {
    return TAGOF(a) != VARIABLE_TAG;
 })
 
+// 8.3.8
 PREDICATE(number, 1, (word a)
 {
    constant c;
@@ -55,6 +74,7 @@ PREDICATE(number, 1, (word a)
    return 0;
 })
 
+// 8.4.1
 PREDICATE(@=<, 2, (word a, word b)
 {
    return term_difference(a, b) <= 0;
@@ -85,6 +105,7 @@ PREDICATE(@>=, 2, (word a, word b)
    return term_difference(a, b) >= 0;
 })
 
+// 8.5.1
 PREDICATE(functor, 3, (word term, word name, word arity)
 {
    if (TAGOF(term) == VARIABLE_TAG)
@@ -113,6 +134,7 @@ PREDICATE(functor, 3, (word term, word name, word arity)
    return type_error(compoundAtom, term);
 })
 
+// 8.5.2
 NONDET_PREDICATE(arg, 3, (word n, word term, word arg, word backtrack)
 {
    if (!must_be_bound(term))
@@ -143,6 +165,7 @@ NONDET_PREDICATE(arg, 3, (word n, word term, word arg, word backtrack)
 
 })
 
+// 8.5.3
 PREDICATE(=.., 2, (word term, word univ)
 {
    if (TAGOF(term) == CONSTANT_TAG)
@@ -190,12 +213,23 @@ PREDICATE(=.., 2, (word term, word univ)
    return type_error(compoundAtom, term);
 })
 
+// 8.5.4
 PREDICATE(copy_term, 2, (word term, word copy)
 {
    return unify(copy, copy_term(term));
 })
 
+// 8.6.1
+PREDICATE(is, 2, (word term, word copy)
+{
+   assert(0 && "Not implenented");
+})
 
+// 8.7.1 Arithmetic comparisons
+// FIXME: Implement
+
+
+// 8.8.1
 NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
 {
    if (TAGOF(body) == CONSTANT_TAG)
@@ -232,6 +266,7 @@ NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
 
 })
 
+// 8.8.2
 NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
 {
    if (TAGOF(indicator) != VARIABLE_TAG)
@@ -262,32 +297,44 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
 
 })
 
+// 8.9.1
 PREDICATE(asserta, 1, (word term)
 {
    assert(0);
 })
 
+// 8.9.2
 PREDICATE(assertz, 1, (word term)
 {
    assert(0);
 })
 
-NONDET_PREDICATE(asserta, 1, (word term, word backtrack)
+// 8.9.3
+NONDET_PREDICATE(rtract, 1, (word term, word backtrack)
 {
    assert(0);
 })
 
+// 8.9.4
 PREDICATE(abolish, 1, (word indicator)
 {
    assert(0);
 })
 
+// 8.10 (findall/3, bagof/3, setof/3) are in builtin.pl (note that they might be much faster if implemented directly in C)
+// 8.11 - 8.14 are streams FIXME: Not implemented
+
+// 8.15.1 \+ is always compiled to opcodes
+// 8.15.2 once/1 is in builtin.pl
+
+// 8.15.3
 NONDET_PREDICATE(repeat, 0, (word backtrack)
 {
    make_foreign_choicepoint(0);
    return SUCCESS;
 })
 
+// 8.16.1
 PREDICATE(atom_length, 2, (word atom, word length)
 {
    if (TAGOF(atom) == VARIABLE_TAG)
@@ -304,6 +351,7 @@ PREDICATE(atom_length, 2, (word atom, word length)
    return unify(length, MAKE_INTEGER(c.data.atom_data->length));
 })
 
+// 8.1.6.2
 NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word backtrack)
 {
    long index = 0;
@@ -346,11 +394,13 @@ NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word back
    return unify(atom1, MAKE_NATOM(a12->data, index)) && unify(atom2, MAKE_NATOM(a12->data+index, a12->length-index));
 })
 
+// 8.16.3
 NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, word subatom, word backtrack)
 {
    assert(0);
 })
 
+// 8.16.4
 PREDICATE(atom_chars, 2, (word atom, word chars)
 {
    if (TAGOF(atom) == VARIABLE_TAG)
@@ -401,6 +451,7 @@ PREDICATE(atom_chars, 2, (word atom, word chars)
    return type_error(atomAtom, atom);
 })
 
+// 8.16.5
 PREDICATE(atom_codes, 2, (word atom, word codes)
 {
    if (TAGOF(atom) == VARIABLE_TAG)
@@ -451,6 +502,7 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
    return type_error(atomAtom, atom);
 })
 
+// 8.16.6
 PREDICATE(char_code, 2, (word ch, word code)
 {
    if ((TAGOF(code) == VARIABLE_TAG) && (TAGOF(ch) == VARIABLE_TAG))
@@ -478,6 +530,7 @@ PREDICATE(char_code, 2, (word ch, word code)
    return unify(MAKE_NATOM(&a, 1), ch);
 })
 
+// 8.16.7
 PREDICATE(number_chars, 2, (word number, word chars)
 {
    if (TAGOF(chars) != VARIABLE_TAG)
@@ -545,6 +598,7 @@ PREDICATE(number_chars, 2, (word number, word chars)
    return type_error(numberAtom, number);
 })
 
+// 8.16.8
 PREDICATE(number_codes, 2, (word number, word codes)
 {
    if (TAGOF(codes) != VARIABLE_TAG)
@@ -611,6 +665,48 @@ PREDICATE(number_codes, 2, (word number, word codes)
    }
    return type_error(numberAtom, number);
 })
+
+// 8.17.1
+PREDICATE(set_prolog_flag, 2, (word flag, word value)
+{
+   if (!must_be_atom(flag) || !must_be_bound(value))
+      return ERROR;
+   return set_prolog_flag(getConstant(flag).data.atom_data->data, value);
+})
+
+// 8.17.2
+NONDET_PREDICATE(current_prolog_flag, 2, (word flag, word value, word backtrack)
+{
+   if (TAGOF(flag) != VARIABLE_TAG)
+   {
+      if (TAGOF(flag) == CONSTANT_TAG)
+      {
+         constant c = getConstant(flag);
+         if (c.type == ATOM_TYPE)
+            return unify(value, get_prolog_flag(c.data.atom_data->data));
+      }
+      return type_error(prologFlagAtom, flag);
+   }
+   word list = backtrack==0?prolog_flag_keys():backtrack;
+   if (ARGOF(list, 1) != emptyListAtom)
+      make_foreign_choicepoint(ARGOF(list, 1));
+   return unify(flag, ARGOF(list,0)) && unify(value, get_prolog_flag(getConstant(ARGOF(list, 0)).data.atom_data->data));
+})
+
+PREDICATE(halt, 0, ()
+{
+   halt(0);
+   return SUCCESS;
+})
+
+PREDICATE(halt, 1, (word a)
+{
+   if (!must_be_integer(a))
+      return ERROR;
+   halt((int)getConstant(a).data.integer_data->data);
+   return SUCCESS;
+})
+
 /// Non-ISO
 
 

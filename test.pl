@@ -1,3 +1,3 @@
-fox(c, A):-
-        number_codes(A, [51, 49]).
+fox(c, X:Y):-
+        current_prolog_flag(X, Y).
 
