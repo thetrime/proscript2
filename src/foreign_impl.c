@@ -7,6 +7,7 @@
 #include "prolog_flag.h"
 #include "arithmetic.h"
 #include "char_conversion.h"
+#include "term_writer.h"
 #include <stdio.h>
 
 // 8.2.1
@@ -669,6 +670,103 @@ PREDICATE(read, 2, (word stream, word term)
 })
 
 // 8.14.2 write_term/2,3 write/1,2, writeq/1,2, write_canonical/1,2 IMPLEMENT
+PREDICATE(write_term, 2, (word term, word options)
+{
+   Options _options;
+   init_options(&_options);
+   options_from_term(&_options, options);
+   int rc = write_term(current_output, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+PREDICATE(write_term, 3, (word stream, word term, word options)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   options_from_term(&_options, options);
+   int rc = write_term(s, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+PREDICATE(write, 1, (word term)
+{
+   Options _options;
+   init_options(&_options);
+   set_option(&_options, numbervarsAtom, trueAtom);
+   int rc = write_term(current_output, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+PREDICATE(write, 2, (word stream, word term)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   set_option(&_options, numbervarsAtom, trueAtom);
+   int rc = write_term(s, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+PREDICATE(writeq, 1, (word term)
+{
+   Options _options;
+   init_options(&_options);
+   set_option(&_options, numbervarsAtom, trueAtom);
+   set_option(&_options, quotedAtom, trueAtom);
+   int rc = write_term(current_output, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+PREDICATE(writeq, 2, (word stream, word term)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   set_option(&_options, numbervarsAtom, trueAtom);
+   set_option(&_options, quotedAtom, trueAtom);
+   int rc = write_term(s, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+PREDICATE(write_canonical, 1, (word term)
+{
+   Options _options;
+   init_options(&_options);
+   set_option(&_options, ignoreOpsAtom, trueAtom);
+   set_option(&_options, quotedAtom, trueAtom);
+   int rc = write_term(current_output, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+PREDICATE(write_canonical, 2, (word stream, word term)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   set_option(&_options, ignoreOpsAtom, trueAtom);
+   set_option(&_options, quotedAtom, trueAtom);
+   int rc = write_term(s, term, &_options);
+   free_options(&_options);
+   return rc;
+})
+
+
 // 8.14.3 op/3
 PREDICATE(op, 3, (word priority, word fixity, word op)
 {
