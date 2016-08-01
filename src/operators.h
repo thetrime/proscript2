@@ -31,6 +31,6 @@ typedef enum
 } OperatorPosition;
 
 int find_operator(char* name, Operator* op, OperatorPosition position);
-
-
+void add_operator(char* name, int precedence, Fixity fixity);
+word make_op_list();
 #endif

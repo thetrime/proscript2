@@ -32,6 +32,12 @@ int permission_error(word operation, word type, word culprit)
 
 int representation_error(word flag, word what)
 {
- SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(representationErrorFunctor, flag), MAKE_VAR()));
- return 0;
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(representationErrorFunctor, flag), MAKE_VAR()));
+   return 0;
+}
+
+int io_error(word what, word where) // Non-ISO
+{
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(ioErrorFunctor, what, where), MAKE_VAR()));
+   return 0;
 }

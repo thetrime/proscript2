@@ -59,6 +59,8 @@ Module currentModule = NULL;
 Module userModule = NULL;
 Choicepoint initialChoicepoint = NULL;
 word current_exception = 0;
+Stream current_input = NULL;
+Stream current_output = NULL;
 
 
 void print_instruction();
@@ -188,6 +190,13 @@ word MAKE_ATOM(char* data)
 {
    return MAKE_NATOM(data, strlen(data));
 }
+
+EMSCRIPTEN_KEEPALIVE
+word MAKE_BLOB(char* type, void* ptr)
+{
+   return intern_blob(type, ptr);
+}
+
 
 EMSCRIPTEN_KEEPALIVE
 word MAKE_INTEGER(long data)
@@ -533,6 +542,8 @@ void initialize_kernel()
 {
    userModule = create_module(MAKE_ATOM("user"));
    currentModule = userModule;
+   current_input = nullStream();
+   current_output = consoleOuputStream();
    initialize_foreign();
    // FIXME: initialize bootstrapped builtins
 }

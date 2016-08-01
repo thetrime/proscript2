@@ -108,6 +108,57 @@ int term_difference(word a, word b)
    assert(0);
 }
 
+int acyclic_term(word t)
+{
+   List stack;
+   List visited;
+   init_list(&stack);
+   init_list(&visited);
+   list_append(&stack, t);
+   while(list_length(&stack) != 0)
+   {
+      word arg = DEREF(list_pop(&stack));
+      if (TAGOF(arg) == VARIABLE_TAG)
+      {
+         if (list_index(&visited, arg) != -1)
+         {
+            free_list(&visited);
+            free_list(&stack);
+            return 0;
+         }
+      }
+      else if (TAGOF(arg) == COMPOUND_TAG)
+      {
+         list_append(&visited, arg);
+         Functor f = getConstant(FUNCTOROF(arg)).data.functor_data;
+         for (int i = 0; i < f->arity; i++)
+            list_append(&stack, ARGOF(arg, i));
+      }
+   }
+   free_list(&visited);
+   free_list(&stack);
+   return 1;
+}
+
+Stream get_stream(word w)
+{
+   if (!must_be_bound(w))
+      return NULL;
+   if (TAGOF(w) == CONSTANT_TAG)
+   {
+      constant c = getConstant(w);
+      if (c.type == BLOB_TYPE && strcmp(c.data.blob_data->type, "stream"))
+         return c.data.blob_data->ptr;
+      else if (c.type == ATOM_TYPE)
+      {
+         // Aliases not implemented yet
+         SET_EXCEPTION(domain_error(streamOrAliasAtom, w));
+         return NULL;
+      }
+   }
+   SET_EXCEPTION(domain_error(streamOrAliasAtom, w));
+   return NULL;
+}
 
 int build_predicate_list(void* list, word key, any_t ignored)
 {

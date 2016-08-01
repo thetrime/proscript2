@@ -1,6 +1,7 @@
 #include "operators.h"
 #include <string.h>
 #include "kernel.h"
+#include "constants.h"
 
 op_cell_t* operator_table = NULL;
 
@@ -135,4 +136,25 @@ int find_operator(char* name, Operator* op, OperatorPosition position)
       cell = cell->next;
    }
    return 0;
+}
+
+char* fixity_name[7] = {"FX", "FY", "XFX", "XFY", "YFX", "XF", "YF"};
+
+word make_op_list()
+{
+   word result = emptyListAtom;
+   op_cell_t* cell = operator_table;
+   while(cell != NULL)
+   {
+      for (int i = 0; i <3; i++)
+      {
+         Operator op = cell->op[i];
+         if (op != NULL)
+         {
+            result = MAKE_VCOMPOUND(listFunctor, MAKE_VCOMPOUND(opFunctor, MAKE_INTEGER(op->precedence), MAKE_ATOM(fixity_name[op->fixity]), MAKE_ATOM(cell->name)), result);
+         }
+      }
+      cell = cell->next;
+   }
+   return result;
 }

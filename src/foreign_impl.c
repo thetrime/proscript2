@@ -2,7 +2,11 @@
 #include "errors.h"
 #include "stream.h"
 #include "parser.h"
+#include "options.h"
+#include "operators.h"
 #include "prolog_flag.h"
+#include "arithmetic.h"
+#include "char_conversion.h"
 #include <stdio.h>
 
 // 8.2.1
@@ -14,7 +18,7 @@ PREDICATE(=, 2, (word a, word b)
 // 8.2.2
 PREDICATE(unify_with_occurs_check, 2, (word a, word b)
 {
-   assert(0 && "Not implemented");
+   return unify(a, b) && acyclic_term(a);
 })
 
 // 8.2.3 \= is always compiled
@@ -220,14 +224,41 @@ PREDICATE(copy_term, 2, (word term, word copy)
 })
 
 // 8.6.1
-PREDICATE(is, 2, (word term, word copy)
+PREDICATE(is, 2, (word result, word expr)
 {
    assert(0 && "Not implenented");
 })
 
 // 8.7.1 Arithmetic comparisons
-// FIXME: Implement
+PREDICATE(=\\=, 2, (word a, word b)
+{
+   return arith_compare(a, b) != 0;
+})
 
+PREDICATE(=:=, 2, (word a, word b)
+{
+   return arith_compare(a, b) == 0;
+})
+
+PREDICATE(>, 2, (word a, word b)
+{
+   return arith_compare(a, b) > 0;
+})
+
+PREDICATE(>=, 2, (word a, word b)
+{
+   return arith_compare(a, b) >= 0;
+})
+
+PREDICATE(=<, 2, (word a, word b)
+{
+   return arith_compare(a, b) <= 0;
+})
+
+PREDICATE(<, 2, (word a, word b)
+{
+   return arith_compare(a, b) < 0;
+})
 
 // 8.8.1
 NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
@@ -322,7 +353,441 @@ PREDICATE(abolish, 1, (word indicator)
 })
 
 // 8.10 (findall/3, bagof/3, setof/3) are in builtin.pl (note that they might be much faster if implemented directly in C)
-// 8.11 - 8.14 are streams FIXME: Not implemented
+// 8.11.1
+PREDICATE(current_input, 1, (word stream)
+{
+   return unify(stream, current_input->term);
+})
+
+// 8.11.2
+PREDICATE(current_output, 1, (word stream)
+{
+   return unify(stream, current_output->term);
+})
+
+// 8.11.3
+PREDICATE(set_input, 1, (word stream)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   current_input = s;
+   return SUCCESS;
+})
+
+// 8.11.4
+PREDICATE(set_output, 1, (word stream)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   current_output = s;
+   return SUCCESS;
+})
+// 8.11.5 open/3,4
+PREDICATE(open, 3, (word source_sink, word io_mode, word stream)
+{
+   if (!must_be_atom(source_sink))
+      return ERROR;
+   Options options;
+   init_options(&options);
+   Stream s = fileStream(getConstant(source_sink).data.atom_data->data, io_mode, &options);
+   free_options(&options);
+   if (s == NULL)
+      return ERROR;
+   return unify(stream, s->term);
+})
+PREDICATE(open, 4, (word source_sink, word io_mode, word stream, word options)
+{
+   if (!must_be_atom(source_sink))
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   options_from_term(&_options, options);
+   Stream s = fileStream(getConstant(source_sink).data.atom_data->data, io_mode, &_options);
+   free_options(&_options);
+   if (s == NULL)
+      return ERROR;
+   return unify(stream, s->term);
+})
+
+// 8.11.6 close/1,2
+PREDICATE(close, 1, (word stream)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   if (s->close != NULL)
+      return s->close(s) >= 0;
+   return SUCCESS;
+})
+
+PREDICATE(close, 1, (word stream, word options)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   options_from_term(&_options, options);
+   int rc = 0;
+   if (s->close != NULL)
+      rc = s->close(s) >= 0;
+   else
+      rc = SUCCESS;
+   free_options(&_options);
+   return SUCCESS;
+})
+
+// 8.11.7 flush_output/0, 1
+PREDICATE(flush_output, 0, ()
+{
+   if (current_output->flush != NULL)
+      return current_output->flush(current_output) >= 0;
+   return SUCCESS;
+})
+PREDICATE(flush_output, 1, (word stream)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   if (s->flush != NULL)
+      return s->flush(s) >= 0;
+   return SUCCESS;
+})
+
+// 8.11.8 stream_property/2, at_end_of_stream/0,1
+NONDET_PREDICATE(stream_property, 2, (word stream, word property, word backtrack)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   long index = backtrack==0?0:getConstant(backtrack).data.integer_data->data;
+   if (stream_properties[index] == NULL)
+      return FAIL;
+   if (stream_properties[index + 1] != NULL)
+      make_foreign_choicepoint(MAKE_INTEGER(index+1));
+   return stream_properties[index](s, property);
+})
+PREDICATE(at_end_of_stream, 0, ()
+{
+   return peekch(current_input) != -1;
+})
+
+PREDICATE(at_end_of_stream, 1, (word stream)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   return peekch(s) != -1;
+})
+
+
+// 8.11.9 set_stream_position/2
+PREDICATE(set_stream_position, 2, (word stream, word position)
+{
+   if (!must_be_integer(position))
+      return ERROR;
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   if (s->seek == NULL)
+      return FAIL;
+   return s->seek(s, (int)getConstant(position).data.integer_data, SEEK_SET) >= 0;
+})
+
+// 8.12.1 get_char/1,2 get_code/1,2
+PREDICATE(get_char, 1, (word c)
+{
+   char ch = getch(current_input);
+   return unify(c, MAKE_NATOM(&ch, 1));
+})
+PREDICATE(get_char, 2, (word stream, word c)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   char ch = getch(s);
+   return unify(c, MAKE_NATOM(&ch, 1));
+})
+PREDICATE(get_code, 1, (word code)
+{
+   return unify(code, MAKE_INTEGER(getch(current_input)));
+})
+PREDICATE(get_code, 2, (word stream, word code)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   return unify(code, MAKE_INTEGER(getch(s)));
+})
+
+// 8.12.2 peek_char/1,2, peek_code/1,2
+PREDICATE(peek_char, 1, (word c)
+{
+   char ch = peekch(current_input);
+   return unify(c, MAKE_NATOM(&ch, 1));
+})
+PREDICATE(peek_char, 2, (word stream, word c)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   char ch = peekch(s);
+   return unify(c, MAKE_NATOM(&ch, 1));
+})
+PREDICATE(peek_code, 1, (word code)
+{
+   return unify(code, MAKE_INTEGER(peekch(current_input)));
+})
+PREDICATE(peek_code, 2, (word stream, word code)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   return unify(code, MAKE_INTEGER(peekch(s)));
+})
+
+// 8.12.3 put_char/1,2, put_code/1,2
+PREDICATE(put_char, 1, (word c)
+{
+   if (!must_be_character(c)) return ERROR;
+   putch(current_input, getConstant(c).data.atom_data->data[0]);
+   return SUCCESS;
+})
+PREDICATE(put_char, 2, (word stream, word c)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   if (!must_be_character(c)) return ERROR;
+   putch(s, getConstant(c).data.atom_data->data[0]);
+   return SUCCESS;
+})
+PREDICATE(put_code, 1, (word code)
+{
+   if (!must_be_positive_integer(code)) return ERROR;
+   putch(current_input, (int)getConstant(code).data.integer_data->data);
+   return SUCCESS;
+})
+PREDICATE(put_code, 2, (word stream, word code)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   if (!must_be_positive_integer(code)) return ERROR;
+   putch(s, getConstant(code).data.integer_data->data);
+   return SUCCESS;
+})
+
+// 8.13.1 get_byte/1,2
+PREDICATE(get_byte, 1, (word c)
+{
+   int b = getb(current_input);
+   return unify(c, MAKE_INTEGER(b));
+})
+PREDICATE(get_byte, 2, (word stream, word c)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   int b = getb(s);
+   return unify(c, MAKE_INTEGER(b));
+})
+// 8.13.2 peek_byte/1,2
+PREDICATE(peek_byte, 1, (word c)
+{
+   int b = peekb(current_input);
+   return unify(c, MAKE_INTEGER(b));
+})
+PREDICATE(peek_byte, 2, (word stream, word c)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   int b = peekb(s);
+   return unify(c, MAKE_INTEGER(b));
+})
+
+// 8.13.3 put_byte/1,2
+PREDICATE(put_byte, 1, (word c)
+{
+   if (!must_be_positive_integer(c)) return ERROR;
+   putb(current_input, (int)getConstant(c).data.integer_data->data);
+   return SUCCESS;
+})
+PREDICATE(put_byte, 2, (word stream, word c)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   if (!must_be_positive_integer(c)) return ERROR;
+   putb(s, getConstant(c).data.integer_data->data);
+   return SUCCESS;
+})
+
+// 8.14.1 read_term/2,3 read/1,2
+PREDICATE(read_term, 2, (word term, word options)
+{
+   Options _options;
+   init_options(&_options);
+   options_from_term(&_options, options);
+   word t = read_term(current_input, &_options);
+   free_options(&_options);
+   return unify(term, t);
+})
+PREDICATE(read_term, 3, (word stream, word term, word options)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   options_from_term(&_options, options);
+   word t = read_term(current_input, &_options);
+   free_options(&_options);
+   return unify(term, t);
+})
+PREDICATE(read, 1, (word term)
+{
+   Options _options;
+   init_options(&_options);
+   word t = read_term(current_input, &_options);
+   free_options(&_options);
+   return unify(term, t);
+})
+PREDICATE(read, 2, (word stream, word term)
+{
+   Stream s = get_stream(stream);
+   if (s == NULL)
+      return ERROR;
+   Options _options;
+   init_options(&_options);
+   word t = read_term(current_input, &_options);
+   free_options(&_options);
+   return unify(term, t);
+})
+
+// 8.14.2 write_term/2,3 write/1,2, writeq/1,2, write_canonical/1,2 IMPLEMENT
+// 8.14.3 op/3
+PREDICATE(op, 3, (word priority, word fixity, word op)
+{
+   // FIXME: Should support a list as op, apparently
+   if (!must_be_atom(fixity)) return ERROR;
+   if (!must_be_atom(op)) return ERROR;
+   if (!must_be_integer(priority)) return ERROR;
+   Atom op_c = getConstant(op).data.atom_data;
+   int pri = (int)getConstant(priority).data.integer_data->data;
+   if (fixity == FXAtom)
+   {
+      add_operator(op_c->data, pri, FX);
+      return SUCCESS;
+   }
+   else if (fixity == FYAtom)
+   {
+      add_operator(op_c->data, pri, FY);
+      return SUCCESS;
+   }
+   else if (fixity == XFXAtom)
+   {
+      add_operator(op_c->data, pri, XFY);
+      return SUCCESS;
+   }
+   else if (fixity == XFYAtom)
+   {
+      add_operator(op_c->data, pri, XFY);
+      return SUCCESS;
+   }
+   else if (fixity == YFXAtom)
+   {
+      add_operator(op_c->data, pri, YFX);
+      return SUCCESS;
+   }
+   else if (fixity == XFAtom)
+   {
+      add_operator(op_c->data, pri, XF);
+      return SUCCESS;
+   }
+   else if (fixity == YFAtom)
+   {
+      add_operator(op_c->data, pri, YF);
+      return SUCCESS;
+   }
+   return domain_error(operatorSpecifierAtom, fixity);
+})
+
+// 8.14.4 current_op/3
+NONDET_PREDICATE(current_op, 3, (word priority, word fixity, word op, word backtrack)
+{
+   word list = (backtrack == 0?make_op_list():backtrack);
+   if (ARGOF(list, 1) != emptyListAtom)
+      make_foreign_choicepoint(ARGOF(list, 1));
+   word head = ARGOF(list, 0);
+   // head is for the form op(priority, fixity, op)
+   return unify(priority, ARGOF(head,0))
+      &&  unify(fixity, ARGOF(head, 1))
+      &&  unify(op, ARGOF(head, 2));
+})
+
+// 8.14.5 char_conversion/2
+PREDICATE(char_conversion, 2, (word in_char, word out_char)
+{
+   if (!must_be_character(in_char)) return ERROR;
+   if (!must_be_character(out_char)) return ERROR;
+   CharConversionTable[getConstant(in_char).data.atom_data->data[0]] = getConstant(out_char).data.atom_data->data[0];
+   return SUCCESS;
+})
+// 8.14.6 current_char_conversion/2
+NONDET_PREDICATE(current_char_conversion, 2, (word in_char, word out_char, word backtrack)
+{
+   if (TAGOF(in_char) == CONSTANT_TAG)
+   {
+      constant ci = getConstant(in_char);
+      if (ci.type == ATOM_TYPE)
+         return unify(out_char, MAKE_NATOM(&ci.data.atom_data->data[0], 1));
+      return type_error(characterAtom, in_char);
+   }
+   else if (TAGOF(in_char) == VARIABLE_TAG)
+   {
+      if (TAGOF(out_char) == CONSTANT_TAG)
+      {
+         constant co = getConstant(in_char);
+         if (co.type == ATOM_TYPE)
+         {
+            char needle = co.data.atom_data->data[0];
+            // We have to search the table to see if something matches
+            int startindex = 0;
+            if (backtrack != 0)
+               startindex = (int)getConstant(backtrack).data.integer_data->data;
+            for (int i = startindex; i < 256; i++)
+            {
+               if (CharConversionTable[i] == needle)
+               {
+                  if (i < 256)
+                     make_foreign_choicepoint(MAKE_INTEGER(i+1));
+                  return unify(in_char, MAKE_INTEGER(i));
+               }
+            }
+            return FAIL;
+         }
+         else
+            return type_error(characterAtom, in_char);
+      }
+      else if (TAGOF(out_char) == VARIABLE_TAG)
+      {
+         // We must enumerate the entire table
+         int index = 0;
+         if (backtrack != 0)
+            index = (int)getConstant(backtrack).data.integer_data->data;
+         if (index < 256)
+            make_foreign_choicepoint(MAKE_INTEGER(index+1));
+         char i = (char)index;
+         char o = CharConversionTable[i];
+         return unify(in_char, MAKE_NATOM(&i, 1)) && unify(out_char, MAKE_NATOM(&o, 1));
+      }
+   }
+   return type_error(characterAtom, in_char);
+})
 
 // 8.15.1 \+ is always compiled to opcodes
 // 8.15.2 once/1 is in builtin.pl

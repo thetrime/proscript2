@@ -29,5 +29,6 @@ int list_contains(List* list, word);
 int list_index(List* list, word);
 word term_from_list(List* list, word tail);
 word list_shift(List* list);
+word list_pop(List* list);
 int populate_list_from_term(List* list, word w);
 #endif

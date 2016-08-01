@@ -9,6 +9,7 @@
 #include "hashmap.h"
 #include <assert.h>
 #include "list.h"
+#include "options.h"
 #include "operators.h"
 
 token ListOpenToken_ = {ConstantTokenType}; Token ListOpenToken = &ListOpenToken_;
@@ -94,8 +95,6 @@ int is_graphic_char(c)
       c == '~' ||
       c == '\\'; // graphic-token-char is either graphic-char or backslash-char
 }
-
-char* CharConversionTable = NULL; // FIXME
 
 char lookahead = -1;
 void unget_raw_char(int c)
@@ -842,7 +841,7 @@ int free_key(any_t ignored, char* key, any_t value)
    return MAP_OK;
 }
 
-word read_term(Stream stream, void* options)
+word read_term(Stream stream, Options* options)
 {
    token_lookahead_index = 0;
    map_t vars = hashmap_new();

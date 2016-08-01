@@ -125,6 +125,22 @@ word list_shift(List* list)
    return result;
 }
 
+word list_pop(List* list)
+{
+   word result = list->tail->data;
+   struct cell_t* new_tail = list->tail->prev;
+   if (new_tail == NULL) // List was a singleton. Tail and head are now null
+      list->head = NULL;
+   else if (new_tail->prev == NULL) // List had 2 items. Tail and head are the same and the list is a singleton
+      list->head = new_tail;
+   else
+      new_tail->prev->next = new_tail; // General case.
+   free(list->tail);
+   list->tail = new_tail;
+   return result;
+}
+
+
 int populate_list_from_term(List* list, word w)
 {
    while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)

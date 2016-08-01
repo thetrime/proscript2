@@ -75,6 +75,15 @@ typedef integer* Integer;
 
 typedef struct
 {
+   void* ptr;
+   char* type;
+} blob;
+
+typedef blob* Blob;
+
+
+typedef struct
+{
    double data;
 } _float;
 
@@ -90,6 +99,7 @@ struct constant
       Integer integer_data;
       Functor functor_data;
       Float float_data;
+      Blob blob_data;
       // ...
    } data;
 };

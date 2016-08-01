@@ -114,3 +114,21 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
    bihashmap_put(map[type], hashcode, created, w);
    return w;
 }
+
+// Blobs are a bit special since they are assumed to never be equal to each other
+// This means we can skip the hashmap entirely - if you ever MAKE_BLOB then it is assumed you know that this is a new one
+Blob allocBlob(char* type, void* ptr)
+{
+   Blob b = malloc(sizeof(blob));
+   b->type = strdup(type);
+   b->ptr = ptr;
+   return b;
+}
+
+
+word intern_blob(char* type, void* ptr)
+{
+   word w = (word)((CNext << 2) | CONSTANT_TAG);
+   CTable[CNext++].data.blob_data = allocBlob(type, ptr);
+   return w;
+}

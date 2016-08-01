@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "list.h"
 #include "types.h"
+#include "stream.h"
 
 
 // NFR is a pointer to the next frame
@@ -37,6 +38,7 @@ word DEREF(word t);
 word MAKE_VAR();
 word MAKE_ATOM(char* data);
 word MAKE_NATOM(char* data, size_t length);
+word MAKE_BLOB(char* type, void* data);
 word MAKE_INTEGER(long data);
 word MAKE_FLOAT(double data);
 word MAKE_FUNCTOR(word name, int arity);
@@ -116,5 +118,8 @@ word MAKE_POINTER(void* data);
 void* GET_POINTER(word data);
 Module get_current_module();
 void halt(int code);
+
+extern Stream current_input;
+extern Stream current_output;
 
 #endif

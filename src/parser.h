@@ -1,6 +1,8 @@
 #include "types.h"
 #include "stream.h"
+#include "options.h"
 #include "prolog_flag.h"
+#include "char_conversion.h"
 
 typedef enum
 {
@@ -57,4 +59,4 @@ typedef charbuffer* CharBuffer;
 
 
 
-word read_term(Stream s, void* options);
+word read_term(Stream s, Options* options);

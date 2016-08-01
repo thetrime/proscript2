@@ -1,4 +1,7 @@
 #include "stream.h"
+#include "kernel.h"
+#include "errors.h"
+#include "constants.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -78,6 +81,30 @@ int getb(Stream s)
    return s->buffer[s->buffer_ptr++];
 }
 
+int putch(Stream s, int c)
+{
+   if (s->filled_buffer_size < 0)
+   {
+      return io_error(writeAtom, s->term);
+   }
+   s->buffer[s->filled_buffer_size++] = c;
+   if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)) && s->flush != NULL)
+      return s->flush(s);
+   return SUCCESS;
+}
+
+int putb(Stream s, char c)
+{
+   if (s->filled_buffer_size < 0)
+   {
+      return io_error(writeAtom, s->term);
+   }
+   s->buffer[s->filled_buffer_size++] = c;
+   if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)) && s->flush != NULL)
+      return s->flush(s);
+   return SUCCESS;
+}
+
 int peekb(Stream s)
 {
    if (s->buffer_ptr == s->filled_buffer_size)
@@ -128,10 +155,13 @@ void freeStringBuffer(void* t)
    free(sb);
 }
 
+static int id = 0;
+
 Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
                    int(*write)(struct stream*, int, unsigned char*),
                    int(*seek)(struct stream*, int, int),
                    int(*close)(struct stream*),
+                   int(*flush)(struct stream*),
                    size_t (*tell)(struct stream*),
                    void(*free)(void*),
                    void* data)
@@ -146,6 +176,9 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
    s->data = data;
    s->buffer_ptr = 0;
    s->filled_buffer_size = 0;
+   s->id = id++;
+   s->term = MAKE_BLOB("stream", &s->id);
+   s->flags = 0;
    return s;
 }
 
@@ -163,8 +196,38 @@ Stream stringBufferStream(char* data, int length)
                       NULL,
                       NULL,
                       NULL,
+                      NULL,
                       freeStringBuffer,
                       allocStringBuffer(data, length));
+}
+
+Stream nullStream()
+{
+   return allocStream(NULL,
+                      NULL,
+                      NULL,
+                      NULL,
+                      NULL,
+                      NULL,
+                      NULL,
+                      NULL);
+}
+
+int console_write(Stream stream, int length, unsigned char* buffer)
+{
+   return -1;
+}
+
+Stream consoleOuputStream()
+{
+   return allocStream(NULL,
+                      console_write,
+                      NULL,
+                      NULL,
+                      NULL,
+                      NULL,
+                      NULL,
+                      NULL);
 }
 
 int file_read(Stream stream, int length, unsigned char* buffer)
@@ -177,6 +240,32 @@ int file_close(Stream stream)
    return fclose(((FILE*)stream->data));
 }
 
+size_t file_tell(Stream stream)
+{
+   return ftell(((FILE*)stream->data));
+}
+
+int file_flush(Stream stream)
+{
+   return fflush(((FILE*)stream->data));
+}
+
+int file_write(Stream stream, int length, unsigned char* buffer)
+{
+   return fwrite(buffer, sizeof(unsigned char), length, ((FILE*)stream->data));
+}
+
+void file_free(void* ignored)
+{
+}
+
+int file_seek(Stream stream, int offset, int origin)
+{
+   return fseek(((FILE*)stream->data), offset, origin);
+}
+
+
+
 Stream fileReadStream(char* filename)
 {
    FILE* fd = fopen(filename, "rb");
@@ -187,5 +276,60 @@ Stream fileReadStream(char* filename)
                       file_close,
                       NULL,
                       NULL,
+                      NULL,
                       fd);
 }
+
+Stream fileStream(char* filename, word io_mode, Options* options)
+{
+   if (io_mode == readAtom)
+   {
+      FILE* fd = fopen(filename, "rb");
+      assert(fd != NULL);
+      return allocStream(file_read,
+                         NULL,
+                         file_seek,
+                         file_close,
+                         NULL, // flush
+                         file_tell,
+                         file_free,
+                         fd);
+   }
+   else if (io_mode == writeAtom)
+   {
+      FILE* fd = fopen(filename, "wb");
+      assert(fd != NULL);
+      return allocStream(NULL,
+                         file_write,
+                         file_seek,
+                         file_close,
+                         file_flush,
+                         file_tell,
+                         file_free,
+                         fd);
+   }
+   else if (io_mode == appendAtom)
+   {
+      FILE* fd = fopen(filename, "ab");
+      assert(fd != NULL);
+      return allocStream(NULL,
+                         file_write,
+                         file_seek,
+                         file_close,
+                         file_flush,
+                         file_tell,
+                         file_free,
+                         fd);
+   }
+   domain_error(ioModeAtom, io_mode);
+   return NULL;
+}
+
+
+int get_stream_position(Stream stream, word property)
+{
+    if (stream->tell != NULL)
+       return unify(MAKE_VCOMPOUND(positionFunctor, MAKE_INTEGER(stream->tell(stream) - (stream->filled_buffer_size - stream->buffer_ptr))), property);
+    return FAIL;
+}
+int (*stream_properties[])(Stream, word) = {get_stream_position, NULL};
