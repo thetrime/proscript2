@@ -591,6 +591,8 @@ RC execute()
             else
             {
 #ifdef EMSCRIPTEN
+               PC -= (3+sizeof(word));
+               unsigned char* foreign_ptr = PC+1+sizeof(word);
                rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(foreign_ptr)], CODEPTR(PC+1), f->arity, ARGP);
 #else
                rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));

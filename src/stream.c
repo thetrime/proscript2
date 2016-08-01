@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 char get_raw_char(Stream s)
 {
@@ -180,6 +181,8 @@ Stream fileReadStream(char* filename)
 {
    printf("Opening file %s\n", filename);
    FILE* fd = fopen(filename, "rb");
+   assert(fd != NULL);
+   printf("Result: %p\n", fd);
    return allocStream(file_read,
                       NULL,
                       NULL,
