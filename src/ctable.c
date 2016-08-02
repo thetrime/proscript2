@@ -4,9 +4,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
+#include <gmp.h>
 
 constant* CTable = NULL;
-bimap_t map[5];
+bimap_t map[7];
 int CTableSize = 0;
 int CNext = 0;
 
@@ -68,6 +69,32 @@ int float_compare2(void* data, int len, word w)
    return f->data == *((double*)data);
 }
 
+int biginteger_compare1(void* data, word w)
+{
+   BigInteger g = (BigInteger)data;
+   BigInteger f = getConstant(w).data.biginteger_data;
+   return mpz_cmp(f->data, g->data) == 0;
+}
+
+int biginteger_compare2(void* data, int len, word w)
+{
+   BigInteger f = getConstant(w).data.biginteger_data;
+   return mpz_cmp(f->data, *((mpz_t*)data)) == 0;
+}
+
+int rational_compare1(void* data, word w)
+{
+   Rational g = (Rational)data;
+   Rational f = getConstant(w).data.rational_data;
+   return mpq_cmp(f->data, g->data) == 0;
+}
+
+int rational_compare2(void* data, int len, word w)
+{
+   Rational f = getConstant(w).data.rational_data;
+   return mpq_cmp(f->data, *((mpq_t*)data)) == 0;
+}
+
 void initialize_ctable()
 {
    CTableSize = 256;
@@ -75,6 +102,8 @@ void initialize_ctable()
    map[INTEGER_TYPE] = bihashmap_new(integer_compare1, integer_compare2);
    map[FUNCTOR_TYPE] = bihashmap_new(functor_compare1, functor_compare2);
    map[FLOAT_TYPE] = bihashmap_new(float_compare1, float_compare2);
+   map[BIGINTEGER_TYPE] = bihashmap_new(biginteger_compare1, biginteger_compare2);
+   map[RATIONAL_TYPE] = bihashmap_new(rational_compare1, rational_compare2);
    CTable = calloc(CTableSize, sizeof(constant));
 }
 
@@ -106,6 +135,8 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
       case FUNCTOR_TYPE: CTable[CNext++].data.functor_data = (Functor)created; break;
       case INTEGER_TYPE: CTable[CNext++].data.integer_data = (Integer)created; break;
       case FLOAT_TYPE: CTable[CNext++].data.float_data = (Float)created; break;
+      case BIGINTEGER_TYPE: CTable[CNext++].data.biginteger_data = (BigInteger)created; break;
+      case RATIONAL_TYPE: CTable[CNext++].data.rational_data = (Rational)created; break;
       default:
          assert(0);
    }

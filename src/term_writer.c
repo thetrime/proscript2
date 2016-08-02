@@ -273,6 +273,41 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       {
          return format_atom(sb, options, term);
       }
+      if (c.type == BIGINTEGER_TYPE)
+      {
+         char* str = mpz_get_str(NULL, 10, c.data.biginteger_data->data);
+         // str will be freed later by finalize_buffer()
+         append_string(sb, str, strlen(str));
+         return 1;
+      }
+      if (c.type == RATIONAL_TYPE)
+      {
+         mpz_t num;
+         mpz_t den;
+         mpz_init(num);
+         mpz_init(den);
+         mpq_get_num(num, c.data.rational_data->data);
+         mpq_get_den(den, c.data.rational_data->data);
+         char* str;
+         if (mpz_cmp_ui(den, 1) == 0)
+         {
+            str = mpz_get_str(NULL, 10, num);
+            append_string(sb, str, strlen(str));
+         }
+         else
+         {
+            str = mpz_get_str(NULL, 10, num);
+            append_string(sb, str, strlen(str));
+            append_string_no_copy(sb, " rdiv ", 6);
+            str = mpz_get_str(NULL, 10, den);
+            append_string(sb, str, strlen(str));
+         }
+         mpz_clear(den);
+         mpz_clear(num);
+         return 1;
+      }
+
+      assert(0 && "Unhandled constant type");
    }
    else if (get_option(options, numbervarsAtom, falseAtom) == trueAtom && TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == numberedVarFunctor && TAGOF(ARGOF(term,0)) == CONSTANT_TAG && getConstant(ARGOF(term,0)).type == INTEGER_TYPE)
    {

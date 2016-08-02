@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "whashmap.h"
+#include <gmp.h>
 
 #ifndef _TYPES_H
 typedef uintptr_t word;
@@ -75,6 +76,19 @@ typedef integer* Integer;
 
 typedef struct
 {
+   mpz_t data;
+} biginteger;
+
+typedef biginteger* BigInteger;
+typedef struct
+{
+   mpq_t data;
+} rational;
+
+typedef rational* Rational;
+
+typedef struct
+{
    void* ptr;
    char* type;
 } blob;
@@ -100,6 +114,8 @@ struct constant
       Functor functor_data;
       Float float_data;
       Blob blob_data;
+      Rational rational_data;
+      BigInteger biginteger_data;
       // ...
    } data;
 };

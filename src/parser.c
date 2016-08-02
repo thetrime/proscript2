@@ -708,6 +708,13 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                   break;
                }
             }
+            case BigIntegerTokenType:
+            {
+               mpz_t m;
+               mpz_init_set_str(m, t0->data.biginteger_data, 10);
+               lhs = MAKE_BIGINTEGER(m);
+               break;
+            }
             default:
                printf("Token type %d not implemented yet\n", t0->type);
                assert(0);

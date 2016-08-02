@@ -14,7 +14,8 @@ BOOT_FS=--embed-file $(FILESYSTEM)
 else
 CC=gcc
 TARGET=build/proscript
-CFLAGS=-g
+CFLAGS=-g -I/opt/local/include
+LDFLAGS=-L/opt/local/lib
 BOOTFILE=main.o
 BOOT=main.o
 endif
@@ -22,7 +23,7 @@ endif
 OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o arithmetic.o options.o char_conversion.o term_writer.o
 
 $(TARGET):	$(OBJECTS) $(BOOTFILE)
-		$(CC) $(CFLAGS) $(OBJECTS) $(BOOT) $(BOOT_FS) -o $@
+		$(CC) $(CFLAGS) $(OBJECTS) $(BOOT) $(BOOT_FS) $(LDFLAGS) -lgmp -o $@
 
 foreign.o:	src/foreign.c src/foreign_impl.c
 		$(CC) $(CFLAGS) -DDEBUG -c $< -o $@

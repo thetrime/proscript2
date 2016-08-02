@@ -227,7 +227,10 @@ PREDICATE(copy_term, 2, (word term, word copy)
 // 8.6.1
 PREDICATE(is, 2, (word result, word expr)
 {
-   assert(0 && "Not implenented");
+   word w;
+   if (evaluate_term(expr, &w))
+      return unify(w, result);
+   return ERROR;
 })
 
 // 8.7.1 Arithmetic comparisons

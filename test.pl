@@ -1,2 +1,3 @@
 run_all_tests:-
-        writeln(hello).
+        X is 4294967295 * 4294967295 * 2,
+        writeln(X).

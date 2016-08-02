@@ -36,6 +36,25 @@ int representation_error(word flag, word what)
    return 0;
 }
 
+int integer_overflow()
+{
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, integerOverflowAtom, MAKE_VAR()));
+   return 0;
+}
+
+int float_overflow()
+{
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, floatOverflowAtom, MAKE_VAR()));
+   return 0;
+}
+
+int zero_divisor()
+{
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, zeroDivisorAtom, MAKE_VAR()));
+   return 0;
+}
+
+
 int io_error(word what, word where) // Non-ISO
 {
    SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(ioErrorFunctor, what, where), MAKE_VAR()));

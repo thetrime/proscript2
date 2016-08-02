@@ -152,6 +152,21 @@ void* allocInteger(void* data, int len)
    return a;
 }
 
+void* allocBigInteger(void* data, int len)
+{
+   BigInteger a = malloc(sizeof(biginteger));
+   mpz_init(a->data);
+   mpz_set(a->data, *(mpz_t*)data);
+   return a;
+}
+
+void* allocRational(void* data, int len)
+{
+   Rational a = malloc(sizeof(rational));
+   mpq_init(a->data);
+   mpq_set(a->data, *((mpq_t*)data));
+   return a;
+}
 
 void* allocFloat(void* data, int len)
 {
@@ -179,10 +194,59 @@ uint32_t hash64(uint64_t key)
    return (uint32_t) key;
 }
 
+uint32_t hash32(uint32_t key)
+{
+   key = ((key >> 16) ^ key) * 0x45d9f3b;
+   key = ((key >> 16) ^ key) * 0x45d9f3b;
+   key = (key >> 16) ^ key;
+   return key;
+}
+
+uint32_t hashmpz(mpz_t key)
+{
+   mp_limb_t hash = 0;
+   const mp_limb_t * limbs =  mpz_limbs_read(key);
+   for (int i = 0; i < mpz_size(key); i++)
+      hash ^= limbs[i];
+   if (sizeof(mp_limb_t) == 8)
+      return hash64(hash);
+   else if (sizeof(mp_limb_t) == 4)
+      return hash32(hash);
+   else
+      assert(0 && "Cannot deal with mp_limb size");
+}
+
+uint32_t hashmpq(mpq_t key)
+{
+   uint32_t h = 0;
+   mpz_t n;
+   mpz_init(n);
+   mpq_get_num(n, key);
+   h = hashmpz(n);
+   mpz_clear(n);
+   mpz_init(n);
+   mpq_get_den(n, key);
+   h ^= hashmpz(n);
+   mpz_clear(n);
+   return h;
+}
+
 EMSCRIPTEN_KEEPALIVE
 word MAKE_NATOM(char* data, size_t length)
 {
    return intern(ATOM_TYPE, hash((unsigned char*)data, length), data, length, allocAtom, NULL);
+}
+
+EMSCRIPTEN_KEEPALIVE
+word MAKE_BIGINTEGER(mpz_t i)
+{
+   return intern(BIGINTEGER_TYPE, hashmpz(i), i, 77, allocBigInteger, NULL);
+}
+
+EMSCRIPTEN_KEEPALIVE
+word MAKE_RATIONAL(mpq_t i)
+{
+   return intern(RATIONAL_TYPE, hashmpq(i), i, 0, allocRational, NULL);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -593,6 +657,8 @@ RC execute()
                   // Too many args! This should be impossible since the installer would have rejected it
                   rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
             }
+            if (current_exception != 0)
+               goto b_throw_foreign;
             if (rc == FAIL)
             {
                //printf("Foreign Fail\n");
@@ -656,6 +722,8 @@ RC execute()
                rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
 #endif
             }
+            if (current_exception != 0)
+               goto b_throw_foreign;
             if (rc == FAIL)
             {
                //printf("Foreign Fail\n");
