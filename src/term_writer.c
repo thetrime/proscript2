@@ -89,8 +89,10 @@ void finalize_buffer(StringBuilder b, char** text, int* length)
    while (cell != NULL)
    {
       memcpy(*text + i, cell->data, cell->length);
+      i+= cell->length;
       string_cell_t* tmp = cell->next;
-      free(cell->data);
+      if (cell->must_free)
+         free(cell->data);
       free(cell);
       cell = tmp;
    }
@@ -192,10 +194,10 @@ int format_atom(StringBuilder sb, Options* options, word term)
       if (needs_quote(a))
          quote_string(sb, a);
       else
-         append_string(sb, a->data, a->length);
+         append_string_no_copy(sb, a->data, a->length);
    }
    else
-      append_string(sb, a->data, a->length);
+      append_string_no_copy(sb, a->data, a->length);
    return 1;
 }
 
@@ -206,11 +208,12 @@ Operator get_op(word functor, Options* options)
    if (f->arity < 1 || f->arity > 2)
       return NULL;
    Operator op;
-   if (f->arity == 1)
-      find_operator(getConstant(f->name).data.atom_data->data, &op, Prefix);
+   if (f->arity == 1 && find_operator(getConstant(f->name).data.atom_data->data, &op, Prefix))
+      return op;
+   else if (f->arity == 2 && find_operator(getConstant(f->name).data.atom_data->data, &op, Infix))
+      return op;
    else
-      find_operator(getConstant(f->name).data.atom_data->data, &op, Infix);
-   return op;
+      return NULL;
 }
 
 void glue_atoms(StringBuilder target, StringBuilder left, StringBuilder right)
@@ -232,7 +235,7 @@ void glue_atoms(StringBuilder target, StringBuilder left, StringBuilder right)
    else
    {
       append_string(target, lc, ll);
-      append_string(target, " ", 1);
+      append_string_no_copy(target, " ", 1);
       append_string(target, rc, rl);
    }
 }
@@ -294,7 +297,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
    {
       word functor = FUNCTOROF(term);
       Operator op = get_op(functor, options);
-      if (functor == listFunctor && get_option(options, ignoreOpsAtom, falseAtom) == trueAtom)
+      if (functor == listFunctor && get_option(options, ignoreOpsAtom, falseAtom) == falseAtom)
       {
          append_string_no_copy(sb, "[", 1);
          word head = ARGOF(term, 0);
@@ -323,13 +326,13 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
             }
          }
       }
-      if (functor == curlyFunctor && get_option(options, ignoreOpsAtom, falseAtom) == trueAtom)
+      if (functor == curlyFunctor && get_option(options, ignoreOpsAtom, falseAtom) == falseAtom)
       {
          append_string_no_copy(sb, "{", 1);
          word head = ARGOF(term, 0);
          while (TAGOF(head) == COMPOUND_TAG && FUNCTOROF(head) == conjunctionFunctor)
          {
-            format_term(sb, options, 1200, head);
+            format_term(sb, options, 1200, ARGOF(head,0));
             append_string_no_copy(sb, ",", 1);
             head = ARGOF(head, 1);
          }
@@ -429,7 +432,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
             }
          }
          if (op->precedence > precedence)
-            append_string(sb, ")", 1);
+            append_string_no_copy(sb, ")", 1);
          return 1;
       }
    }
