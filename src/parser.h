@@ -34,6 +34,7 @@ typedef struct
       char* syntax_error_data;
       char* variable_data;
       char* biginteger_data;
+      char* constant_data;
 // ...
    } data;
 } token;
@@ -58,5 +59,6 @@ typedef struct
 typedef charbuffer* CharBuffer;
 
 
-
+int is_graphic_char(char);
 word read_term(Stream s, Options* options);
+

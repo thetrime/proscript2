@@ -39,7 +39,7 @@ function needsQuote(s)
         // If there are only atom_char characters then we are OK. Otherwise we must quote
         for (var i = 1; i < s.length; i++)
         {
-            if (!isAtomContinuation(ch))
+            if (!isAtomContinuation(s.charAt(i)))
                 return true;
         }
         return false;

@@ -14,4 +14,5 @@ void init_options(Options* options);
 void free_options(Options* options);
 int options_from_term(Options* options, word term);
 void set_option(Options*, word key, word value);
+word get_option(Options* o, word key, word defaultvalue);
 #endif

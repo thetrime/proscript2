@@ -553,7 +553,7 @@ PREDICATE(peek_code, 2, (word stream, word code)
 PREDICATE(put_char, 1, (word c)
 {
    if (!must_be_character(c)) return ERROR;
-   putch(current_input, getConstant(c).data.atom_data->data[0]);
+   putch(current_output, getConstant(c).data.atom_data->data[0]);
    return SUCCESS;
 })
 PREDICATE(put_char, 2, (word stream, word c)
@@ -568,7 +568,7 @@ PREDICATE(put_char, 2, (word stream, word c)
 PREDICATE(put_code, 1, (word code)
 {
    if (!must_be_positive_integer(code)) return ERROR;
-   putch(current_input, (int)getConstant(code).data.integer_data->data);
+   putch(current_output, (int)getConstant(code).data.integer_data->data);
    return SUCCESS;
 })
 PREDICATE(put_code, 2, (word stream, word code)
@@ -614,7 +614,7 @@ PREDICATE(peek_byte, 2, (word stream, word c)
 PREDICATE(put_byte, 1, (word c)
 {
    if (!must_be_positive_integer(c)) return ERROR;
-   putb(current_input, (int)getConstant(c).data.integer_data->data);
+   putb(current_output, (int)getConstant(c).data.integer_data->data);
    return SUCCESS;
 })
 PREDICATE(put_byte, 2, (word stream, word c)

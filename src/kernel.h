@@ -121,5 +121,5 @@ void halt(int code);
 
 extern Stream current_input;
 extern Stream current_output;
-
+extern word HEAP[];
 #endif

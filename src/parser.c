@@ -12,15 +12,15 @@
 #include "options.h"
 #include "operators.h"
 
-token ListOpenToken_ = {ConstantTokenType}; Token ListOpenToken = &ListOpenToken_;
-token ListCloseToken_ = {ConstantTokenType}; Token ListCloseToken = &ListCloseToken_;
-token ParenOpenToken_ = {ConstantTokenType}; Token ParenOpenToken = &ParenOpenToken_;
-token ParenCloseToken_ = {ConstantTokenType}; Token ParenCloseToken = &ParenCloseToken_;
-token CurlyOpenToken_ = {ConstantTokenType}; Token CurlyOpenToken = &CurlyOpenToken_;
-token CurlyCloseToken_ = {ConstantTokenType}; Token CurlyCloseToken = &CurlyCloseToken_;
-token BarToken_ = {ConstantTokenType}; Token BarToken = &BarToken_;
-token CommaToken_ = {ConstantTokenType}; Token CommaToken = &CommaToken_;
-token PeriodToken_ = {ConstantTokenType}; Token PeriodToken = &PeriodToken_;
+token ListOpenToken_ = {ConstantTokenType, .data = {.constant_data = "["}}; Token ListOpenToken = &ListOpenToken_;
+token ListCloseToken_ = {ConstantTokenType, .data = {.constant_data = "]"}}; Token ListCloseToken = &ListCloseToken_;
+token ParenOpenToken_ = {ConstantTokenType, .data = {.constant_data = "("}}; Token ParenOpenToken = &ParenOpenToken_;
+token ParenCloseToken_ = {ConstantTokenType, .data = {.constant_data = ")"}}; Token ParenCloseToken = &ParenCloseToken_;
+token CurlyOpenToken_ = {ConstantTokenType, .data = {.constant_data = "{"}}; Token CurlyOpenToken = &CurlyOpenToken_;
+token CurlyCloseToken_ = {ConstantTokenType, .data = {.constant_data = "}"}}; Token CurlyCloseToken = &CurlyCloseToken_;
+token BarToken_ = {ConstantTokenType, .data = {.constant_data = "|"}}; Token BarToken = &BarToken_;
+token CommaToken_ = {ConstantTokenType, .data = {.constant_data = ","}}; Token CommaToken = &CommaToken_;
+token PeriodToken_ = {ConstantTokenType, .data = {.constant_data = "."}}; Token PeriodToken = &PeriodToken_;
 
 word parse_infix(Stream s, word lhs, int precedence, map_t vars);
 word parse_postfix(Stream s, word lhs, int precedence, map_t vars);
@@ -75,7 +75,7 @@ int is_char(c)
             c == '_');
 }
 
-int is_graphic_char(c)
+int is_graphic_char(char c)
 {
    return c == '#' ||
       c == '$' ||
@@ -339,7 +339,7 @@ Token lex(Stream s)
       {
          c = peek_raw_char_with_conversion(s);
          if (is_char(c))
-            pushChar(sb, c);
+            pushChar(sb, get_raw_char_with_conversion(s));
          else
             return VariableToken(finalize(sb));
       }
@@ -644,7 +644,6 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
       }
       else if (t0 == ParenOpenToken)
       {
-         printf("()\n");
          lhs = read_expression(s, 12001, 0, 0, vars);
          Token next = read_token(s);
          if (next != ParenCloseToken)
@@ -671,6 +670,9 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
          {
             case AtomTokenType:
                lhs = MAKE_NATOM(t0->data.atom_data->data, t0->data.atom_data->length);
+               break;
+            case ConstantTokenType:
+               lhs = MAKE_ATOM(t0->data.constant_data);
                break;
             case IntegerTokenType:
                lhs = MAKE_INTEGER(t0->data.integer_data);
@@ -707,9 +709,8 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                }
             }
             default:
-
-               printf("Not implemented yet\n");
-               lhs = 0;
+               printf("Token type %d not implemented yet\n", t0->type);
+               assert(0);
          }
       }
    }

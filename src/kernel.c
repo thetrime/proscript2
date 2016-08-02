@@ -545,7 +545,7 @@ void initialize_kernel()
    current_input = nullStream();
    current_output = consoleOuputStream();
    initialize_foreign();
-   // FIXME: initialize bootstrapped builtins
+   consult_file("src/builtin.pl");
 }
 
 RC execute()
@@ -1073,9 +1073,11 @@ void consult_file(char* filename)
    word clause;
    while ((clause = read_term(s, NULL)) != endOfFileAtom)
    {
+      //PORTRAY(clause); printf("\n");
       if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
       {
-         assert(0);
+         printf("FIXME: Directives are not implemented\n");
+//         assert(0);
       }
       else
       {

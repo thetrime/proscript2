@@ -14,7 +14,33 @@ char get_raw_char(Stream s)
 char peek_raw_char(Stream s)
 {
    return peekch(s);
+}
 
+int flush_stream(Stream s)
+{
+   if (s->write == NULL)
+   {
+      permission_error(outputAtom, streamAtom, s->term);
+      return -1;
+   }
+   int bytesAvailableToFlush = s->filled_buffer_size - s->buffer_ptr;
+   if (bytesAvailableToFlush > 0)
+   {
+      int flushed =  s->write(s, bytesAvailableToFlush, s->buffer);
+      if (flushed < 0)
+         return 0;
+      if (flushed == bytesAvailableToFlush)
+      {
+         s->buffer_ptr = 0;
+         s->filled_buffer_size = 0;
+         if (s->flush != NULL)
+            return s->flush(s);
+         return 1;
+      }
+      else
+         assert(0 && "Failed to flush buffer");
+    }
+    return 1; // Nothing to write
 }
 
 int getch(Stream s)
@@ -88,8 +114,8 @@ int putch(Stream s, int c)
       return io_error(writeAtom, s->term);
    }
    s->buffer[s->filled_buffer_size++] = c;
-   if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)) && s->flush != NULL)
-      return s->flush(s);
+   if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)))
+      return flush_stream(s);
    return SUCCESS;
 }
 
@@ -100,8 +126,8 @@ int putb(Stream s, char c)
       return io_error(writeAtom, s->term);
    }
    s->buffer[s->filled_buffer_size++] = c;
-   if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)) && s->flush != NULL)
-      return s->flush(s);
+   if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)))
+      return flush_stream(s);
    return SUCCESS;
 }
 
@@ -215,7 +241,8 @@ Stream nullStream()
 
 int console_write(Stream stream, int length, unsigned char* buffer)
 {
-   return -1;
+   printf("%.*s", length, buffer);
+   return length;
 }
 
 Stream consoleOuputStream()

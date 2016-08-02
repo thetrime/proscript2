@@ -26,9 +26,7 @@ void do_test()
    //consult_string("fox(a, b). fox(c, X/Y):- functor(boing(cat, dog), X, Y). fox(c, x).");
    consult_file("test.pl");
 
-   word x = MAKE_ATOM("c");
-   word y = MAKE_VAR();
-   word w = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_ATOM("fox"), 2), x, y);
+   word w = MAKE_ATOM("run_all_tests");
    RC result = execute_query(w);
    if (result == ERROR)
    {
@@ -39,8 +37,8 @@ void do_test()
    else
    {
       printf("Success! %d\n", result);
-      PORTRAY(x); printf("\n");
-      PORTRAY(y); printf("\n");
+      //PORTRAY(x); printf("\n");
+      //PORTRAY(y); printf("\n");
       while(result == SUCCESS_WITH_CHOICES)
       {
          printf("backtracking for other solutions...\n");
@@ -56,8 +54,8 @@ void do_test()
          else
          {
             printf("Success! %d\n", result);
-            PORTRAY(x); printf("\n");
-            PORTRAY(y); printf("\n");
+            //PORTRAY(x); printf("\n");
+            //PORTRAY(y); printf("\n");
          }
       }
    }
