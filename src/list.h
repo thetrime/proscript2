@@ -21,7 +21,9 @@ typedef struct list_t List;
 
 void init_list(List* list);
 void free_list(List* list);
-void list_append(List* list, word w);
+struct cell_t* list_append(List* list, word w);
+struct cell_t* list_unshift(List* list, word w);
+void list_splice(List* list, struct cell_t*);
 void list_apply(List* list, void*, void (*fn)(word, void*));
 void list_apply_reverse(List* list, void*, void (*fn)(word, void*));
 int list_length(List* list);

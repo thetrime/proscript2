@@ -22,10 +22,9 @@ EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
 
-   //consult_string("fox(a, b). fox(c, d):- badger(a). fox(c, x).");
-   //consult_string("fox(a, b). fox(c, X/Y):- functor(boing(cat, dog), X, Y). fox(c, x).");
+   //consult_file("tests/inriasuite/inriasuite.pl");
    consult_file("test.pl");
-
+   printf("Consulted. Running tests...\n");
    word w = MAKE_ATOM("run_all_tests");
    RC result = execute_query(w);
    if (result == ERROR)

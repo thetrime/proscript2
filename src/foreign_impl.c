@@ -8,6 +8,7 @@
 #include "arithmetic.h"
 #include "char_conversion.h"
 #include "term_writer.h"
+#include "record.h"
 #include <stdio.h>
 
 // 8.2.1
@@ -1274,6 +1275,72 @@ PREDICATE(halt, 1, (word a)
 })
 
 /// Non-ISO
+
+// Recorded database
+PREDICATE(recorda, 3, (word key, word term, word ref)
+{
+   if (TAGOF(key) == CONSTANT_TAG)
+      return unify(ref, recorda(key, term));
+   else if (TAGOF(key) == COMPOUND_TAG)
+      return unify(ref, recorda(FUNCTOROF(key), term));
+   else if (TAGOF(key) == VARIABLE_TAG)
+      return instantiation_error();
+   assert(0);
+})
+
+PREDICATE(recordz, 3, (word key, word term, word ref)
+{
+   if (TAGOF(key) == CONSTANT_TAG)
+      return unify(ref, recordz(key, term));
+   else if (TAGOF(key) == COMPOUND_TAG)
+      return unify(ref, recordz(FUNCTOROF(key), term));
+   else if (TAGOF(key) == VARIABLE_TAG)
+      return instantiation_error();
+   assert(0);
+})
+
+PREDICATE(erase, 1, (word ref)
+{
+   return erase(ref);
+})
+
+NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
+{
+   if (TAGOF(ref) == POINTER_TAG)
+   {
+      // Deterministic case
+      word k;
+      word v;
+      return recorded(ref, &k, &v) && unify(k, key) && unify(v, value);
+   }
+   else
+   {
+      if (TAGOF(ref) == VARIABLE_TAG)
+      {
+         word list;
+         if (backtrack == 0)
+         {
+            if (TAGOF(key) == CONSTANT_TAG)
+               list = find_records(key);
+            else if (TAGOF(key) == COMPOUND_TAG)
+               return list = find_records(FUNCTOROF(key));
+            else if (TAGOF(key) == VARIABLE_TAG)
+               return instantiation_error();
+            else
+               return type_error(dbReferenceAtom, key);
+         }
+         else
+            list = backtrack;
+         if (list == emptyListAtom)
+            return FAIL;
+         if (ARGOF(list, 1) != emptyListAtom)
+            make_foreign_choicepoint(ARGOF(list, 1));
+         word head = ARGOF(list, 0);
+         return unify(value, copy_term(ARGOF(head, 0))) && unify(ref, ARGOF(head, 1));
+      }
+   }
+   return type_error(dbReferenceAtom, key);
+})
 
 
 NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)

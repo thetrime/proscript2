@@ -30,6 +30,7 @@
 #define ARGPOF(t) ((Word)(((Word*)(t & ~TAG_MASK))+1)) // FIXME: These cannot both be right!
 
 #define VARIABLE_TAG 0b00
+#define POINTER_TAG  0b01
 #define COMPOUND_TAG 0b10
 #define CONSTANT_TAG 0b11
 #define TAG_MASK     0b11

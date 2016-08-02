@@ -23,7 +23,7 @@ int define_foreign_predicate_c(Module module, word functor, int(*func)(), int fl
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return 0;
-   printf("Defining foreign (C) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" as %p\n", func);
+   //printf("Defining foreign (C) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf(" as %p\n", func);
    p = malloc(sizeof(predicate));
    p->meta = NULL;
    p->flags = PREDICATE_FOREIGN;
@@ -38,7 +38,7 @@ int define_foreign_predicate_js(Module module, word functor, word func)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return 0;
-   printf("Defining foreign (JS) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
+   //printf("Defining foreign (JS) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
    p = malloc(sizeof(predicate));
    p->meta = NULL;
    p->flags = PREDICATE_FOREIGN;

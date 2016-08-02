@@ -21,7 +21,19 @@ void free_list(List* list)
    }
 }
 
-void list_append(List* list, word w)
+void list_splice(List* list, struct cell_t* cell)
+{
+   if (cell->prev != NULL)
+      cell->prev->next = cell->next;
+   else
+      list->head = cell->next;
+   if (cell->next != NULL)
+      cell->next->prev = cell->prev;
+   else
+      list->tail = cell->prev;
+}
+
+struct cell_t* list_append(List* list, word w)
 {
    if (list->tail == NULL)
    {
@@ -38,6 +50,29 @@ void list_append(List* list, word w)
    list->tail->next = NULL;
    list->tail->data = w;
    list->length++;
+   return list->tail;
+}
+
+struct cell_t* list_unshift(List* list, word w)
+{
+   if (list->head == NULL)
+   {
+      list->head = malloc(sizeof(struct cell_t));
+      list->tail = list->head;
+      list->head->next = NULL;
+      list->head->prev = NULL;
+   }
+   else
+   {
+      struct cell_t* old_head = list->head;
+      list->head = malloc(sizeof(struct cell_t));
+      list->head->next = old_head;
+      old_head->prev = list->head;
+   }
+   list->head->prev = NULL;
+   list->head->data = w;
+   list->length++;
+   return list->head;
 }
 
 void list_apply(List* list, void* data, void (*fn)(word, void*))
@@ -100,7 +135,8 @@ int list_length(List* list)
 void cons(word cell, void* result)
 {
    word* r = (word*)result;
-   *r = MAKE_VCOMPOUND(listFunctor, cell, *r);
+//   printf("CONSING %08lx\n", DEREF(cell));
+   *r = MAKE_VCOMPOUND(listFunctor, DEREF(cell), *r);
 }
 
 word term_from_list(List* list, word tail)

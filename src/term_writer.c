@@ -251,6 +251,13 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       append_string(sb, strdup(buffer), strlen(buffer));
       return 1;
    }
+   else if (TAGOF(term) == POINTER_TAG)
+   {
+      char buffer[64];
+      sprintf((char*)buffer, "#%" PRIuPTR, GET_POINTER(term));
+      append_string(sb, strdup(buffer), strlen(buffer));
+      return 1;
+   }
    else if (TAGOF(term) == CONSTANT_TAG)
    {
       constant c = getConstant(term);

@@ -20,7 +20,7 @@ BOOTFILE=main.o
 BOOT=main.o
 endif
 
-OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o arithmetic.o options.o char_conversion.o term_writer.o
+OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o arithmetic.o options.o char_conversion.o term_writer.o record.o
 
 $(TARGET):	$(OBJECTS) $(BOOTFILE)
 		$(CC) $(CFLAGS) $(OBJECTS) $(BOOT) $(BOOT_FS) $(LDFLAGS) -lgmp -o $@

@@ -28,6 +28,36 @@ word parse_postfix(Stream s, word lhs, int precedence, map_t vars);
 
 word syntax_error = 0; // FIXME: Not sure about what to do here
 
+void print_token(Token t)
+{
+   switch(t->type)
+   {
+      case ConstantTokenType:
+         printf("%s", t->data.constant_data);
+         return;
+      case AtomTokenType:
+         printf("%.*s", (int)t->data.atom_data->length, t->data.atom_data->data);
+         return;
+      case SyntaxErrorTokenType:
+         printf("%s", t->data.syntax_error_data);
+         break;
+      case StringTokenType:
+         printf("%.*s", (int)t->data.atom_data->length, t->data.atom_data->data);
+         break;
+      case IntegerTokenType:
+         printf("%ld", t->data.integer_data);
+         break;
+      case FloatTokenType:
+         printf("%f", t->data.float_data);
+         break;
+      case VariableTokenType:
+         printf("%s", t->data.variable_data);
+         break;
+      case BigIntegerTokenType:
+         printf("<bigint>");
+         break;
+   }
+}
 
 void freeToken(Token t)
 {
@@ -766,13 +796,16 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                continue;
             else
             {
-               printf("Syntax error\n");
                if (next == NULL)
                {
+                  printf("Syntax error: end of file in term\n");
                   return syntax_error; // end of file in term
                }
                else
                {
+                  printf("Syntax error: Unexpected token ");
+                  print_token(next);
+                  printf("\n");
                   freeToken(next);
                   return syntax_error; // Unexpected token 'next'
                }

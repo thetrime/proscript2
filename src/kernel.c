@@ -278,13 +278,13 @@ word MAKE_FLOAT(double data)
 EMSCRIPTEN_KEEPALIVE
 word MAKE_POINTER(void* data)
 {
-   return (word)data;
+   return (word)data | POINTER_TAG;
 }
 
 EMSCRIPTEN_KEEPALIVE
 void* GET_POINTER(word data)
 {
-   return (void*)data;
+   return (void*)(data & ~TAG_MASK);
 }
 
 
@@ -361,6 +361,10 @@ void PORTRAY(word w)
             printf(",");
       }
       printf(")");
+   }
+   else if (TAGOF(w) == POINTER_TAG)
+   {
+      printf("#%p", GET_POINTER(w));
    }
    else
       printf("Bad tag\n");
@@ -455,7 +459,9 @@ int backtrack()
    while(1)
    {
       if (CP == NULL)
+      {
          return 0;
+      }
       if (!apply_choicepoint(CP))
          continue;
       unwind_trail(oldTR);
@@ -644,15 +650,15 @@ RC execute()
             switch(f->arity)
             {
                case 0: rc = ((int (*)())((word)(CODEPTR(PC+1))))(); break;
-               case 1: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(*ARGP); break;
-               case 2: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1)); break;
-               case 3: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2)); break;
-               case 4: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3)); break;
-               case 5: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4)); break;
-               case 6: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5)); break;
-               case 7: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6)); break;
-               case 8: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7)); break;
-               case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), *(ARGP+8)); break;
+               case 1: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP)); break;
+               case 2: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(DEREF(DEREF(*ARGP)), DEREF(*(ARGP+1))); break;
+               case 3: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(DEREF(DEREF(*ARGP)), DEREF(*(ARGP+1)), DEREF(*(ARGP+2))); break;
+               case 4: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3))); break;
+               case 5: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4))); break;
+               case 6: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5))); break;
+               case 7: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5)), DEREF(*(ARGP+6))); break;
+               case 8: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5)), DEREF(*(ARGP+6)), DEREF(*(ARGP+7))); break;
+               case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5)), DEREF(*(ARGP+6)), DEREF(*(ARGP+7)), DEREF(*(ARGP+8))); break;
                default:
                   // Too many args! This should be impossible since the installer would have rejected it
                   rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
@@ -698,15 +704,15 @@ RC execute()
                switch(f->arity)
                {
                   case 0: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(FR->slots[CODE16(foreign_ptr)]); break;
-                  case 1: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(*ARGP, FR->slots[CODE16(foreign_ptr)]); break;
-                  case 2: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), FR->slots[CODE16(foreign_ptr)]); break;
-                  case 3: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), FR->slots[CODE16(foreign_ptr)]); break;
-                  case 4: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), FR->slots[CODE16(foreign_ptr)]); break;
-                  case 5: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), FR->slots[CODE16(foreign_ptr)]); break;
-                  case 6: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), FR->slots[CODE16(foreign_ptr)]); break;
-                  case 7: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), FR->slots[CODE16(foreign_ptr)]); break;
-                  case 8: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), FR->slots[CODE16(foreign_ptr)]); break;
-                  case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(*ARGP, *(ARGP+1), *(ARGP+2), *(ARGP+3), *(ARGP+4), *(ARGP+5), *(ARGP+6), *(ARGP+7), *(ARGP+8), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 1: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 2: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 3: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 4: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 5: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 6: rc = ((int (*)(word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5)), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 7: rc = ((int (*)(word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5)), DEREF(*(ARGP+6)), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 8: rc = ((int (*)(word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5)), DEREF(*(ARGP+6)), DEREF(*(ARGP+7)), FR->slots[CODE16(foreign_ptr)]); break;
+                  case 9: rc = ((int (*)(word,word,word,word,word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5)), DEREF(*(ARGP+6)), DEREF(*(ARGP+7)), DEREF(*(ARGP+8)), FR->slots[CODE16(foreign_ptr)]); break;
                   default:
                      // Too many args! This should be impossible since the installer would have rejected it
                      rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
@@ -1006,7 +1012,7 @@ RC execute()
                mode = WRITE;
                continue;
             }
-            else if (backtrack())
+            if (backtrack())
                continue;
             return FAIL;
          }
@@ -1144,8 +1150,35 @@ void consult_file(char* filename)
       //PORTRAY(clause); printf("\n");
       if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
       {
-         printf("FIXME: Directives are not implemented\n");
-//         assert(0);
+         word directive = ARGOF(clause, 0);
+         if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == moduleFunctor)
+         {
+         }
+         else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == metaPredicateFunctor)
+         {
+         }
+         else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == dynamicFunctor)
+         {
+         }
+         else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == multiFileFunctor)
+         {
+         }
+         else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == discontiguousFunctor)
+         {
+         }
+         else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == initializationFunctor)
+         {
+         }
+         else
+         {
+            RC rc = execute_query(directive);
+            if (rc == SUCCESS || rc == SUCCESS_WITH_CHOICES)
+               printf("     Directive succeeded\n");
+            else if (rc == FAIL)
+               printf("     Directive failed\n");
+            else if (rc == ERROR)
+               printf("     Directive raised an exception\n");
+         }
       }
       else
       {
