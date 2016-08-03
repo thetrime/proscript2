@@ -254,7 +254,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
    else if (TAGOF(term) == POINTER_TAG)
    {
       char buffer[64];
-      sprintf((char*)buffer, "#%" PRIuPTR, GET_POINTER(term));
+      sprintf((char*)buffer, "#%p", GET_POINTER(term));
       append_string(sb, strdup(buffer), strlen(buffer));
       return 1;
    }

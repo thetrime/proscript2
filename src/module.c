@@ -5,6 +5,9 @@
 #endif
 
 #include "module.h"
+#include "errors.h"
+#include "constants.h"
+#include "list.h"
 #include "kernel.h"
 #include "whashmap.h"
 #include "ctable.h"
@@ -80,22 +83,85 @@ void add_clause(Module module, word functor, word clause)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
-      //printf("Adding clause to existing predicate of "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
-      (*(p->tail)) = malloc(sizeof(predicate_cell_t));
-      (*(p->tail))->term = clause;
-      (*(p->tail))->next = NULL;
-      p->tail = &((*p->tail)->next);
+      list_append(&p->clauses, clause);
    }
    else
    {
-   //printf("Adding clause to new predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("(%lu, %p)\n", functor, module);
       p = malloc(sizeof(predicate));
-      p->head = malloc(sizeof(predicate_cell_t));
-      p->head->term = clause;
-      p->head->next = NULL;
+      init_list(&p->clauses);
+      list_append(&p->clauses, clause);
+      p->flags = 0;
       p->meta = NULL;
-      p->tail = &(p->head->next);
       p->firstClause = NULL;
       whashmap_put(module->predicates, functor, p);
+   }
+}
+
+
+int asserta(Module module, word clause)
+{
+   word functor = clause_functor(clause);
+   Predicate p;
+   if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
+   {
+      if ((p->flags & PREDICATE_DYNAMIC) == 0)
+         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(clause));
+      // Existing predicate. Put the new clause at the start
+      list_unshift(&p->clauses, clause);
+   }
+   else
+   {
+      // New predicate
+      p = malloc(sizeof(predicate));
+      p->flags = PREDICATE_DYNAMIC;
+      init_list(&p->clauses);
+      list_unshift(&p->clauses, clause);
+      p->meta = NULL;
+      p->firstClause = NULL;
+      whashmap_put(module->predicates, functor, p);
+   }
+   p->firstClause = compile_predicate(p);
+   return 1;
+}
+
+int assertz(Module module, word clause)
+{
+   word functor = clause_functor(clause);
+   Predicate p;
+   if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
+   {
+      if ((p->flags & PREDICATE_DYNAMIC) == 0)
+         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(clause));
+      // Existing predicate. Put the new clause at the start
+      list_append(&p->clauses, clause);
+   }
+   else
+   {
+      // New predicate
+      p = malloc(sizeof(predicate));
+      p->flags = PREDICATE_DYNAMIC;
+      init_list(&p->clauses);
+      list_unshift(&p->clauses, clause);
+      p->meta = NULL;
+      p->firstClause = NULL;
+      whashmap_put(module->predicates, functor, p);
+   }
+   p->firstClause = compile_predicate(p);
+   return 1;
+}
+
+int abolish(Module module, word indicator)
+{
+}
+
+void retract(Module module, word clause)
+{
+   word functor = clause_functor(clause);
+   Predicate p;
+   if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
+   {
+      // Retract the *first* value for clause that matches
+      list_delete_first(&p->clauses, DEREF(clause));
+      p->firstClause = compile_predicate(p);
    }
 }

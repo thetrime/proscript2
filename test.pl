@@ -1,8 +1,10 @@
 run_all_tests:-
-        findall(A,
-                a(A),
-                As),
-        writeln(As).
+        catch(foo(A),
+              B,
+              writeln(caught(B))),
+        writeln(after(A)).
 
-a(x).
-a(y).
+
+foo(a).
+foo(b):- throw(eggs).
+foo(c).

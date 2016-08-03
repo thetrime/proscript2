@@ -33,6 +33,15 @@ void list_splice(List* list, struct cell_t* cell)
       list->tail = cell->prev;
 }
 
+void list_delete_first(List* list, word w)
+{
+   struct cell_t* cell = list->head;
+   while (cell != NULL && cell->data != w)
+      cell = cell->next;
+   if (cell != NULL)
+      list_splice(list, cell);
+}
+
 struct cell_t* list_append(List* list, word w)
 {
    if (list->tail == NULL)

@@ -1,5 +1,6 @@
 #include "types.h"
 #include "list.h"
+#include "module.h"
 
 Query compile_query(word);
 void free_query(Query);

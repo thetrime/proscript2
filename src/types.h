@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "whashmap.h"
+#include "list.h"
 #include <gmp.h>
 
 #ifndef _TYPES_H
@@ -32,24 +33,6 @@ struct clause
 typedef struct clause clause;
 typedef clause* Clause;
 
-struct predicate_cell_t
-{
-   word term;
-   struct predicate_cell_t* next;
-};
-
-typedef struct predicate_cell_t predicate_cell_t;
-
-typedef struct
-{
-   predicate_cell_t* head;
-   predicate_cell_t** tail;
-   Clause firstClause;
-   char* meta;
-   int flags;
-} predicate;
-
-typedef predicate* Predicate;
 
 typedef struct
 {
@@ -135,7 +118,7 @@ struct choicepoint
    unsigned char* PC;
    struct frame* FR;
    struct frame* NFR;
-   uintptr_t SP;
+   word* SP;
    uintptr_t TR;
    int H;
    struct choicepoint* CP;

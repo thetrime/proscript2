@@ -45,11 +45,11 @@ int halted = 0;
 Choicepoint CP = NULL;
 unsigned int TR;
 uintptr_t H = 0;
-uintptr_t SP = 0;
 
 word trail[1024];
 word HEAP[65535];
 word STACK[65535];
+word* SP = &STACK[0];
 word* argStack[64];
 word** argStackP = argStack;
 
@@ -59,6 +59,7 @@ Module currentModule = NULL;
 Module userModule = NULL;
 Choicepoint initialChoicepoint = NULL;
 word current_exception = 0;
+word* exception_local = NULL;
 Stream current_input = NULL;
 Stream current_output = NULL;
 
@@ -372,8 +373,15 @@ void PORTRAY(word w)
 
 int SET_EXCEPTION(word w)
 {
-   current_exception = w;
+   current_exception = copy_local(w, &exception_local);
    return 0;
+}
+
+void CLEAR_EXCEPTION()
+{
+   if (exception_local != NULL)
+      free(exception_local);
+   current_exception = 0;
 }
 
 int unify(word a, word b)
@@ -483,6 +491,7 @@ int backtrack_to(Choicepoint c)
    return 1;
 }
 
+
 word _copy_term(word t, List* variables, word* new_vars)
 {
    if (TAGOF(t) == VARIABLE_TAG)
@@ -517,14 +526,82 @@ word copy_term(word term)
    return result;
 }
 
+int count_compounds(word t)
+{
+   t = DEREF(t);
+   if (TAGOF(t) == COMPOUND_TAG)
+   {
+      int i = 1;
+      Functor f = getConstant(FUNCTOROF(t)).data.functor_data;
+      for (int j = 0; j < f->arity; j++)
+         i+=count_compounds(ARGOF(t, j));
+      return i + f->arity;
+   }
+   return 0;
+}
+
+word make_local_(word t, List* variables, word* heap, int* ptr)
+{
+   t = DEREF(t);
+   switch(TAGOF(t))
+   {
+      case CONSTANT_TAG:
+         return t;
+      case POINTER_TAG:
+         return t;
+      case COMPOUND_TAG:
+      {
+         word result = (word)(&heap[*ptr]) | COMPOUND_TAG;
+         heap[*ptr] = FUNCTOROF(t);
+         (*ptr)++;
+         int argp = *ptr;
+         Functor f = getConstant(FUNCTOROF(t)).data.functor_data;
+         (*ptr) += f->arity;
+         for (int i = 0; i < f->arity; i++)
+         {
+            heap[argp++] = make_local_(ARGOF(t, i), variables, heap, ptr);
+         }
+         return result;
+      }
+      case VARIABLE_TAG:
+      {
+         int i = list_index(variables, t);
+         heap[i+3] = (word)&heap[i+3];
+         return ((word)heap)+i+3;
+      }
+   }
+   assert(0);
+}
+
+word copy_local_with_extra_space(word t, word** local, int extra)
+{
+   List variables;
+   init_list(&variables);
+   int i = count_compounds(t);
+   find_variables(t, &variables);
+   i += list_length(&variables);
+   i += extra;
+   *local = malloc(sizeof(word) * i);
+   int ptr = extra+list_length(&variables);
+   word w = make_local_(t, &variables, *local, &ptr);
+   free_list(&variables);
+   return w;
+}
+
+word copy_local(word t, word** local)
+{
+   return copy_local_with_extra_space(t, local, 0);
+}
+
 void CreateChoicepoint(unsigned char* address, Clause clause)
 {
-   Choicepoint c = (Choicepoint)&STACK[SP];
+   printf("Creating a choicepoint at %p\n", SP);
+   Choicepoint c = (Choicepoint)SP;
    c->SP = SP;
    c->CP = CP;
    c->H = H;
    CP = c;
-   SP += sizeof(choicepoint);
+   SP += sizeof(choicepoint)/sizeof(word);
    c->FR = FR;
    c->clause = clause;
    c->module = currentModule;
@@ -594,8 +671,10 @@ int load_frame_code(word functor, Module optionalContext, Frame frame)
 
 Frame allocFrame()
 {
-   Frame f = (Frame)&STACK[SP];
-   SP += sizeof(frame);
+   printf("Making a frame at %p\n", SP);
+   Frame f = (Frame)SP;
+   SP += sizeof(frame)/sizeof(word);
+   printf("SP -> %p\n", SP);
    f->parent = FR;
    if (FR != NULL)
       f->depth = FR->depth+1;
@@ -620,9 +699,11 @@ void initialize_kernel()
 
 RC execute()
 {
+   printf("SP starts at %p\n", SP);
+   printf("sizeof(frame) = %d\n", sizeof(frame));
    while (!halted)
    {
-      //print_instruction();
+      print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -630,10 +711,20 @@ RC execute()
                continue;
             return FAIL;
          case I_ENTER:
+            // Move the top of the stack up by the SLOT arg to I_ENTER. It isnt really a slot, but 16 bits is plenty - if you have more than 65535 unique variables
+            // in your goal then you should probably refactor it!
+            // Note that at I_ENTER, ARGP is already pointing the last argument we matched in the head. This provides additional space for the variables in the frame
             NFR = allocFrame();
             ARGP = NFR->slots;
             PC++;
             continue;
+         case I_ALLOCATE:
+         {
+            int words = CODE16(PC+1);
+            SP += words;
+            PC+=3;
+            continue;
+         }
          case I_EXIT_QUERY:
             if (CP == initialChoicepoint)
                return SUCCESS;
@@ -761,6 +852,7 @@ RC execute()
          case I_DEPART:
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
+            if (getConstant(functor).data.functor_data->arity == 1) printf("ARGP: %p, Value at ARGP: %08lx\n", NFR->slots, DEREF(*NFR->slots));
             NFR->functor = functor;
             if (!load_frame_code(functor, NULL, NFR))
                goto b_throw_foreign;
@@ -769,8 +861,12 @@ RC execute()
             ARGP = NFR->slots;
             FR = NFR;
             FR->choicepoint = CP;
-            NFR = allocFrame();
+            //NFR = allocFrame();
+            // Deallocate the frame entirely by moving SP back down, provided there are no choicepoints in the way
+            //if (CP < FR)
+            //   SP = FR;
             PC = FR->clause->code;
+            if (getConstant(functor).data.functor_data->arity == 1) printf("ARGP: %p, Value at ARGP: %08lx\n", NFR->slots, DEREF(*NFR->slots));
             continue;
          }
          case B_CLEANUP_CHOICEPOINT:
@@ -788,9 +884,8 @@ RC execute()
             if (current_exception == 0)
                assert(0 && "throw but not exception?");
             word backtrace = 0;
-            if (FUNCTOROF(current_exception) == errorFunctor && (TAGOF(ARGOF(current_exception, 1)) == VARIABLE_TAG))
+            if (TAGOF(current_exception) == COMPOUND_TAG && FUNCTOROF(current_exception) == errorFunctor && (TAGOF(ARGOF(current_exception, 1)) == VARIABLE_TAG))
                backtrace = ARGOF(current_exception, 1);
-
             while(FR != NULL)
             {
                if (backtrace != 0)
@@ -811,7 +906,13 @@ RC execute()
                }
                if (FR->functor == catchFunctor)
                {
+                  printf("Found a catch/3 in %p\n", FR);
                   backtrack_to(FR->choicepoint);
+                  printf("Unwound to catch/3\n");
+                  printf("Current exception is now "); PORTRAY(current_exception); printf("\n");
+                  printf("Unifier is %08lx\n", FR->slots[1]);
+                  PORTRAY(FR->slots[0]); printf("\n");
+                  PORTRAY(FR->slots[1]); printf("\n");
                   if (unify(copy_term(current_exception), FR->slots[1]))
                   {
                      // Success! Exception is successfully handled. Now we just have to do i_usercall after adjusting the registers to point to the handler
@@ -848,7 +949,7 @@ RC execute()
             ARGP = NFR->slots;
             FR = NFR;
             FR->choicepoint = CP;
-            NFR = allocFrame();
+//            NFR = allocFrame();
             PC = FR->clause->code;
             continue;
          }
@@ -858,8 +959,8 @@ RC execute()
             FR->choicepoint = CP;
             FR->slots[CODE16(PC+1)] = (word)CP;
             ARGP = &FR->slots[1];
-            PC+=2;
-            continue;
+            PC+=2; // i_usercall returns to PC+1, and we want to return to PC+3, so add 2 here
+            goto i_usercall;
          }
          case I_USERCALL:
          i_usercall:
@@ -945,9 +1046,15 @@ RC execute()
          case B_VAR:
          {
             unsigned int slot = CODE16(PC+1);
+            // FIXME: Suspicious...
             if (FR->slots[slot] == 0)
                FR->slots[slot] = MAKE_VAR();
-            *(ARGP++) = _link(FR->slots[slot]);
+            printf("Writing linked variable to %p\n", ARGP);
+            printf("Variable should deref to %08lx\n", FR->slots[slot]);
+            PORTRAY(FR->slots[slot]); printf("\n");
+            word w = _link(FR->slots[slot]);
+            printf("But actual value is %08lx\n", w);
+            *(ARGP++) = w;
             PC+=3;
             continue;
          }
@@ -1022,6 +1129,7 @@ RC execute()
             continue;
          case H_ATOM:
          {
+            printf("Arg is at %p\n", ARGP);
             word atom = FR->clause->constants[CODE16(PC+1)];
             word arg = DEREF(*(ARGP++));
             PC+=3;
@@ -1037,6 +1145,8 @@ RC execute()
             return FAIL;
          }
          case H_VOID:
+            printf("Frame is %p, SP is %p ignoring arg at %p, with value %08lx\n", FR, SP, ARGP, *ARGP);
+            PORTRAY(*ARGP); printf("\n");
             ARGP++;
             PC++;
             continue;
@@ -1076,6 +1186,7 @@ RC execute()
          }
          default:
          {
+            printf("Illegal instruction %d\n", *PC);
             assert(0 && "Illegal instruction\n");
          }
       }
@@ -1107,9 +1218,14 @@ RC execute_query(word goal)
 
    FR = NFR;
    ARGP = FR->slots;
+   printf("ARGP starts at %p\n", ARGP);
    for (int i = 0; i < query->variable_count; i++)
       FR->slots[i] = query->variables[i];
-   NFR = allocFrame();
+
+   // Protect the variables of this frame
+   SP += query->variable_count;
+
+//   NFR = allocFrame();
    PC = FR->clause->code;
    free_query(query);
    return execute();
@@ -1243,7 +1359,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: %s ", PC, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" %s ", instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
@@ -1269,11 +1385,11 @@ void print_instruction()
 void make_foreign_choicepoint(word w)
 {
    FR->slots[CODE16(PC+1+sizeof(word))] = w;
-   Choicepoint c = (Choicepoint)&STACK[SP];
+   Choicepoint c = (Choicepoint)CP;
    c->SP = SP;
    c->CP = CP;
    CP = c;
-   SP += sizeof(choicepoint);
+   SP += sizeof(choicepoint)/sizeof(word);
    c->FR = FR;
    c->clause = FR->clause;
    c->module = currentModule;

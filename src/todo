@@ -1,8 +1,8 @@
-LRU cache for atoms/integers/floats
-documenting the design
 directives
+modules
+format/3
+meta-predicates
+emscripten
 
-tidy
-   There are at least 2 representations of every instruction(!)
-Checkings
-   There are many CHECKME and FIXMEs in the code
+Concerns
+I'm not sure that the stack is safe. The only space allocated is sizeof(frame). The slots dont take up any space, which means the next frame just clobbers them(?!)

@@ -285,12 +285,16 @@ NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
       return FAIL;
    if (p->flags && PREDICATE_FOREIGN)
       permission_error(accessAtom, privateProcedureAtom, predicate_indicator(head));
-   predicate_cell_t* c = backtrack == 0?p->head:GET_POINTER(backtrack);
-   if (c == NULL)
+   word list;
+   if (backtrack == 0)
+      list = term_from_list(&p->clauses, emptyListAtom);
+   else
+      list = backtrack;
+   if (list == emptyListAtom)
       return FAIL;
-   if (c->next != NULL)
-      make_foreign_choicepoint(MAKE_POINTER(c->next));
-   word clause = c->term;
+   if (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+      make_foreign_choicepoint(ARGOF(list,1));
+   word clause = ARGOF(list, 0);
    if (TAGOF(clause) == COMPOUND_TAG)
    {
       return unify(ARGOF(clause,0), head) && unify(ARGOF(clause,1), body);
@@ -336,25 +340,98 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
 // 8.9.1
 PREDICATE(asserta, 1, (word term)
 {
-   assert(0);
+   Module m;
+   if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
+   {
+      m = find_module(ARGOF(term, 0));
+      if (m == NULL)
+         m = create_module(ARGOF(term, 0));
+      asserta(m, ARGOF(term, 1));
+   }
+   else
+   {
+      m = get_current_module();
+      asserta(m, term);
+   }
+   return 1;
 })
 
 // 8.9.2
 PREDICATE(assertz, 1, (word term)
 {
-   assert(0);
+   Module m;
+   if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
+   {
+      m = find_module(ARGOF(term, 0));
+      if (m == NULL)
+         m = create_module(ARGOF(term, 0));
+      assertz(m, ARGOF(term, 1));
+   }
+   else
+   {
+      m = get_current_module();
+      assertz(m, term);
+   }
+   return 1;
 })
 
 // 8.9.3
-NONDET_PREDICATE(rtract, 1, (word term, word backtrack)
+NONDET_PREDICATE(retract, 1, (word term, word backtrack)
 {
-   assert(0);
+   word list;
+   Module m;
+   word clause;
+   if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
+   {
+      m = find_module(ARGOF(term, 0));
+      if (m == NULL)
+         return FAIL; // If the module does not exist it obviously does not contain any clauses
+      clause = ARGOF(term, 1);
+   }
+   else
+   {
+      m = get_current_module();
+      clause = term;
+   }
+   if (backtrack == 0)
+   {
+      word functor;
+      if (!head_functor(term, &m, &functor))
+      {
+         return 0; // Error
+      }
+      Predicate p = lookup_predicate(m, functor);
+      if ((p->flags & PREDICATE_DYNAMIC) == 0)
+         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(term));
+      list = term_from_list(&p->clauses, emptyListAtom);
+   }
+   else
+      list = backtrack;
+   if (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+      make_foreign_choicepoint(ARGOF(list, 1));
+   if (unify(ARGOF(list, 0), term))
+   {
+      retract(m, term);
+      return SUCCESS;
+   }
+   else
+      return FAIL;
 })
 
 // 8.9.4
 PREDICATE(abolish, 1, (word indicator)
 {
-   assert(0);
+   Module m;
+   if (TAGOF(indicator) == COMPOUND_TAG && FUNCTOROF(indicator) == crossModuleCallFunctor)
+   {
+      m = find_module(ARGOF(indicator, 0));
+      if (m == NULL)
+         return SUCCESS;
+      abolish(m, ARGOF(indicator, 1));
+   }
+   else
+      abolish(get_current_module(), indicator);
+   return SUCCESS;
 })
 
 // 8.10 (findall/3, bagof/3, setof/3) are in builtin.pl (note that they might be much faster if implemented directly in C)
@@ -1336,6 +1413,7 @@ NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
          if (ARGOF(list, 1) != emptyListAtom)
             make_foreign_choicepoint(ARGOF(list, 1));
          word head = ARGOF(list, 0);
+         // DANGER! this term contains references to the local storage! We must copy it to the heap or it will no longer be valid after erased!
          return unify(value, copy_term(ARGOF(head, 0))) && unify(ref, ARGOF(head, 1));
       }
    }

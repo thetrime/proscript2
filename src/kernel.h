@@ -101,6 +101,7 @@ typedef enum
 } RC;
 
 #define PREDICATE_FOREIGN 1
+#define PREDICATE_DYNAMIC 2
 
 RC execute_query(word);
 RC backtrack_query();
@@ -127,3 +128,6 @@ extern Stream current_input;
 extern Stream current_output;
 extern word HEAP[];
 #endif
+
+word copy_local_with_extra_space(word t, word** local, int extra);
+word copy_local(word t, word** local);

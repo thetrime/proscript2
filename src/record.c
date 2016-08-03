@@ -25,55 +25,25 @@ void initialize_database()
    database = whashmap_new();
 }
 
-int count_compounds(word t)
+
+
+word make_dbref(word t, word** local, word** slot)
 {
-   t = DEREF(t);
-   if (TAGOF(t) == COMPOUND_TAG)
-   {
-      int i = 1;
-      Functor f = getConstant(FUNCTOROF(t)).data.functor_data;
-      for (int j = 0; j < f->arity; j++)
-         i+=count_compounds(ARGOF(t, j));
-      return i + f->arity;
-   }
-   return 0;
+   word w = copy_local_with_extra_space(t, local, 3);
+   // Write the functor
+   (*local)[0] = dbCellFunctor;
+   (*local)[1] = w;
+   // Make slot a variable for now so that the term isnt temporary garbage
+   (*local)[2] = (word)&((*local)[2]);
+   // Pass it out so we can fill it in later
+   *slot = &((*local)[2]);
+   return (word)(*local) | COMPOUND_TAG;
 }
 
-word denature_term_(word t, List* variables, word* heap, int* ptr)
-{
-   t = DEREF(t);
-   switch(TAGOF(t))
-   {
-      case CONSTANT_TAG:
-         return t;
-      case POINTER_TAG:
-         return t;
-      case COMPOUND_TAG:
-      {
-         word result = (word)(&heap[*ptr]) | COMPOUND_TAG;
-         heap[*ptr] = FUNCTOROF(t);
-         (*ptr)++;
-         int argp = *ptr;
-         Functor f = getConstant(FUNCTOROF(t)).data.functor_data;
-         (*ptr) += f->arity;
-         for (int i = 0; i < f->arity; i++)
-         {
-            heap[argp++] = denature_term_(ARGOF(t, i), variables, heap, ptr);
-         }
-         return result;
-      }
-      case VARIABLE_TAG:
-      {
-         int i = list_index(variables, t);
-         heap[i+3] = (word)&heap[i+3];
-         return ((word)heap)+i+3;
-      }
-   }
-   assert(0);
-}
 
 // Produce a thing which is like a term but is not on the heap
 // FIXME: we need to clean up this local storage at some point!
+/*
 word denature_term(word t, word** local, word** slot)
 {
    List variables;
@@ -95,7 +65,7 @@ word denature_term(word t, word** local, word** slot)
    *slot = &((*local)[2]);
    return (word)(*local) | COMPOUND_TAG;
 }
-
+*/
 
 word intern_record(List* list, word key, struct cell_t* cell, word* ptr)
 {
@@ -115,7 +85,7 @@ word recorda(word key, word term)
    word* slot;
    if (whashmap_get(database, key, (any_t)&list) == MAP_OK)
    {
-      word cx = denature_term(term, &ptr, &slot);
+      word cx = make_dbref(term, &ptr, &slot);
       cell = list_unshift(list, cx);
    }
    else
@@ -123,7 +93,7 @@ word recorda(word key, word term)
       list = malloc(sizeof(List));
       init_list(list);
       whashmap_put(database, key, list);
-      cell = list_unshift(list, denature_term(term, &ptr, &slot));
+      cell = list_unshift(list, make_dbref(term, &ptr, &slot));
    }
    *slot = intern_record(list, key, cell, ptr);
    return *slot;
@@ -135,13 +105,13 @@ word recordz(word key, word term)
    word* ptr;
    word* slot;
    if (whashmap_get(database, key, (any_t)&list) == MAP_OK)
-      cell = list_append(list, denature_term(term, &ptr, &slot));
+      cell = list_append(list, make_dbref(term, &ptr, &slot));
    else
    {
       list = malloc(sizeof(List));
       init_list(list);
       whashmap_put(database, key, list);
-      cell = list_append(list, denature_term(term, &ptr, &slot));
+      cell = list_append(list, make_dbref(term, &ptr, &slot));
    }
    *slot = intern_record(list, key, cell, ptr);
    return *slot;

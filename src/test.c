@@ -5,6 +5,7 @@
 #include "compiler.h"
 #include "parser.h"
 #include <string.h>
+#include <unistd.h>
 #ifdef EMSCRIPTEN
 #include <emscripten.h>
 #else
@@ -22,7 +23,7 @@ EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
 
-   //consult_file("tests/inriasuite/inriasuite.pl");
+   //consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
    consult_file("test.pl");
    printf("Consulted. Running tests...\n");
    word w = MAKE_ATOM("run_all_tests");

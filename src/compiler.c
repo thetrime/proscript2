@@ -287,7 +287,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
    }
    else if (term == catchAtom)
    {
-      int slot = (*next_reserved)++;
+      int slot = 4;
       push_instruction(instructions, INSTRUCTION_SLOT(I_CATCH, slot));
       push_instruction(instructions, INSTRUCTION_SLOT(I_EXITCATCH, slot));
    }
@@ -509,7 +509,7 @@ int get_reserved_slots(word t)
          return get_reserved_slots(ARGOF(t, 0)) + 1;
    }
    if (t == catchAtom)
-      return 1;
+      return 4; // One for each arg on the frame, plus an extra one for the choicepoint
    return 0;
 }
 
@@ -710,10 +710,27 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
    return clause;
 }
 
+struct predicate_context_t
+{
+   int length;
+   int index;
+   char* meta;
+   Clause* next;
+};
+
+void _compile_predicate(word term, void* _context)
+{
+   struct predicate_context_t* context = (struct predicate_context_t*)_context;
+   Clause q = compile_predicate_clause(term, context->index + 1 < context->length, context->meta);
+   context->index++;
+   *(context->next) = q;
+   context->next = &(q->next);
+}
+
 Clause compile_predicate(Predicate p)
 {
    Clause clause = NULL;
-   if (p->head == NULL)
+   if (list_length(&p->clauses) == 0)
    {
       instruction_list_t instructions;
       init_instruction_list(&instructions);
@@ -723,15 +740,13 @@ Clause compile_predicate(Predicate p)
    }
    else
    {
-      predicate_cell_t* cell = p->head;
       Clause* ptr = &clause;
-      while(cell != NULL)
-      {
-         Clause q = compile_predicate_clause(cell->term, cell->next != NULL, p->meta);
-         *ptr = q;
-         ptr = &((*ptr)->next);
-         cell = cell->next;
-      };
+      struct predicate_context_t context;
+      context.length = list_length(&p->clauses);
+      context.index = 0;
+      context.meta = p->meta;
+      context.next = &clause;
+      list_apply(&p->clauses, &context, _compile_predicate);
    }
    return clause;
 }
