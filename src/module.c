@@ -163,7 +163,9 @@ int abolish(Module module, word indicator)
    if (!must_be_predicate_indicator(indicator))
    {
       PORTRAY(ARGOF(indicator, 1));
-      printf(": Not a PI\n");
+      constant c = getConstant(ARGOF(indicator, 1));
+      printf(": Not a PI: %d\n", c.type);
+      printf("%d\n", c.type == INTEGER_TYPE);
       return ERROR;
    }
    printf("Here\n");

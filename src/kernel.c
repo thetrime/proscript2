@@ -362,7 +362,7 @@ void PORTRAY(word w)
             printf("%.*s", c.data.atom_data->length, c.data.atom_data->data);
             break;
          case INTEGER_TYPE:
-            printf("%ld", c.data.integer_data->data);
+            printf("int:%ld", c.data.integer_data->data);
             break;
          case FUNCTOR_TYPE:
             PORTRAY(c.data.functor_data->name); printf("/%d", c.data.functor_data->arity);
