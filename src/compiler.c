@@ -326,6 +326,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
          {
             // if-then-else
             int s1 = 0;
+            int s2 = 0;
             int cut_point = (*next_reserved)++;
             instruction_t* if_then_else = INSTRUCTION_SLOT_ADDRESS(C_IF_THEN_ELSE, cut_point, -1);
             s1 += push_instruction(instructions, if_then_else);
@@ -337,12 +338,12 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
             rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, cut_point, &s1);
             // (and now jump out before the Else)
             instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
-            s1+= push_instruction(instructions, jump);
-            if_then_else->address = s1;
-            size += s1;
+            s2 = push_instruction(instructions, jump);
+            if_then_else->address = s1 + s2;
+            size += s1 + s2;
             s1 = 0;
             rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut, &s1);
-            jump->address = s1;
+            jump->address = s1 + s2;
             size += s1;
          }
          else
