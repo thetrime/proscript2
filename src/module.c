@@ -12,6 +12,7 @@
 #include "whashmap.h"
 #include "ctable.h"
 #include "compiler.h"
+#include "checks.h"
 #include <stdio.h>
 
 wmap_t modules = NULL;
@@ -19,6 +20,11 @@ wmap_t modules = NULL;
 void initialize_modules()
 {
    modules = whashmap_new();
+}
+
+void free_predicate(Predicate p)
+{
+   printf("FIXME: Predicate is not freed\n");
 }
 
 int define_foreign_predicate_c(Module module, word functor, int(*func)(), int flags)
@@ -152,6 +158,23 @@ int assertz(Module module, word clause)
 
 int abolish(Module module, word indicator)
 {
+   printf("Abolishing\n");
+   PORTRAY(indicator); printf("\n");
+   if (!must_be_predicate_indicator(indicator))
+   {
+      PORTRAY(ARGOF(indicator, 1));
+      printf(": Not a PI\n");
+      return ERROR;
+   }
+   printf("Here\n");
+   word functor = MAKE_FUNCTOR(ARGOF(indicator, 0), getConstant(ARGOF(indicator, 1)).data.integer_data->data);
+   Predicate p = lookup_predicate(module, functor);
+   if ((p->flags & PREDICATE_DYNAMIC) == 0)
+      return permission_error(modifyAtom, staticProcedureAtom, indicator);
+   whashmap_remove(module->predicates, functor);
+   free_predicate(p);
+   printf("Abolished\n");
+   return SUCCESS;
 }
 
 void retract(Module module, word clause)

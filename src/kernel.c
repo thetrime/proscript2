@@ -50,7 +50,7 @@ word HEAP[65535];
 word* HTOP = &HEAP[65535];
 word* H = &HEAP[0];
 word STACK[65535];
-word STOP = &STACK[65535];
+word* STOP = &STACK[65535];
 word* SP = &STACK[0];
 word* argStack[64];
 word** argStackP = argStack;
@@ -402,6 +402,7 @@ void PORTRAY(word w)
 int SET_EXCEPTION(word w)
 {
    current_exception = copy_local(w, &exception_local);
+   //printf("Exception has been set to "); PORTRAY(w); printf("\n");
    return 0;
 }
 
@@ -673,7 +674,6 @@ Clause get_predicate_code(Predicate p)
 int prepare_frame(word functor, Module optionalContext, Frame frame)
 {
    Module module = (optionalContext != NULL)?optionalContext:currentModule;
-   printf("Here\n");
    Predicate p = lookup_predicate(module, functor);
    if (p == NULL && currentModule != userModule)
    {
@@ -761,7 +761,7 @@ RC execute()
    while (!halted)
    {
       //print_choices();
-      print_instruction();
+      //print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -961,6 +961,7 @@ RC execute()
          case B_THROW_FOREIGN:
          b_throw_foreign:
          {
+            printf("in b_throw_foreign\n");
             if (current_exception == 0)
                assert(0 && "throw but not exception?");
             word backtrace = emptyListAtom;
@@ -1057,8 +1058,7 @@ RC execute()
          i_usercall:
          {
             word goal = DEREF(*(ARGP-1));
-            printf("i_usercall of arg at %p\n   ", ARGP-1); PORTRAY(goal);printf("\n");
-            MAKE_FUNCTOR(readAtom, 2);
+            //printf("i_usercall of arg at %p\n   ", ARGP-1); PORTRAY(goal);printf("\n");
             if (TAGOF(goal) == VARIABLE_TAG)
             {
                instantiation_error();
@@ -1526,7 +1526,7 @@ void print_instruction()
 void make_foreign_choicepoint(word w)
 {
    FR->slots[CODE16(PC+1+sizeof(word))] = w;
-   //printf("Allocating a foreign choicepoint at %p\n", SP);
+   //printf("Allocating a foreign choicepoint at %p (top = %p, bottom = %p)\n", SP, STOP, STACK);
    Choicepoint c = (Choicepoint)SP;
    c->SP = SP;
    c->CP = CP;

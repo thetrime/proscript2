@@ -340,8 +340,8 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
 // 8.9.1
 PREDICATE(asserta, 1, (word term)
 {
-   printf("asserta:\n");
-   PORTRAY(term); printf("\n");
+   //printf("asserta:\n");
+   //PORTRAY(term); printf("\n");
    Module m;
    if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
    {
@@ -428,12 +428,10 @@ PREDICATE(abolish, 1, (word indicator)
    {
       m = find_module(ARGOF(indicator, 0));
       if (m == NULL)
-         return SUCCESS;
-      abolish(m, ARGOF(indicator, 1));
+         return SUCCESS; // maybe should be existence error?
+      return abolish(m, ARGOF(indicator, 1));
    }
-   else
-      abolish(get_current_module(), indicator);
-   return SUCCESS;
+   return abolish(get_current_module(), indicator);
 })
 
 // 8.10 (findall/3, bagof/3, setof/3) are in builtin.pl (note that they might be much faster if implemented directly in C)
