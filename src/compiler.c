@@ -544,28 +544,29 @@ void _assemble(void *p, instruction_t* i)
    }
    if (i->address != -1)
    {
+      uintptr_t offset = i->address;
       if (sizeof(word) == 4)
       {
-         context->clause->code[context->codep++] = (i->address >> 24) & 0xff;
-         context->clause->code[context->codep++] = (i->address >> 16) & 0xff;
-         context->clause->code[context->codep++] = (i->address >>  8) & 0xff;
-         context->clause->code[context->codep++] = (i->address >>  0) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 24) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 16) & 0xff;
+         context->clause->code[context->codep++] = (offset >>  8) & 0xff;
+         context->clause->code[context->codep++] = (offset >>  0) & 0xff;
       }
       else if (sizeof(word) == 8)
       {
-         context->clause->code[context->codep++] = (i->address >> 56) & 0xff;
-         context->clause->code[context->codep++] = (i->address >> 48) & 0xff;
-         context->clause->code[context->codep++] = (i->address >> 40) & 0xff;
-         context->clause->code[context->codep++] = (i->address >> 32) & 0xff;
-         context->clause->code[context->codep++] = (i->address >> 24) & 0xff;
-         context->clause->code[context->codep++] = (i->address >> 16) & 0xff;
-         context->clause->code[context->codep++] = (i->address >>  8) & 0xff;
-         context->clause->code[context->codep++] = (i->address >>  0) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 56) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 48) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 40) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 32) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 24) & 0xff;
+         context->clause->code[context->codep++] = (offset >> 16) & 0xff;
+         context->clause->code[context->codep++] = (offset >>  8) & 0xff;
+         context->clause->code[context->codep++] = (offset >>  0) & 0xff;
       }
       else if (sizeof(word) == 2)
       {
-         context->clause->code[context->codep++] = (i->address >>  8) & 0xff;
-         context->clause->code[context->codep++] = (i->address >>  0) & 0xff;
+         context->clause->code[context->codep++] = (offset >>  8) & 0xff;
+         context->clause->code[context->codep++] = (offset >>  0) & 0xff;
       }
       else
          assert(0 && "What kind of CPU IS this?");
@@ -711,8 +712,8 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
    Clause clause = assemble(&instructions);
    clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
-   //printf("Just compiled this:\n");
-   //print_clause(clause);
+   PORTRAY(term); printf(" compiles to this:\n");
+   print_clause(clause);
    return clause;
 }
 

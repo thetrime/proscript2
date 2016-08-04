@@ -269,6 +269,15 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          append_string(sb, strdup(buffer), strlen(buffer));
          return 1;
       }
+      if (c.type == BLOB_TYPE)
+      {
+         Blob b = c.data.blob_data;
+         append_string_no_copy(sb, b->type, strlen(b->type));
+         char buffer[64];
+         sprintf((char*)buffer, "<%p>", b->ptr);
+         append_string(sb, strdup(buffer), strlen(buffer));
+         return 1;
+      }
       if (c.type == FLOAT_TYPE)
       {
          char buffer[64];
@@ -313,7 +322,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          mpz_clear(num);
          return 1;
       }
-
+      printf("Type: %d from %08lx\n", c.type, term);
       assert(0 && "Unhandled constant type");
    }
    else if (get_option(options, numbervarsAtom, falseAtom) == trueAtom && TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == numberedVarFunctor && TAGOF(ARGOF(term,0)) == CONSTANT_TAG && getConstant(ARGOF(term,0)).type == INTEGER_TYPE)

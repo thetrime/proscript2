@@ -160,6 +160,8 @@ Blob allocBlob(char* type, void* ptr)
 word intern_blob(char* type, void* ptr)
 {
    word w = (word)((CNext << 2) | CONSTANT_TAG);
-   CTable[CNext++].data.blob_data = allocBlob(type, ptr);
+   Blob b = allocBlob(type, ptr);
+   CTable[CNext].type = BLOB_TYPE;
+   CTable[CNext++].data.blob_data = b;
    return w;
 }

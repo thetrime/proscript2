@@ -147,8 +147,10 @@ Stream get_stream(word w)
    if (TAGOF(w) == CONSTANT_TAG)
    {
       constant c = getConstant(w);
-      if (c.type == BLOB_TYPE && strcmp(c.data.blob_data->type, "stream"))
+      if (c.type == BLOB_TYPE && strcmp(c.data.blob_data->type, "stream") == 0)
+      {
          return c.data.blob_data->ptr;
+      }
       else if (c.type == ATOM_TYPE)
       {
          // Aliases not implemented yet

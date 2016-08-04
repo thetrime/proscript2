@@ -726,7 +726,7 @@ PREDICATE(read_term, 3, (word stream, word term, word options)
    Options _options;
    init_options(&_options);
    options_from_term(&_options, options);
-   word t = read_term(current_input, &_options);
+   word t = read_term(s, &_options);
    free_options(&_options);
    return unify(term, t);
 })
@@ -745,7 +745,8 @@ PREDICATE(read, 2, (word stream, word term)
       return ERROR;
    Options _options;
    init_options(&_options);
-   word t = read_term(current_input, &_options);
+   word t = read_term(s, &_options);
+   printf("Read this term\n"); PORTRAY(t); printf("\n");
    free_options(&_options);
    return unify(term, t);
 })

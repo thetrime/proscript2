@@ -204,7 +204,7 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
    s->buffer_ptr = 0;
    s->filled_buffer_size = 0;
    s->id = id++;
-   s->term = MAKE_BLOB("stream", &s->id);
+   s->term = MAKE_BLOB("stream", s);
    s->flags = 0;
    return s;
 }
@@ -242,7 +242,9 @@ Stream nullStream()
 
 int console_write(Stream stream, int length, unsigned char* buffer)
 {
-   printf("%*.*s", length, length, buffer);
+   for (int i = 0; i < length; i++)
+      putchar(buffer[i]);
+   //printf("%*.*s", length, length, buffer);
    return length;
 }
 

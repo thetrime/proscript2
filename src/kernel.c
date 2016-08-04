@@ -64,6 +64,19 @@ Stream current_input = NULL;
 Stream current_output = NULL;
 
 
+void print_choices()
+{
+   Choicepoint q = CP;
+   printf("Choices: ----\n");
+   while(q != NULL)
+   {
+      printf("    @ %p: Retry at %p\n", q, q->PC);
+      q = q->CP;
+   }
+   printf("-----End choices\n");
+
+}
+
 void print_instruction();
 void fatal(char* string)
 {
@@ -345,6 +358,9 @@ void PORTRAY(word w)
          case FLOAT_TYPE:
             printf("%f", c.data.float_data->data);
             break;
+         case BLOB_TYPE:
+            printf("%s<%p>", c.data.blob_data->type, c.data.blob_data->ptr);
+            break;
          default:
             assert(0);
 
@@ -388,26 +404,32 @@ int unify(word a, word b)
 {
    a = DEREF(a);
    b = DEREF(b);
+   printf("unifying "); PORTRAY(a); printf(" and "); PORTRAY(b); printf("\n");
    if (a == b)
       return SUCCESS;
+   printf("here\n");
    if (TAGOF(a) == VARIABLE_TAG)
    {
       _bind(a, b);
       return SUCCESS;
    }
+   printf("here\n");
    if (TAGOF(b) == VARIABLE_TAG)
    {
       _bind(b, a);
       return SUCCESS;
    }
+   printf("and here\n");
    if ((TAGOF(a) == COMPOUND_TAG) && (TAGOF(b) == COMPOUND_TAG) && (FUNCTOROF(a) == FUNCTOROF(b)))
    {
+      printf("Both structs\n");
       int arity = getConstant(FUNCTOROF(a)).data.functor_data->arity;
       for (int i = 0; i < arity; i++)
          if (!unify(ARGOF(a, i), ARGOF(b, i)))
             return 0;
       return SUCCESS;
    }
+   printf("Returning failure\n");
    return 0;
 }
 
@@ -449,6 +471,7 @@ int apply_choicepoint(Choicepoint c)
 {
    //printf("Applying choicepoint at %p\n", c);
    PC = c->PC;
+   //printf("PC is now %p\n", PC);
    H = c->H;
    FR = c->FR;
    NFR = c->NFR;
@@ -596,7 +619,7 @@ word copy_local(word t, word** local)
 
 void CreateChoicepoint(unsigned char* address, Clause clause)
 {
-   //printf("Creating a choicepoint at %p with frame %p and return address %p\n", SP, FR, FR->returnPC);
+   //printf("Creating a choicepoint at %p with frame %p and continuation address %p\n", SP, FR, address);
    Choicepoint c = (Choicepoint)SP;
    c->SP = SP;
    c->CP = CP;
@@ -712,7 +735,8 @@ RC execute()
    //printf("sizeof(frame) = %d\n", sizeof(frame));
    while (!halted)
    {
-      //print_instruction();
+      //print_choices();
+      print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -869,7 +893,7 @@ RC execute()
             //printf("   Wound SP back to %p\n", SP);
             PC = FR->returnPC;
             FR = FR->parent;
-            NFR = (Frame*)SP;
+            NFR = (Frame)SP;
             //printf("FR is now %p\n", FR);
             //NFR = SP;
             //printf("Set NFR to %p, but leaving SP at %p\n", NFR, SP);
@@ -889,7 +913,7 @@ RC execute()
             if ((uintptr_t)CP < (uintptr_t)FR)
             {
                SP = ARGP + FR->clause->slot_count;
-               //printf("Fencing in arguments by moving SP to %p\n", SP);
+               //printf("Fencing in arguments by moving SP to %p (%d slots)\n", SP, FR->clause->slot_count);
             }
             FR->choicepoint = CP;
             // Deallocate the frame entirely by moving SP back down, provided there are no choicepoints in the way
@@ -988,7 +1012,7 @@ RC execute()
             if ((uintptr_t)CP < (uintptr_t)FR)
             {
                SP = ARGP + FR->clause->slot_count;
-               //printf("Fencing in arguments by moving SP to %p\n", SP);
+               //printf("Fencing in arguments by moving SP to %p (%d slots)\n", SP, FR->clause->slot_count);
             }
             //printf("Parent is %p\n", FR->parent);
             FR->choicepoint = CP;
@@ -1058,6 +1082,7 @@ RC execute()
             continue;
          case C_IF_THEN_ELSE:
             FR->slots[CODE16(PC+1)] = (word)CP;
+            printf("Creating a choicepoint at %p with a continuation of %p \n", SP, PC+CODEPTR(PC+3));
             CreateChoicepoint(PC+CODEPTR(PC+3), FR->clause);
             PC+=3 + sizeof(word);
             continue;
@@ -1065,12 +1090,16 @@ RC execute()
          {
             word t1 = *(ARGP-1);
             word t2 = *(ARGP-2);
+            printf("Arg1: "); PORTRAY(t1); printf("\n");
+            printf("Arg2: "); PORTRAY(t2); printf("\n");
             ARGP-=2;
             if (unify(t1, t2))
             {
                PC++;
+               printf("Unified\n");
                continue;
             }
+            printf("Failed to unify. Backtracking: %p\n", CP);
             if (backtrack())
                continue;
             return FAIL;
@@ -1100,6 +1129,7 @@ RC execute()
          {
             unsigned int slot = CODE16(PC+1);
             // FIXME: Suspicious...
+            printf("Writing to %p\n", &FR->slots[slot]);
             if (FR->slots[slot] == 0)
                FR->slots[slot] = MAKE_VAR();
             //printf("Writing linked variable to %p\n", ARGP);
@@ -1227,6 +1257,14 @@ RC execute()
 //            SP += FR->clause->slot_count;
             //printf("Creating a choicepoint at %p\n", SP);
             //printf("ReturnPC was %p\n", FR->returnPC);
+            // We must ensure that this clause has enough space
+            if (SP < ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word))
+            {
+               // FIXME: We could also shrink the space here if needed. In fact, is there any reason we cannot just ALWAYS set SP to this?
+               //printf("Not enough space for this clause: We have %p but require %p bytes. Enlarging....\n", (char*)SP - (char*)FR, sizeof(word)*FR->clause->slot_count + sizeof(frame));
+               SP = ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word);
+               //printf("Bumping up SP to ensure this frame has enough space: Moving to %p\n", SP);
+            }
            CreateChoicepoint(FR->clause->next->code, FR->clause->next);
            //printf("ReturnPC is now %p\n", FR->returnPC);
            //printf("Done\n");
@@ -1396,20 +1434,21 @@ void print_clause(Clause clause)
 {
    for (int i = 0; i < clause->code_size; i++)
    {
+      int flags = instruction_info[clause->code[i]].flags;
       printf("@%d: %s ", i, instruction_info[clause->code[i]].name);
-      if (instruction_info[clause->code[i]].flags & HAS_CONST)
+      if (flags & HAS_CONST)
       {
          int index = (clause->code[i+1] << 8) | (clause->code[i+2]);
          i+=2;
          PORTRAY(clause->constants[index]); printf(" ");
       }
-      if (instruction_info[clause->code[i]].flags & HAS_ADDRESS)
+      if (flags & HAS_ADDRESS)
       {
-         long address = (clause->code[i+1] << 24) | (clause->code[i+2] << 16) | (clause->code[i+3] << 8) | (clause->code[i+4]);
-         i+=4;
-         printf("%lu ", address);
+         uintptr_t address = CODEPTR(&clause->code[i+1]);
+         i+=sizeof(word);
+         printf("%" PRIuPTR " ", address);
       }
-      if (instruction_info[clause->code[i]].flags & HAS_SLOT)
+      if (flags & HAS_SLOT)
       {
          int slot = (clause->code[i+1] << 8) | (clause->code[i+2]);
          i+=2;
@@ -1421,7 +1460,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, ret=%p) %s ", FR, FR->returnPC, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p) %s ", FR, CP, SP, instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
@@ -1447,7 +1486,8 @@ void print_instruction()
 void make_foreign_choicepoint(word w)
 {
    FR->slots[CODE16(PC+1+sizeof(word))] = w;
-   Choicepoint c = (Choicepoint)CP;
+   //printf("Allocating a foreign choicepoint at %p\n", SP);
+   Choicepoint c = (Choicepoint)SP;
    c->SP = SP;
    c->CP = CP;
    CP = c;
