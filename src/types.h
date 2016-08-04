@@ -114,6 +114,12 @@ typedef struct
 
 typedef cleanup* Cleanup;
 
+typedef enum
+{
+   Head,
+   Body
+} ChoicepointType;
+
 struct choicepoint
 {
    unsigned char* PC;
@@ -121,7 +127,8 @@ struct choicepoint
    struct frame* NFR;
    word* SP;
    uintptr_t TR;
-   int H;
+   word* H;
+   ChoicepointType type;
    struct choicepoint* CP;
    word functor;
    Clause clause;

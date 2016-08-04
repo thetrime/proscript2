@@ -47,6 +47,8 @@ typedef int(*compare2_t)(any_t, int, uintptr_t);
 */
 extern bimap_t bihashmap_new(compare1_t, compare2_t);
 
+extern void bihashmap_check(bimap_t);
+
 /*
  * Iteratively call f with argument (item, key1, key2, data) for
  * each element data in the hashmap. The function must

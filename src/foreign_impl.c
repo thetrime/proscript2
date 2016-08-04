@@ -340,6 +340,8 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
 // 8.9.1
 PREDICATE(asserta, 1, (word term)
 {
+   printf("asserta:\n");
+   PORTRAY(term); printf("\n");
    Module m;
    if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
    {
@@ -746,7 +748,7 @@ PREDICATE(read, 2, (word stream, word term)
    Options _options;
    init_options(&_options);
    word t = read_term(s, &_options);
-   printf("Read this term\n"); PORTRAY(t); printf("\n");
+   //printf("Read this term\n"); PORTRAY(t); printf("\n");
    free_options(&_options);
    return unify(term, t);
 })
@@ -1316,7 +1318,7 @@ PREDICATE(set_prolog_flag, 2, (word flag, word value)
 {
    if (!must_be_atom(flag) || !must_be_bound(value))
       return ERROR;
-   return set_prolog_flag(getConstant(flag).data.atom_data->data, value);
+   return set_prolog_flag(flag, value);
 })
 
 // 8.17.2

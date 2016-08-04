@@ -63,7 +63,7 @@ void instruction_list_apply(instruction_list_t* list, void* data, void(*fn)(void
       fn(data, cell);
 }
 
-void push_instruction(instruction_list_t* list, instruction_t* i)
+int push_instruction(instruction_list_t* list, instruction_t* i)
 {
    list->count++;
    i->next = NULL;
@@ -77,6 +77,7 @@ void push_instruction(instruction_list_t* list, instruction_t* i)
       list->tail->next = i;
       list->tail = i;
    }
+   return i->size;
 }
 
 instruction_t* INSTRUCTION(unsigned char opcode)
@@ -222,85 +223,88 @@ void compile_head(word term, wmap_t variables, instruction_list_t* instructions)
    }
 }
 
-void compile_term_creation(word term, wmap_t variables, instruction_list_t* instructions)
+int compile_term_creation(word term, wmap_t variables, instruction_list_t* instructions)
 {
+   int size = 0;
    if (TAGOF(term) == VARIABLE_TAG)
    {
       var_info_t* varinfo;
       assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
       if (varinfo->fresh)
       {
-         push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
+         size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
          varinfo->fresh = 0;
       }
       else if (0)
       {
-         push_instruction(instructions, INSTRUCTION_SLOT(B_ARGVAR, varinfo->slot));
+         size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGVAR, varinfo->slot));
       }
       else
       {
-         push_instruction(instructions, INSTRUCTION_SLOT(B_VAR, varinfo->slot));
+         size += push_instruction(instructions, INSTRUCTION_SLOT(B_VAR, varinfo->slot));
       }
    }
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
+      size += push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
       Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
       for (int i = 0; i < f->arity; i++)
-         compile_term_creation(ARGOF(term, i), variables, instructions);
-      push_instruction(instructions, INSTRUCTION(B_POP));
+         size += compile_term_creation(ARGOF(term, i), variables, instructions);
+      size += push_instruction(instructions, INSTRUCTION(B_POP));
    }
    else if (TAGOF(term) == CONSTANT_TAG)
    {
-      push_instruction(instructions, INSTRUCTION_CONST(B_ATOM, term));
+      size += push_instruction(instructions, INSTRUCTION_CONST(B_ATOM, term));
    }
    else
    {
       assert(0 && "Illegal tag");
    }
+   return size;
 }
 
-int compile_body(word term, wmap_t variables, instruction_list_t* instructions, int is_tail, int* next_reserved, int local_cut)
+int compile_body(word term, wmap_t variables, instruction_list_t* instructions, int is_tail, int* next_reserved, int local_cut, int* sizep)
 {
    int rc = 1;
    term = DEREF(term);
+   int size = 0;
    if (TAGOF(term) == VARIABLE_TAG)
    {
-      compile_term_creation(term, variables, instructions);
-      push_instruction(instructions, INSTRUCTION(I_USERCALL));
+      size += compile_term_creation(term, variables, instructions);
+      size += push_instruction(instructions, INSTRUCTION(I_USERCALL));
       if (is_tail)
-         push_instruction(instructions, INSTRUCTION(I_EXIT));
+         size += push_instruction(instructions, INSTRUCTION(I_EXIT));
    }
    else if (term == cutAtom)
    {
       if (local_cut != -1)
-         push_instruction(instructions, INSTRUCTION_SLOT(C_LCUT, local_cut));
+         size += push_instruction(instructions, INSTRUCTION_SLOT(C_LCUT, local_cut));
       else
-         push_instruction(instructions, INSTRUCTION(I_CUT));
+         size += push_instruction(instructions, INSTRUCTION(I_CUT));
       if (is_tail)
-         push_instruction(instructions, INSTRUCTION(I_EXIT));
+         size += push_instruction(instructions, INSTRUCTION(I_EXIT));
    }
    else if (term == trueAtom)
    {
       if (is_tail)
-         push_instruction(instructions, INSTRUCTION(I_EXIT));
+         size += push_instruction(instructions, INSTRUCTION(I_EXIT));
    }
    else if (term == catchAtom)
    {
       int slot = 4;
-      push_instruction(instructions, INSTRUCTION_SLOT(I_CATCH, slot));
-      push_instruction(instructions, INSTRUCTION_SLOT(I_EXITCATCH, slot));
+      size += push_instruction(instructions, INSTRUCTION_SLOT(I_CATCH, slot));
+      size += push_instruction(instructions, INSTRUCTION_SLOT(I_EXITCATCH, slot));
    }
    else if (term == failAtom)
    {
-      push_instruction(instructions, INSTRUCTION(I_FAIL));
+      size += push_instruction(instructions, INSTRUCTION(I_FAIL));
    }
    else if (TAGOF(term) == CONSTANT_TAG)
    {
       constant c = getConstant(term);
       if (c.type == ATOM_TYPE)
       {
-         push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, MAKE_FUNCTOR(term, 0)));
+         size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, MAKE_FUNCTOR(term, 0)));
       }
       else
       {
@@ -313,43 +317,51 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
    {
       if (FUNCTOROF(term) == conjunctionFunctor)
       {
-         rc &= compile_body(ARGOF(term,0), variables, instructions, 0, next_reserved, local_cut);
-         rc &= compile_body(ARGOF(term,1), variables, instructions, is_tail, next_reserved, local_cut);
+         rc &= compile_body(ARGOF(term,0), variables, instructions, 0, next_reserved, local_cut, &size);
+         rc &= compile_body(ARGOF(term,1), variables, instructions, is_tail, next_reserved, local_cut, &size);
       }
       else  if (FUNCTOROF(term) == disjunctionFunctor)
       {
          if (TAGOF(ARGOF(term, 0)) == COMPOUND_TAG && FUNCTOROF(ARGOF(term,0)) == localCutFunctor)
          {
             // if-then-else
+            int s1 = 0;
             int cut_point = (*next_reserved)++;
             instruction_t* if_then_else = INSTRUCTION_SLOT_ADDRESS(C_IF_THEN_ELSE, cut_point, -1);
-            push_instruction(instructions, if_then_else);
+            s1 += push_instruction(instructions, if_then_else);
             // If
-            rc &= compile_body(ARGOF(ARGOF(term,0),0), variables, instructions, 0, next_reserved, cut_point);
+            rc &= compile_body(ARGOF(ARGOF(term,0),0), variables, instructions, 0, next_reserved, cut_point, &s1);
             // (Cut)
-            push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
+            s1 += push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
             // Then
-            rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, cut_point);
+            rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, cut_point, &s1);
             // (and now jump out before the Else)
             instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
-            push_instruction(instructions, jump);
-            if_then_else->address = instruction_count(instructions);
-            rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut);
-            jump->address = instruction_count(instructions);
+            s1+= push_instruction(instructions, jump);
+            if_then_else->address = s1;
+            size += s1;
+            s1 = 0;
+            rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut, &s1);
+            jump->address = s1;
+            size += s1;
          }
          else
          {
             // ordinary disjunction
+            int s1 = 0;
             instruction_t* or = INSTRUCTION_ADDRESS(C_OR, -1);
-            push_instruction(instructions, or);
-            rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, local_cut);
+            size += push_instruction(instructions, or);
+            rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, local_cut, &s1);
             instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
-            or->address = instruction_count(instructions);
-            rc &= compile_body(ARGOF(term, 1), variables, instructions, is_tail, next_reserved, local_cut);
-            jump->address = instruction_count(instructions);
+            or->address = s1;
+            size += s1;
+            s1 = 0;
+            rc &= compile_body(ARGOF(term, 1), variables, instructions, is_tail, next_reserved, local_cut, &s1);
+            jump->address = s1;
+            size += s1;
          }
          if (is_tail)
-            push_instruction(instructions, INSTRUCTION(I_EXIT));
+            size += push_instruction(instructions, INSTRUCTION(I_EXIT));
       }
       else if (FUNCTOROF(term) == notFunctor)
       {
@@ -361,72 +373,76 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
          //    i_fail
          // N: (rest of the clause)
          int cut_point = (*next_reserved)++;
+         int s1 = 0;
          instruction_t* if_then_else = INSTRUCTION_SLOT_ADDRESS(C_IF_THEN_ELSE, cut_point, -1);
-         push_instruction(instructions, if_then_else);
+         s1 += push_instruction(instructions, if_then_else);
          // If
-         rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, cut_point);
+         rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, cut_point, &s1);
          // (cut)
-         push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
+         s1 += push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
          // Then
-         push_instruction(instructions, INSTRUCTION(I_FAIL));
+         s1 += push_instruction(instructions, INSTRUCTION(I_FAIL));
          // Else
-         if_then_else->address = instruction_count(instructions);
+         if_then_else->address = s1;
+         size += s1;
          if (is_tail)
-            push_instruction(instructions, INSTRUCTION(I_EXIT));
+            size += push_instruction(instructions, INSTRUCTION(I_EXIT));
       }
       else if (FUNCTOROF(term) == throwFunctor)
       {
-         compile_term_creation(ARGOF(term, 0), variables, instructions);
-         push_instruction(instructions, INSTRUCTION(B_THROW));
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions);
+         size += push_instruction(instructions, INSTRUCTION(B_THROW));
       }
       else if (FUNCTOROF(term) == crossModuleCallFunctor)
       {
-         push_instruction(instructions, INSTRUCTION_CONST(I_SWITCH_MODULE, ARGOF(term, 0)));
-         rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut);
-         push_instruction(instructions, INSTRUCTION(I_EXITMODULE));
+         size += push_instruction(instructions, INSTRUCTION_CONST(I_SWITCH_MODULE, ARGOF(term, 0)));
+         rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut, &size);
+         size += push_instruction(instructions, INSTRUCTION(I_EXITMODULE));
          if (is_tail)
-            push_instruction(instructions, INSTRUCTION(I_EXIT));
+            size += push_instruction(instructions, INSTRUCTION(I_EXIT));
       }
       else if (FUNCTOROF(term) == cleanupChoicepointFunctor)
       {
-         compile_term_creation(ARGOF(term, 0), variables, instructions);
-         compile_term_creation(ARGOF(term, 1), variables, instructions);
-         push_instruction(instructions, INSTRUCTION(B_CLEANUP_CHOICEPOINT));
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions);
+         size += compile_term_creation(ARGOF(term, 1), variables, instructions);
+         size += push_instruction(instructions, INSTRUCTION(B_CLEANUP_CHOICEPOINT));
       }
       else if (FUNCTOROF(term) == localCutFunctor)
       {
          int cut_point = (*next_reserved)++;
-         push_instruction(instructions, INSTRUCTION_SLOT(C_IF_THEN, cut_point));
-         rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, cut_point);
-         push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
-         rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut);
+         size += push_instruction(instructions, INSTRUCTION_SLOT(C_IF_THEN, cut_point));
+         rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, cut_point, &size);
+         size += push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
+         rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut, &size);
          if (is_tail)
-            push_instruction(instructions, INSTRUCTION(I_EXIT));
+            size += push_instruction(instructions, INSTRUCTION(I_EXIT));
       }
       else if (FUNCTOROF(term) == notUnifiableFunctor)
       {
-         rc &= compile_body(MAKE_VCOMPOUND(notFunctor, MAKE_VCOMPOUND(unifyFunctor, ARGOF(term, 0), ARGOF(term, 1))), variables, instructions, is_tail, next_reserved, local_cut);
+         rc &= compile_body(MAKE_VCOMPOUND(notFunctor, MAKE_VCOMPOUND(unifyFunctor, ARGOF(term, 0), ARGOF(term, 1))), variables, instructions, is_tail, next_reserved, local_cut, &size);
       }
       else if (FUNCTOROF(term) == unifyFunctor)
       {
-         compile_term_creation(ARGOF(term, 0), variables, instructions);
-         compile_term_creation(ARGOF(term, 1), variables, instructions);
-         push_instruction(instructions, INSTRUCTION(I_UNIFY));
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions);
+         size += compile_term_creation(ARGOF(term, 1), variables, instructions);
+         size += push_instruction(instructions, INSTRUCTION(I_UNIFY));
          if (is_tail)
-            push_instruction(instructions, INSTRUCTION(I_EXIT));
+            size += push_instruction(instructions, INSTRUCTION(I_EXIT));
       }
       else
       {
          Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
          for (int i = 0; i < f->arity; i++)
-            compile_term_creation(ARGOF(term, i), variables, instructions);
-         push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, FUNCTOROF(term)));
+            size += compile_term_creation(ARGOF(term, i), variables, instructions);
+         size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, FUNCTOROF(term)));
       }
    }
    else
    {
       rc = 0;
    }
+   if (sizep != NULL)
+      (*sizep) += size;
    return rc;
 }
 
@@ -634,8 +650,9 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
       *slot_count = next_slot;
       compile_head(head, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_ENTER));
-      int next_reserved = 0;
-      if (!compile_body(body, variables, instructions, 1, &next_reserved, -1))
+      int next_reserved = next_slot - local_cut_slots;
+      int size = 0;
+      if (!compile_body(body, variables, instructions, 1, &next_reserved, -1, &size))
       {
          whashmap_free(variables);
          if (TAGOF(body) == COMPOUND_TAG && FUNCTOROF(body) == crossModuleCallFunctor)
@@ -712,8 +729,7 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
    Clause clause = assemble(&instructions);
    clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
-   PORTRAY(term); printf(" compiles to this:\n");
-   print_clause(clause);
+   //PORTRAY(term); printf(" compiles to this:\n"); print_clause(clause);
    return clause;
 }
 

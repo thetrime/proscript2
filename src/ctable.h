@@ -11,3 +11,4 @@
 word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(void*, int), int* isNew);
 word intern_blob(char* type, void* ptr);
 constant getConstant(word);
+void ctable_check();

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #define INITIAL_SIZE (256)
 #define MAX_CHAIN_LENGTH (8)
@@ -182,6 +183,14 @@ int bihashmap_put(bimap_t in, uint32_t hashcode, any_t key, uintptr_t value)
    return MAP_OK;
 }
 
+void bihashmap_check(bimap_t in)
+{
+   hashmap_map* m;
+   m = (hashmap_map *) in;
+   printf("XXX %p (%p)\n", m->data, &m->data);
+   assert(m->data > (void*)0x1000);
+}
+
 /*
  * Get your pointer out of the hashmap with a key
  */
@@ -196,7 +205,6 @@ int bihashmap_get(bimap_t in, uint32_t hashcode, void* key1, int key2, uintptr_t
 
    /* Find data location */
    curr = hashcode % m->table_size;
-
    /* Linear probing, if necessary */
    for(i = 0; i<MAX_CHAIN_LENGTH; i++)
    {

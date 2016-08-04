@@ -23,13 +23,14 @@ EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
 
- consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
- //consult_file("test.pl");
+   consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
+   //consult_file("test.pl");
    printf("Consulted. Running tests...\n");
    word w = MAKE_ATOM("run_all_tests");
    RC result = execute_query(w);
    if (result == ERROR)
    {
+      printf("Error %08lx\n", getException());
       printf("Error: "); PORTRAY(getException()); printf("\n");
    }
    else if (result == FAIL)

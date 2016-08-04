@@ -1,6 +1,7 @@
 #include "types.h"
 #include "kernel.h"
 #include "ctable.h"
+#include "constants.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -11,9 +12,14 @@ bimap_t map[7];
 int CTableSize = 0;
 int CNext = 0;
 
+void ctable_check()
+{
+   bihashmap_check(map[FUNCTOR_TYPE]);
+}
 
 constant getConstant(word w)
 {
+   //bihashmap_check(map[FUNCTOR_TYPE]);
    return CTable[w >> 2];
 }
 
