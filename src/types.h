@@ -29,6 +29,7 @@ struct clause
    struct clause* next;
    int code_size;
    int constant_size;
+   int slot_count;
 };
 typedef struct clause clause;
 typedef clause* Clause;

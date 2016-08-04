@@ -612,7 +612,7 @@ int free_varinfo(any_t ignored, word key, any_t value)
    return MAP_OK;
 }
 
-int compile_clause(word term, instruction_list_t* instructions)
+int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
 {
          //printf("Compiling "); PORTRAY(term); printf("\n");
    int arg_slots = 0; // Number of slots that will be used for passing the args of the predicate
@@ -630,6 +630,7 @@ int compile_clause(word term, instruction_list_t* instructions)
       int next_slot = arg_slots + local_cut_slots;
       analyze_variables(head, 1, 0, variables, &next_slot);
       analyze_variables(body, 0, 1, variables, &next_slot);
+      *slot_count = next_slot;
       compile_head(head, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_ENTER));
       int next_reserved = 0;
@@ -650,6 +651,7 @@ int compile_clause(word term, instruction_list_t* instructions)
       else
          arg_slots = 0;
       analyze_variables(term, 1, 0, variables, &arg_slots);
+      *slot_count = arg_slots;
       compile_head(term, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_EXIT_FACT));
    }
@@ -671,12 +673,14 @@ Query compile_query(word term)
    init_list(&variables);
    init_instruction_list(&instructions);
    find_variables(term, &variables);
-   compile_clause(MAKE_VCOMPOUND(clauseFunctor, MAKE_LCOMPOUND(queryAtom, &variables), term), &instructions);
+   int ignored;
+   compile_clause(MAKE_VCOMPOUND(clauseFunctor, MAKE_LCOMPOUND(queryAtom, &variables), term), &instructions, &ignored);
    Query q = malloc(sizeof(query));
    q->variable_count = 0;
    q->variables = malloc(sizeof(word) * list_length(&variables));
    list_apply(&variables, q, set_variables);
    q->clause = assemble(&instructions);
+   q->clause->slot_count = q->variable_count;
    deinit_instruction_list(&instructions);
    free_list(&variables);
    return q;
@@ -702,8 +706,10 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
    }
    if (with_choicepoint)
       push_instruction(&instructions, INSTRUCTION(TRY_ME_OR_NEXT_CLAUSE));
-   compile_clause(term, &instructions);
+   int slot_count;
+   compile_clause(term, &instructions, &slot_count);
    Clause clause = assemble(&instructions);
+   clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
    //printf("Just compiled this:\n");
    //print_clause(clause);

@@ -447,6 +447,7 @@ int cut_to(Choicepoint point)
 
 int apply_choicepoint(Choicepoint c)
 {
+   printf("Applying choicepoint at %p\n", c);
    PC = c->PC;
    H = c->H;
    FR = c->FR;
@@ -602,6 +603,7 @@ void CreateChoicepoint(unsigned char* address, Clause clause)
    c->H = H;
    CP = c;
    SP += sizeof(choicepoint)/sizeof(word);
+   printf("Choicepoint extends until %p\n", SP);
    c->FR = FR;
    c->clause = clause;
    c->module = currentModule;
@@ -625,7 +627,9 @@ Clause get_predicate_code(Predicate p)
    return p->firstClause;
 }
 
-int load_frame_code(word functor, Module optionalContext, Frame frame)
+// prepare_frame fills in all the fields of the frame that make sense.
+// You must still fill in returnPC, and in the case of I_DEPART, parent
+int prepare_frame(word functor, Module optionalContext, Frame frame)
 {
    Module module = (optionalContext != NULL)?optionalContext:currentModule;
    Predicate p = lookup_predicate(module, functor);
@@ -655,17 +659,21 @@ int load_frame_code(word functor, Module optionalContext, Frame frame)
       else if (get_prolog_flag("unknown") == failAtom)
       {
          frame->clause = &failClause;
-         return 1;
       }
       else if (get_prolog_flag("unknown") == warningAtom)
       {
          printf("No such predicate "); PORTRAY(f->name); printf("/%d\n", f->arity);
          frame->clause = &failClause;
-         return 1;
       }
    }
+   frame->functor = functor;
    frame->clause = get_predicate_code(p);
-   //print_clause(frame->clause);
+   frame->parent = FR;
+   if (FR != NULL)
+      frame->depth = FR->depth+1;
+   else
+      frame->depth = 0;
+   frame->choicepoint = CP;
    return 1;
 }
 
@@ -674,7 +682,7 @@ Frame allocFrame()
    printf("Making a frame at %p\n", SP);
    Frame f = (Frame)SP;
    SP += sizeof(frame)/sizeof(word);
-   printf("SP -> %p\n", SP);
+   printf("frame extends until %p\n", SP);
    f->parent = FR;
    if (FR != NULL)
       f->depth = FR->depth+1;
@@ -711,20 +719,19 @@ RC execute()
                continue;
             return FAIL;
          case I_ENTER:
-            // Move the top of the stack up by the SLOT arg to I_ENTER. It isnt really a slot, but 16 bits is plenty - if you have more than 65535 unique variables
-            // in your goal then you should probably refactor it!
-            // Note that at I_ENTER, ARGP is already pointing the last argument we matched in the head. This provides additional space for the variables in the frame
-            NFR = allocFrame();
+            // Note that at I_ENTER, ARGP is already pointing the last argument we matched in the head. We must check there is enough space for the variables in the frame
+            // There are two cases: The stack contains a choicepoint above ARGP, or it doesnt. If it does, then SP will have been adjusted already and we must leave it alone
+            if ((uintptr_t)CP < (uintptr_t)FR)
+            {
+               // The top of the stack needs to be protected before we can allocate the frame
+               printf("Protecting frame by moving SP from %p to %p (%p + %d + %d)\n", SP, ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word), ((word*)FR), FR->clause->slot_count, sizeof(frame) / sizeof(word));
+               SP = ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word);
+            }
+            NFR = (Frame)SP;
+            printf("Allocated a frame for the body to populate: %p (with parent %p). However, SP is being left at %p\n", NFR, FR, SP);
             ARGP = NFR->slots;
             PC++;
             continue;
-         case I_ALLOCATE:
-         {
-            int words = CODE16(PC+1);
-            SP += words;
-            PC+=3;
-            continue;
-         }
          case I_EXIT_QUERY:
             if (CP == initialChoicepoint)
                return SUCCESS;
@@ -840,12 +847,29 @@ RC execute()
                goto b_throw_foreign;
          }
          i_exit:
+         printf("   Jumped to I_EXIT\n");
          case I_EXIT:
          case I_EXIT_FACT:
          {
+            printf("Exiting from frame %p, to parent %p\n", FR, FR->parent);
+            if ((uintptr_t)CP < (uintptr_t)FR->parent)
+            {
+               printf("No choicepoints. Current frame is %p, CP is %p\n", FR, CP);
+               // There are no choicepoints newer than this frame. We can just set SP back to the current frame pointer
+               SP = (word*)FR;
+            }
+            else
+            {
+               printf("Choicepoint at %p\n", CP);
+               // There is a choicepoint newer than this frame. This limits how far we can wind SP back
+               SP = (word*)CP + sizeof(choicepoint)/sizeof(word);
+            }
+            printf("   Wound SP back to %p\n", SP);
             PC = FR->returnPC;
             FR = FR->parent;
-            NFR = allocFrame();
+            printf("FR is now %p\n", FR);
+            NFR = SP;
+            printf("Set NFR to %p, but leaving SP at %p\n", NFR, SP);
             ARGP = NFR->slots;
             continue;
          }
@@ -853,15 +877,19 @@ RC execute()
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
             if (getConstant(functor).data.functor_data->arity == 1) printf("ARGP: %p, Value at ARGP: %08lx\n", NFR->slots, DEREF(*NFR->slots));
-            NFR->functor = functor;
-            if (!load_frame_code(functor, NULL, NFR))
+            if (!prepare_frame(functor, NULL, NFR))
                goto b_throw_foreign;
             NFR->returnPC = FR->returnPC;
+            printf("Setting parent of frame %p to be %p\n", NFR, FR->parent);
             NFR->parent = FR->parent;
             ARGP = NFR->slots;
             FR = NFR;
+            if ((uintptr_t)CP < (uintptr_t)FR)
+            {
+               SP = ARGP + FR->clause->slot_count;
+               printf("Fencing in arguments by moving SP to %p\n", SP);
+            }
             FR->choicepoint = CP;
-            //NFR = allocFrame();
             // Deallocate the frame entirely by moving SP back down, provided there are no choicepoints in the way
             //if (CP < FR)
             //   SP = FR;
@@ -908,9 +936,11 @@ RC execute()
                {
                   printf("Found a catch/3 in %p\n", FR);
                   backtrack_to(FR->choicepoint);
-                  printf("Unwound to catch/3\n");
+                  // And then undo the fake choicepoint
+                  apply_choicepoint(CP);
+                  printf("Unwound to catch/3. CP is now %p\n", CP);
                   printf("Current exception is now "); PORTRAY(current_exception); printf("\n");
-                  printf("Unifier is %08lx\n", FR->slots[1]);
+                  printf("Unifier is %08lx at %p\n", FR->slots[1], &FR->slots[1]);
                   PORTRAY(FR->slots[0]); printf("\n");
                   PORTRAY(FR->slots[1]); printf("\n");
                   if (unify(copy_term(current_exception), FR->slots[1]))
@@ -942,14 +972,19 @@ RC execute()
          case I_CALL:
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
-            NFR->functor = functor;
-            if (!load_frame_code(functor, NULL, NFR))
+            printf("Frame at %p has functor ", NFR); PORTRAY(functor); printf("\n");
+            if (!prepare_frame(functor, NULL, NFR))
                goto b_throw_foreign;
             NFR->returnPC = PC+3;
             ARGP = NFR->slots;
             FR = NFR;
+            if ((uintptr_t)CP < (uintptr_t)FR)
+            {
+               SP = ARGP + FR->clause->slot_count;
+               printf("Fencing in arguments by moving SP to %p\n", SP);
+            }
+            printf("Parent is %p\n", FR->parent);
             FR->choicepoint = CP;
-//            NFR = allocFrame();
             PC = FR->clause->code;
             continue;
          }
@@ -957,8 +992,11 @@ RC execute()
          {
             CreateChoicepoint(0, FR->clause);
             FR->choicepoint = CP;
+            printf("FR is %p, parent is %p\n", FR, FR->parent);
             FR->slots[CODE16(PC+1)] = (word)CP;
             ARGP = &FR->slots[1];
+            NFR = (Frame)SP;
+            printf("NFR set to %p\n", NFR);
             PC+=2; // i_usercall returns to PC+1, and we want to return to PC+3, so add 2 here
             goto i_usercall;
          }
@@ -966,21 +1004,26 @@ RC execute()
          i_usercall:
          {
             word goal = DEREF(*(ARGP-1));
+            printf("i_usercall of arg at %p\n   ", ARGP-1); PORTRAY(goal);printf("\n");
             if (TAGOF(goal) == VARIABLE_TAG)
             {
                instantiation_error();
                goto b_throw_foreign;
             }
             Query query = compile_query(goal);
+            NFR->parent = FR;
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
             NFR->clause = query->clause;
             NFR->returnPC = PC+1;
             NFR->choicepoint = CP;
             ARGP = NFR->slots;
             for (int i = 0; i < query->variable_count; i++)
+            {
+               printf("Populating meta-call arg %d at location %p\n", i, &NFR->slots[i]);
                NFR->slots[i] = query->variables[i];
+            }
             FR = NFR;
-            NFR = allocFrame();
+            printf(" usercall frame is now set to %p\n", FR);
             PC = FR->clause->code;
             free_query(query);
             continue;
@@ -1025,7 +1068,9 @@ RC execute()
             return FAIL;
          }
          case B_FIRSTVAR:
+            printf("Making var in slot %d: At %p\n", CODE16(PC+1), &FR->slots[CODE16(PC+1)]);
             FR->slots[CODE16(PC+1)] = MAKE_VAR();
+            printf("Writing var to %p\n", ARGP);
             *(ARGP++) = _link(FR->slots[CODE16(PC+1)]);
             PC+=3;
             continue;
@@ -1050,7 +1095,7 @@ RC execute()
             if (FR->slots[slot] == 0)
                FR->slots[slot] = MAKE_VAR();
             printf("Writing linked variable to %p\n", ARGP);
-            printf("Variable should deref to %08lx\n", FR->slots[slot]);
+            printf("Variable should deref to %08lx\n which is:", FR->slots[slot]);
             PORTRAY(FR->slots[slot]); printf("\n");
             word w = _link(FR->slots[slot]);
             printf("But actual value is %08lx\n", w);
@@ -1060,6 +1105,7 @@ RC execute()
          }
          case B_POP:
             ARGP = *(--argStackP);
+            printf("ARGP is now to %p\n", ARGP);
             PC++;
             continue;
          case B_ATOM:
@@ -1073,6 +1119,8 @@ RC execute()
          case B_FUNCTOR:
          {
             word t = MAKE_COMPOUND(FR->clause->constants[CODE16(PC+1)]);
+            printf("Writing functor to %p\n", ARGP);
+            printf("NFR->parent: %p\n", NFR->parent);
             *(ARGP++) = t;
             *(argStackP++) = ARGP;
             ARGP = ARGPOF(t);
@@ -1145,7 +1193,7 @@ RC execute()
             return FAIL;
          }
          case H_VOID:
-            printf("Frame is %p, SP is %p ignoring arg at %p, with value %08lx\n", FR, SP, ARGP, *ARGP);
+            printf("Frame is %p, parent is %p, SP is %p ignoring arg at %p, with value %08lx\n which is ", FR, FR->parent, SP, ARGP, *ARGP);
             PORTRAY(*ARGP); printf("\n");
             ARGP++;
             PC++;
@@ -1164,10 +1212,12 @@ RC execute()
             continue;
          case C_OR:
             CreateChoicepoint(PC+CODEPTR(PC+1), FR->clause);
+            ARGP = SP + sizeof(frame)/sizeof(word);
             PC += 1 + sizeof(word);
             continue;
          case TRY_ME_OR_NEXT_CLAUSE:
          {
+//            SP += FR->clause->slot_count;
             CreateChoicepoint(FR->clause->next->code, FR->clause->next);
             PC++;
             continue;

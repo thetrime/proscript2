@@ -4,6 +4,7 @@ run_all_tests:-
               writeln(caught(B))),
         writeln(after(A)).
 
+qcatch(_,_,_).
 
 foo(a).
 foo(b):- throw(eggs).
