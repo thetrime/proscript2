@@ -197,6 +197,7 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
    s->write = write;
    s->seek = seek;
    s->close = close;
+   s->flush = flush;
    s->tell = tell;
    s->free = free;
    s->data = data;
@@ -241,7 +242,7 @@ Stream nullStream()
 
 int console_write(Stream stream, int length, unsigned char* buffer)
 {
-   printf("%.*s", length, buffer);
+   printf("%*.*s", length, length, buffer);
    return length;
 }
 
