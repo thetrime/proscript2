@@ -188,7 +188,7 @@ void bihashmap_check(bimap_t in)
    hashmap_map* m;
    m = (hashmap_map *) in;
    printf("XXX %p (%p)\n", m->data, &m->data);
-   assert(m->data > (void*)0x1000);
+   assert(m->data > (hashmap_element*)0x1000);
 }
 
 /*
