@@ -265,6 +265,7 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
 
 int compile_body(word term, wmap_t variables, instruction_list_t* instructions, int is_tail, int* next_reserved, int local_cut, int* sizep)
 {
+   //printf("Compiling \n"); PORTRAY(term); printf("\n");
    int rc = 1;
    term = DEREF(term);
    int size = 0;
@@ -301,6 +302,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
    }
    else if (TAGOF(term) == CONSTANT_TAG)
    {
+
       constant c = getConstant(term);
       if (c.type == ATOM_TYPE)
       {
@@ -308,9 +310,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else
       {
-         PORTRAY(term);
-         printf("... Failure - cannot call %" PRIuPTR "\n", term);
-         assert(0);
+         return type_error(callableAtom, term);
       }
    }
    else if (TAGOF(term) == COMPOUND_TAG)
@@ -726,7 +726,8 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
    if (with_choicepoint)
       push_instruction(&instructions, INSTRUCTION(TRY_ME_OR_NEXT_CLAUSE));
    int slot_count;
-   compile_clause(term, &instructions, &slot_count);
+   if (!compile_clause(term, &instructions, &slot_count))
+      return NULL;
    Clause clause = assemble(&instructions);
    clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
@@ -745,6 +746,7 @@ struct predicate_context_t
 void _compile_predicate(word term, void* _context)
 {
    struct predicate_context_t* context = (struct predicate_context_t*)_context;
+   //printf("Compiling clause: "); PORTRAY(term); printf("\n");
    Clause q = compile_predicate_clause(term, context->index + 1 < context->length, context->meta);
    context->index++;
    *(context->next) = q;
