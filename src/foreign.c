@@ -168,6 +168,38 @@ int build_predicate_list(void* list, word key, any_t ignored)
    return MAP_OK;
 }
 
+void strip_module(word term, word* clause, Module* module)
+{
+   if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
+   {
+      *module = find_module(ARGOF(term, 0));
+      if (*module == NULL)
+         *module = create_module(ARGOF(term, 0));
+      *clause = ARGOF(term, 1);
+   }
+   else if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == clauseFunctor)
+   {
+      word head = ARGOF(term, 0);
+      if (TAGOF(head) == COMPOUND_TAG && FUNCTOROF(head) == crossModuleCallFunctor)
+      {
+         *module = find_module(ARGOF(term, 0));
+         if (*module == NULL)
+            *module = create_module(ARGOF(term, 0));
+         *clause = MAKE_VCOMPOUND(clauseFunctor, ARGOF(head, 1), ARGOF(term, 1));
+      }
+      else
+      {
+         *module = get_current_module();
+         *clause = term;
+      }
+   }
+   else
+   {
+      *module = get_current_module();
+      *clause = term;
+   }
+}
+
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
 #define PREDICATE(name, arity, body) static int TOKENPASTE2(PRED_, __LINE__) body

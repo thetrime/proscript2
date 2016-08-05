@@ -45,9 +45,11 @@ int halted = 0;
 Choicepoint CP = NULL;
 unsigned int TR;
 
+#define HEAP_SIZE 655350
+
 word trail[65535];
-word HEAP[65535];
-word* HTOP = &HEAP[65535];
+word HEAP[HEAP_SIZE];
+word* HTOP = &HEAP[HEAP_SIZE];
 word* H = &HEAP[0];
 word STACK[65535];
 word* STOP = &STACK[65535];
@@ -362,7 +364,7 @@ void PORTRAY(word w)
             printf("%.*s", c.data.atom_data->length, c.data.atom_data->data);
             break;
          case INTEGER_TYPE:
-            printf("int:%ld", c.data.integer_data->data);
+            printf("%ld", c.data.integer_data->data);
             break;
          case FUNCTOR_TYPE:
             PORTRAY(c.data.functor_data->name); printf("/%d", c.data.functor_data->arity);
@@ -1396,17 +1398,22 @@ word getException()
    return current_exception;
 }
 
-word clause_functor(word t)
+int clause_functor(word t, word* functor)
 {
    if (TAGOF(t) == CONSTANT_TAG)
    {
       constant c = getConstant(t);
       if (c.type == ATOM_TYPE)
-         return MAKE_FUNCTOR(t, 0);
+      {
+         *functor = MAKE_FUNCTOR(t, 0);
+         return 1;
+      }
+      return type_error(callableAtom, t);
    }
    else if (FUNCTOROF(t) == clauseFunctor)
-      return clause_functor(ARGOF(t, 0));
-   return FUNCTOROF(t);
+      return clause_functor(ARGOF(t, 0), functor);
+   *functor = FUNCTOROF(t);
+   return 1;
 }
 
 void consult_file(char* filename)
@@ -1451,8 +1458,14 @@ void consult_file(char* filename)
       else
       {
          // Ordinary clause
-         word functor = clause_functor(clause);
-         add_clause(currentModule, functor, clause);
+         word functor;
+         if (clause_functor(clause, &functor))
+             add_clause(currentModule, functor, clause);
+         else
+         {
+            printf("Error: <FIXME write the error>\n");
+            CLEAR_EXCEPTION();
+         }
       }
    }
    s->close(s);
@@ -1474,8 +1487,14 @@ void consult_string(char* string)
       else
       {
          // Ordinary clause
-         word functor = clause_functor(clause);
-         add_clause(currentModule, functor, clause);
+         word functor;
+         if (clause_functor(clause, &functor))
+             add_clause(currentModule, functor, clause);
+         else
+         {
+            printf("Error: <FIXME write the error>\n");
+            CLEAR_EXCEPTION();
+         }
       }
    }
    freeStream(s);
@@ -1562,9 +1581,13 @@ int head_functor(word head, Module* module, word* functor)
 {
    if (TAGOF(head) == CONSTANT_TAG)
    {
-      *module = FR->contextModule;
-      *functor = MAKE_FUNCTOR(head, 0); // atom
-      return 1;
+      if (getConstant(head).type == ATOM_TYPE)
+      {
+         *module = FR->contextModule;
+         *functor = MAKE_FUNCTOR(head, 0); // atom
+         return 1;
+      }
+      return type_error(callableAtom, head);
    }
    else if (TAGOF(head) == COMPOUND_TAG)
    {

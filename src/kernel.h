@@ -51,6 +51,7 @@ word MAKE_LCOMPOUND(word functor, List* args);
 word MAKE_ACOMPOUND(word functor, word* args);
 void PORTRAY(word w);
 int SET_EXCEPTION(word);
+void CLEAR_EXCEPTION();
 
 enum OPCODE
 {
@@ -106,7 +107,8 @@ typedef enum
 RC execute_query(word);
 RC backtrack_query();
 word getException();
-word clause_functor(word);
+
+int clause_functor(word, word*);
 void consult_string(char*);
 void consult_file(char*);
 void print_clause(Clause);

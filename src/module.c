@@ -106,14 +106,20 @@ void add_clause(Module module, word functor, word clause)
 
 int asserta(Module module, word clause)
 {
-   word functor = clause_functor(clause);
+   word functor;
+   if (!clause_functor(clause, &functor))
+      return ERROR;
    Predicate p;
+   word* local;
+   clause = copy_local(clause, &local); // FIXME: this is never freed
+   struct cell_t* cell;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
+      //printf("Assert has found a clause for "); PORTRAY(functor); printf(" already exists\n");
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
-         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(clause));
+         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(functor));
       // Existing predicate. Put the new clause at the start
-      list_unshift(&p->clauses, clause);
+      cell = list_unshift(&p->clauses, clause);
    }
    else
    {
@@ -121,25 +127,38 @@ int asserta(Module module, word clause)
       p = malloc(sizeof(predicate));
       p->flags = PREDICATE_DYNAMIC;
       init_list(&p->clauses);
-      list_unshift(&p->clauses, clause);
+      cell = list_unshift(&p->clauses, clause);
       p->meta = NULL;
       p->firstClause = NULL;
       whashmap_put(module->predicates, functor, p);
    }
+   //printf("Compiling asserted clause\n");
    p->firstClause = compile_predicate(p);
-   return 1;
+   //printf("Assert complete: %p\n", p->firstClause);
+   if (p->firstClause == NULL)
+   {
+      // Compilation failed. Scrub out that clause
+      list_splice(&p->clauses, cell);
+      return ERROR;
+   }
+   return SUCCESS;
 }
 
 int assertz(Module module, word clause)
 {
-   word functor = clause_functor(clause);
+   word functor;
+   if (!clause_functor(clause, &functor))
+      return ERROR;
    Predicate p;
+   word* local;
+   struct cell_t* cell;
+   clause = copy_local(clause, &local); // FIXME: this is never freed
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
-         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(clause));
+         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(functor));
       // Existing predicate. Put the new clause at the start
-      list_append(&p->clauses, clause);
+      cell = list_append(&p->clauses, clause);
    }
    else
    {
@@ -147,13 +166,19 @@ int assertz(Module module, word clause)
       p = malloc(sizeof(predicate));
       p->flags = PREDICATE_DYNAMIC;
       init_list(&p->clauses);
-      list_unshift(&p->clauses, clause);
+      cell = list_append(&p->clauses, clause);
       p->meta = NULL;
       p->firstClause = NULL;
       whashmap_put(module->predicates, functor, p);
    }
    p->firstClause = compile_predicate(p);
-   return 1;
+   if (p->firstClause == NULL)
+   {
+      // Compilation failed. Scrub out that clause
+      list_splice(&p->clauses, cell);
+      return ERROR;
+   }
+   return SUCCESS;
 }
 
 int abolish(Module module, word indicator)
@@ -173,7 +198,12 @@ int abolish(Module module, word indicator)
 
 void retract(Module module, word clause)
 {
-   word functor = clause_functor(clause);
+   word functor;
+   if (!clause_functor(clause, &functor))
+   {
+      CLEAR_EXCEPTION();
+      return;
+   }
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
