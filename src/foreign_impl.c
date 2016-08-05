@@ -403,9 +403,11 @@ NONDET_PREDICATE(retract, 1, (word term, word backtrack)
          return ERROR;
       Predicate p = lookup_predicate(m, functor);
       if (p == NULL)
+      {
          return FAIL; // Cannot retract it if it does not exist
+      }
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
-         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(term));
+         return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(functor));
       list = term_from_list(&p->clauses, emptyListAtom);
    }
    else

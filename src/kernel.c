@@ -1658,6 +1658,10 @@ int head_functor(word head, Module* module, word* functor)
          *module = find_module(ARGOF(head, 0));
          *functor = FUNCTOROF(ARGOF(head, 1));
       }
+      else if (FUNCTOROF(head) == clauseFunctor)
+      {
+         return head_functor(ARGOF(head, 0), module, functor);
+      }
       *functor =  FUNCTOROF(head);
       *module = FR->contextModule;
       return 1;
