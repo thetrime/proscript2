@@ -1374,7 +1374,7 @@ PREDICATE(number_codes, 2, (word number, word codes)
          i++;
          if (!must_be_bound(ARGOF(w, 0)))
             return ERROR;
-         if (!must_be_positive_integer(ARGOF(w, 0)))
+         if (!must_be_character_code(ARGOF(w, 0)))
             return ERROR;
          w = ARGOF(w, 1);
       }
