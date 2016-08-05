@@ -412,10 +412,10 @@ Token lex(Stream s)
                break;
             }
          }
-         else if (c == 'E' && !seen_exp)
+         else if ((c == 'E' || c == 'e') && !seen_exp)
          {
             seen_exp = 1;
-            pushChar(sb, 'E');
+            pushChar(sb, c);
             get_raw_char_with_conversion(s);
          }
          else if ((c == '+' || c == '-') && seen_exp)
@@ -431,7 +431,7 @@ Token lex(Stream s)
          else
             break;
       }
-      if (!seen_decimal)
+      if (!seen_decimal && !seen_exp)
       {
          char* s = finalize(sb);
          char* sp;
