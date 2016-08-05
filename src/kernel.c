@@ -725,6 +725,8 @@ int prepare_frame(word functor, Module optionalContext, Frame frame)
       //printf("Functor of %p is set to ", frame); PORTRAY(functor); printf("\n");
       frame->functor = functor;
       frame->clause = get_predicate_code(p);
+      if (frame->clause == NULL)
+         return 0;
    }
    frame->parent = FR;
    if (FR != NULL)

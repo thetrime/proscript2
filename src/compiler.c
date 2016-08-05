@@ -310,7 +310,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else
       {
-         return type_error(callableAtom, term);
+         return 0;
       }
    }
    else if (TAGOF(term) == COMPOUND_TAG)
@@ -396,6 +396,11 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
          size += s1;
          if (is_tail)
             size += push_instruction(instructions, INSTRUCTION(I_EXIT));
+         if (!rc)
+         {
+            CLEAR_EXCEPTION();
+            return type_error(callableAtom, ARGOF(term, 0));
+         }
       }
       else if (FUNCTOROF(term) == throwFunctor)
       {
@@ -667,10 +672,14 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
       if (!compile_body(body, variables, instructions, 1, &next_reserved, -1, &size))
       {
          whashmap_free(variables);
-         if (TAGOF(body) == COMPOUND_TAG && FUNCTOROF(body) == crossModuleCallFunctor)
-            return type_error(callableAtom, ARGOF(body, 1));
-         else
-            return type_error(callableAtom, body);
+         if (getException() == 0)
+         {
+            if (TAGOF(body) == COMPOUND_TAG && FUNCTOROF(body) == crossModuleCallFunctor)
+               return type_error(callableAtom, ARGOF(body, 1));
+            else
+               return type_error(callableAtom, body);
+         }
+         return 0;
       }
    }
    else
