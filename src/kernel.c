@@ -46,7 +46,7 @@ Choicepoint CP = NULL;
 unsigned int TR;
 
 #define HEAP_SIZE 655350
-#define TRAIL_SIZE 65535
+#define TRAIL_SIZE 655350
 #define STACK_SIZE 655350
 
 word trail[TRAIL_SIZE];
