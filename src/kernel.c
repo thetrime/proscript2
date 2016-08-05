@@ -556,8 +556,6 @@ word _copy_term(word t, List* variables, word* new_vars)
 
 word copy_term(word term)
 {
-   printf("Copying\n");
-   PORTRAY(term); printf("\n");
    term = DEREF(term);
    List variables;
    init_list(&variables);
@@ -567,10 +565,6 @@ word copy_term(word term)
    for (int i = 0; i < variable_count; i++)
       new_vars[i] = MAKE_VAR();
    word result = _copy_term(term, &variables, new_vars);
-   printf("Copied\n");
-   PORTRAY(term);printf("\n");
-   printf(" to \n");
-   PORTRAY(result);printf("\n");
    free(new_vars);
    free_list(&variables);
    return result;
@@ -616,7 +610,6 @@ word make_local_(word t, List* variables, word* heap, int* ptr, int extra)
       case VARIABLE_TAG:
       {
          int i = list_index(variables, t);
-         printf("Index: %d\n", i);
          heap[i+extra] = (word)&heap[i+extra];
          return (word)&heap[i+extra];
       }
@@ -764,8 +757,6 @@ void initialize_kernel()
    consult_file("src/builtin.pl");
 }
 
-int qqq_c = 0;
-word* qqq = NULL;
 
 RC execute()
 {
@@ -774,7 +765,7 @@ RC execute()
    while (!halted)
    {
       //print_choices();
-      print_instruction();
+      //print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -864,17 +855,7 @@ RC execute()
                // Go back to the actual FOREIGN_NONDET or FOREIGN_JS call
                PC -= (3+sizeof(word));
                unsigned char* foreign_ptr = PC+1+sizeof(word);
-               printf("Calling %p with %p (%p, %p) SP=%p\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR, FR->slots, SP);
-               if (f->arity == 3)
-               {
-                  qqq_c++;
-                  qqq = (ARGP+1);
-                  printf("Args before (%d):\n", qqq_c);
-                  printf("ARGP+1 is at %p\n", (ARGP+1));
-                  PORTRAY(*ARGP); printf("\n");
-                  PORTRAY(*(ARGP+1)); printf("\n");
-                  PORTRAY(*(ARGP+2)); printf("\n\n");
-               }
+               //printf("Calling %p with %p (%p, %p) SP=%p\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR, FR->slots, SP);
                switch(f->arity)
                {
                   case 0: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(FR->slots[CODE16(foreign_ptr)]); break;
@@ -913,15 +894,7 @@ RC execute()
             }
             else if (rc == SUCCESS)
             {
-               printf("Foreign Success!\n");
-               if (f->arity == 3)
-               {
-                  printf("Args after (%d):\n", qqq_c);
-                  printf("ARGP+1 is at %p\n", (ARGP+1));
-                  PORTRAY(*ARGP); printf("\n");
-                  PORTRAY(*(ARGP+1)); printf("\n");
-                  PORTRAY(*(ARGP+2)); printf("\n\n");
-               }
+               //printf("Foreign Success!\n");
                goto i_exit;
             }
             else if (rc == YIELD)
@@ -1066,7 +1039,7 @@ RC execute()
             if ((uintptr_t)CP < (uintptr_t)FR)
             {
                SP = ARGP + FR->clause->slot_count;
-               printf("Fencing in arguments by moving SP to %p (%d slots)\n", SP, FR->clause->slot_count);
+               //printf("Fencing in arguments by moving SP to %p (%d slots)\n", SP, FR->clause->slot_count);
             }
             //printf("Parent is %p\n", FR->parent);
             FR->choicepoint = CP;
@@ -1565,8 +1538,9 @@ void print_instruction()
 
 void make_foreign_choicepoint(word w)
 {
+   //printf("Saving foreign pointer to %p\n", &FR->slots[CODE16(PC+1+sizeof(word))]);
    FR->slots[CODE16(PC+1+sizeof(word))] = w;
-   printf("Allocating a foreign choicepoint at %p (top = %p, bottom = %p)\n", SP, STOP, STACK);
+   //printf("Allocating a foreign choicepoint at %p (top = %p, bottom = %p)\n", SP, STOP, STACK);
    Choicepoint c = (Choicepoint)SP;
    c->SP = SP;
    c->CP = CP;
@@ -1581,6 +1555,7 @@ void make_foreign_choicepoint(word w)
    c->functor = FR->functor;
    c->TR = TR;
    c->PC = PC+3+sizeof(word);
+   assert(FR->slots[CODE16(PC+1+sizeof(word))] == w);
 }
 
 int head_functor(word head, Module* module, word* functor)

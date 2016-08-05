@@ -26,7 +26,7 @@
 
 #define FUNCTOR_VALUE(t) ((Functor)CTable[t])
 #define FUNCTOROF(t) (*((Word)(t & ~TAG_MASK)))
-#define ARGOF(t, i) DEREF(((word)(((Word*)(t & ~TAG_MASK))+i+1)))
+#define ARGOF(t, i) DEREF(((word)(((Word*)(DEREF(t) & ~TAG_MASK))+i+1)))
 #define ARGPOF(t) ((Word)(((Word*)(t & ~TAG_MASK))+1)) // FIXME: These cannot both be right!
 
 #define VARIABLE_TAG 0b00
@@ -131,3 +131,4 @@ extern word HEAP[];
 
 word copy_local_with_extra_space(word t, word** local, int extra);
 word copy_local(word t, word** local);
+
