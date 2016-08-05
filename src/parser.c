@@ -378,27 +378,54 @@ Token lex(Stream s)
    }
    else if ((c >= '0' && c <= '9') || (c == '-' && peek_raw_char_with_conversion(s) >= '0' && peek_raw_char_with_conversion(s) <= '9'))
    {
+      int base = 10;
       if (c == '0' && peek_raw_char_with_conversion(s) == '\'')
       {
          // Char code 0'x
          get_raw_char_with_conversion(s);
          return IntegerToken(get_raw_char_with_conversion(s));
       }
-      // FIXME: Should also handle 0x and 0b here
       // Parse a number
       CharBuffer sb = charBuffer();
       pushChar(sb, c);
+      if (c == '0')
+      {
+         char b = peek_raw_char_with_conversion(s);
+         if (b == 'x')
+         {
+            base = 16;
+            pushChar(sb, b);
+            get_raw_char_with_conversion(s);
+         }
+         else if (b == 'b')
+         {
+            base = 2;
+            pushChar(sb, b);
+            get_raw_char_with_conversion(s);
+         }
+         if (b == 'o')
+         {
+            base = 8;
+            pushChar(sb, b);
+            get_raw_char_with_conversion(s);
+         }
+      }
       int seen_decimal = 0;
       int seen_exp = 0;
       while(1)
       {
          c = peek_raw_char_with_conversion(s);
-         if (c >= '0' && c <= '9')
+         if (c >= '0' && ((base == 10 && c <= '9') || (base == 8 && c <= '8') || (base == 2 && c <= '1') || (base == 16 && c <= '9')))
+         {
+               pushChar(sb, c);
+               get_raw_char_with_conversion(s);
+         }
+         else if (base == 16 && ((c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')))
          {
             pushChar(sb, c);
             get_raw_char_with_conversion(s);
          }
-         else if (c == '.' && !seen_decimal)
+         else if (c == '.' && !seen_decimal && base == 10)
          {
             pushChar(sb, '.');
             get_raw_char_with_conversion(s);
@@ -412,13 +439,13 @@ Token lex(Stream s)
                break;
             }
          }
-         else if ((c == 'E' || c == 'e') && !seen_exp)
+         else if ((c == 'E' || c == 'e') && !seen_exp  && base == 10)
          {
             seen_exp = 1;
             pushChar(sb, c);
             get_raw_char_with_conversion(s);
          }
-         else if ((c == '+' || c == '-') && seen_exp)
+         else if ((c == '+' || c == '-') && seen_exp && base == 10)
          {
             pushChar(sb, c);
             get_raw_char_with_conversion(s);
@@ -435,7 +462,7 @@ Token lex(Stream s)
       {
          char* s = finalize(sb);
          char* sp;
-         long l = strtol(s, &sp, 10);
+         long l = strtol(s, &sp, base);
          if (errno == ERANGE)
          {
             return BigIntegerToken(s);
