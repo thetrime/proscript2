@@ -781,11 +781,11 @@ Clause foreign_predicate_c(int(*func)(), int arity, int flags)
    init_instruction_list(&instructions);
    if (flags & NON_DETERMINISTIC)
    {
-      push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_NONDET, arity+1, (word)func));
+      push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_NONDET, arity, (word)func));
       push_instruction(&instructions, INSTRUCTION(I_FOREIGN_RETRY));
    }
    else
-      push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN, arity+1, (word)func));
+      push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN, arity, (word)func));
    Clause clause = assemble(&instructions);
    clause->slot_count = arity + ((flags & NON_DETERMINISTIC) != 0?1:0);
    deinit_instruction_list(&instructions);
