@@ -312,7 +312,7 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
    // FIXME: assumes current module
    if (TAGOF(indicator) != VARIABLE_TAG)
    {
-      if ((TAGOF(indicator) != COMPOUND_TAG && FUNCTOROF(indicator) == predicateIndicatorFunctor))
+      if ((!(TAGOF(indicator) == COMPOUND_TAG && FUNCTOROF(indicator) == predicateIndicatorFunctor)))
          return type_error(predicateIndicatorAtom, indicator);
       if ((TAGOF(ARGOF(indicator, 0)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 0)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 0)).type == ATOM_TYPE))
          return type_error(predicateIndicatorAtom, indicator);
@@ -328,13 +328,16 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
       init_list(&list);
       whashmap_iterate(get_current_module()->predicates, build_predicate_list, &list);
       predicates = term_from_list(&list, emptyListAtom);
-      PORTRAY(predicates); printf("\n");
       free_list(&list);
    }
    else
+   {
       predicates = backtrack;
+   }
    if (ARGOF(predicates, 1) != emptyListAtom)
+   {
       make_foreign_choicepoint(ARGOF(predicates, 1));
+   }
    return unify(indicator, predicate_indicator(ARGOF(predicates, 0)));
 
 })
