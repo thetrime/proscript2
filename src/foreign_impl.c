@@ -144,9 +144,9 @@ PREDICATE(functor, 3, (word term, word name, word arity)
 NONDET_PREDICATE(arg, 3, (word n, word term, word arg, word backtrack)
 {
    if (!must_be_bound(term))
-      return 0;
+      return ERROR;
    if (TAGOF(term) != COMPOUND_TAG)
-      type_error(compoundAtom, term);
+      return type_error(compoundAtom, term);
    if (TAGOF(n) == VARIABLE_TAG)
    {
       // -,+,? mode
@@ -1382,6 +1382,7 @@ PREDICATE(erase, 1, (word ref)
    return erase(ref);
 })
 
+
 NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
 {
    if (TAGOF(ref) == POINTER_TAG)
@@ -1412,9 +1413,11 @@ NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
          if (list == emptyListAtom)
             return FAIL;
          if (ARGOF(list, 1) != emptyListAtom)
+         {
             make_foreign_choicepoint(ARGOF(list, 1));
+         }
          word head = ARGOF(list, 0);
-         // DANGER! this term contains references to the local storage! We must copy it to the heap or it will no longer be valid after erased!
+         // DANGER! head contains references to the local storage! We must copy it to the heap or it will no longer be valid after erased!
          return unify(value, copy_term(ARGOF(head, 0))) && unify(ref, ARGOF(head, 1));
       }
    }
