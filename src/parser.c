@@ -361,7 +361,7 @@ Token lex(Stream s)
       return CommaToken;
    else if (c == '.')
       return PeriodToken;
-   if ((c >= 'A' && c < 'Z') || c == '_')
+   if ((c >= 'A' && c <= 'Z') || c == '_')
    {
       CharBuffer sb = charBuffer();
       pushChar(sb, c);
