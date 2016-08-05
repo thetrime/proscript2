@@ -1421,6 +1421,8 @@ PREDICATE(number_codes, 2, (word number, word codes)
       free_list(&list);
       return unify(w, codes);
    }
+   else if (TAGOF(number) == VARIABLE_TAG)
+      return instantiation_error();
    return type_error(numberAtom, number);
 })
 
