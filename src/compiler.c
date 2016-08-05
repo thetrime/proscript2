@@ -345,24 +345,32 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
             rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut, &s1);
             jump->address = s1 + s2;
             size += s1;
+            if (is_tail)
+               size += push_instruction(instructions, INSTRUCTION(I_EXIT));
+
          }
          else
          {
             // ordinary disjunction
             int s1 = 0;
+            int s2 = 0;
             instruction_t* or = INSTRUCTION_ADDRESS(C_OR, -1);
-            size += push_instruction(instructions, or);
+            s1 += push_instruction(instructions, or);
             rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, local_cut, &s1);
-            instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
-            or->address = s1;
-            size += s1;
+            instruction_t* jump;
+            if (is_tail)
+               jump = INSTRUCTION(I_EXIT);
+            else
+               jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
+            s2 = push_instruction(instructions, jump);
+            or->address = s1+s2;
+            size += s1+s2;
             s1 = 0;
             rc &= compile_body(ARGOF(term, 1), variables, instructions, is_tail, next_reserved, local_cut, &s1);
-            jump->address = s1;
+            if (!is_tail)
+               jump->address = s1 + s2;
             size += s1;
          }
-         if (is_tail)
-            size += push_instruction(instructions, INSTRUCTION(I_EXIT));
       }
       else if (FUNCTOROF(term) == notFunctor)
       {
@@ -693,7 +701,8 @@ Query compile_query(word term)
    init_instruction_list(&instructions);
    find_variables(term, &variables);
    int ignored;
-   compile_clause(MAKE_VCOMPOUND(clauseFunctor, MAKE_LCOMPOUND(queryAtom, &variables), term), &instructions, &ignored);
+   if (!compile_clause(MAKE_VCOMPOUND(clauseFunctor, MAKE_LCOMPOUND(queryAtom, &variables), term), &instructions, &ignored))
+      return NULL;
    Query q = malloc(sizeof(query));
    q->variable_count = 0;
    q->variables = malloc(sizeof(word) * list_length(&variables));

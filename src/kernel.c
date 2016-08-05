@@ -975,8 +975,10 @@ RC execute()
             {
                backtrace = emptyListAtom;
             }
+            //printf("Looking for handler for "); PORTRAY(current_exception); printf("\n");
             while(FR != NULL)
             {
+               //printf("Checking for catch/3 in %p\n", FR); PORTRAY(FR->functor); printf("\n");
                if (backtrace != 0)
                {
                   Functor f = getConstant(FR->functor).data.functor_data;
@@ -1012,6 +1014,10 @@ RC execute()
                      PC = FR->returnPC-1;
                      FR = FR->parent;
                      goto i_usercall;
+                  }
+                  else
+                  {
+                     //  printf("... but the handler does not unify\n");
                   }
                }
                FR = FR->parent;
@@ -1071,6 +1077,9 @@ RC execute()
                goto b_throw_foreign;
             }
             Query query = compile_query(goal);
+            if (query == NULL)
+               goto b_throw_foreign;
+//            print_clause(query->clause);
             NFR->parent = FR;
             //printf("Functor of usercall frame %p is set to <meta-call>/1\n", NFR);
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
@@ -1169,7 +1178,7 @@ RC execute()
          {
             unsigned int slot = CODE16(PC+1);
             //printf("Copying var from slot %d at %p\n", slot, &FR->slots[slot]);
-            // FIXME: Suspicious...
+            //printf("Writing this at %p\n", ARGP);
             if (FR->slots[slot] == 0)
             {
                printf("... suspicious! There is nothing in the arg slot at %p\n", &FR->slots[slot]);
@@ -1304,7 +1313,8 @@ RC execute()
             continue;
          case C_OR:
             CreateChoicepoint(PC+CODEPTR(PC+1), FR->clause, Body);
-            ARGP = SP + sizeof(frame)/sizeof(word);
+            NFR = (Frame)(SP + sizeof(frame)/sizeof(word));
+            ARGP = NFR->slots;
             PC += 1 + sizeof(word);
             continue;
          case TRY_ME_OR_NEXT_CLAUSE:
@@ -1358,6 +1368,8 @@ RC execute_query(word goal)
       return ERROR;
    }
    Query query = compile_query(goal);
+   if (query == NULL)
+      return ERROR;
    FR = allocFrame();
    FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
    FR->returnPC = NULL;
@@ -1532,7 +1544,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p, ARGP=%p) %s ", FR, CP, SP, ARGP, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p, ARGP=%p, H=%p) %s ", FR, CP, SP, ARGP, H, instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
@@ -1563,6 +1575,7 @@ void make_foreign_choicepoint(word w)
    Choicepoint c = (Choicepoint)SP;
    c->SP = SP;
    c->CP = CP;
+   c->H = H;
    c->type = Body;
    c->cleanup = NULL;
    CP = c;
