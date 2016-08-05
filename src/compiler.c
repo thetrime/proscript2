@@ -597,7 +597,6 @@ void _assemble(void *p, instruction_t* i)
       context->clause->code[context->codep++] = (i->slot >> 8) & 0xff;
       context->clause->code[context->codep++] = (i->slot >> 0) & 0xff;
    }
-   // FIXME: Foreign functions not implemented
 }
 
 Clause allocClause()
@@ -788,6 +787,7 @@ Clause foreign_predicate_c(int(*func)(), int arity, int flags)
    else
       push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN, arity+1, (word)func));
    Clause clause = assemble(&instructions);
+   clause->slot_count = arity + ((flags & NON_DETERMINISTIC) != 0?1:0);
    deinit_instruction_list(&instructions);
    return clause;
 }
@@ -799,6 +799,7 @@ Clause foreign_predicate_js(word func)
    push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_JS, 0, func));
    push_instruction(&instructions, INSTRUCTION(I_FOREIGN_JS_RETRY));
    Clause clause = assemble(&instructions);
+   // FIXME: set slot_count!
    deinit_instruction_list(&instructions);
    return clause;
 }
