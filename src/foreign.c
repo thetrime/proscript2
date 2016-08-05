@@ -200,6 +200,17 @@ void strip_module(word term, word* clause, Module* module)
    }
 }
 
+int qcompare_keys(const void * a, const void* b)
+{
+   return term_difference(ARGOF(*((word*)a), 0), ARGOF(*((word*)b), 0));
+}
+
+int qcompare_terms(const void * a, const void* b)
+{
+   return term_difference(*((word*)a), *((word*)b));
+}
+
+
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
 #define PREDICATE(name, arity, body) static int TOKENPASTE2(PRED_, __LINE__) body

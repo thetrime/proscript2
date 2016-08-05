@@ -272,7 +272,7 @@ NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
    {
       constant c = getConstant(body);
       if (c.type == INTEGER_TYPE || c.type == FLOAT_TYPE)
-         type_error(callableAtom, body);
+         return type_error(callableAtom, body);
    }
    Module module;
    word functor;
@@ -284,7 +284,7 @@ NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
    if (p == NULL)
       return FAIL;
    if ((p->flags & PREDICATE_DYNAMIC) == 0)
-      permission_error(accessAtom, privateProcedureAtom, predicate_indicator(head));
+      return permission_error(accessAtom, privateProcedureAtom, predicate_indicator(head));
    word list;
    if (backtrack == 0)
       list = term_from_list(&p->clauses, emptyListAtom);
@@ -309,17 +309,18 @@ NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
 // 8.8.2
 NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
 {
+   // FIXME: assumes current module
    if (TAGOF(indicator) != VARIABLE_TAG)
    {
       if ((TAGOF(indicator) != COMPOUND_TAG && FUNCTOROF(indicator) == predicateIndicatorFunctor))
-         type_error(predicateIndicatorAtom, indicator);
-      if ((TAGOF(ARGOF(indicator, 0)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 0)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 0)).type != ATOM_TYPE))
-         type_error(predicateIndicatorAtom, indicator);
-      if ((TAGOF(ARGOF(indicator, 1)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 1)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 1)).type != INTEGER_TYPE))
-         type_error(predicateIndicatorAtom, indicator);
+         return type_error(predicateIndicatorAtom, indicator);
+      if ((TAGOF(ARGOF(indicator, 0)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 0)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 0)).type == ATOM_TYPE))
+         return type_error(predicateIndicatorAtom, indicator);
+      if ((TAGOF(ARGOF(indicator, 1)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 1)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 1)).type == INTEGER_TYPE))
+         return type_error(predicateIndicatorAtom, indicator);
    }
    // Now indicator is either unbound or bound to /(A,B)
-   // FIXME: assumes current module
+   // This is extremely inefficient - if indicator is ground then this is deterministic!
    word predicates;
    if (backtrack == 0)
    {
@@ -327,6 +328,7 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
       init_list(&list);
       whashmap_iterate(get_current_module()->predicates, build_predicate_list, &list);
       predicates = term_from_list(&list, emptyListAtom);
+      PORTRAY(predicates); printf("\n");
       free_list(&list);
    }
    else
@@ -972,10 +974,10 @@ PREDICATE(atom_length, 2, (word atom, word length)
    if (TAGOF(atom) == VARIABLE_TAG)
       return instantiation_error();
    if (TAGOF(atom) != CONSTANT_TAG)
-      type_error(atomAtom, atom);
+      return type_error(atomAtom, atom);
    constant c = getConstant(atom);
    if (c.type != ATOM_TYPE)
-      type_error(atomAtom, atom);
+      return type_error(atomAtom, atom);
    if (TAGOF(length) != VARIABLE_TAG && !(must_be_integer(length)))
       return ERROR;
    if (TAGOF(length) == CONSTANT_TAG && !(must_be_positive_integer(length)))
@@ -1143,7 +1145,7 @@ PREDICATE(char_code, 2, (word ch, word code)
 {
    if ((TAGOF(code) == VARIABLE_TAG) && (TAGOF(ch) == VARIABLE_TAG))
    {
-      instantiation_error();
+      return instantiation_error();
    }
    else if (TAGOF(ch) == CONSTANT_TAG)
    {
@@ -1155,13 +1157,13 @@ PREDICATE(char_code, 2, (word ch, word code)
             return ERROR;
       if ((TAGOF(code) == VARIABLE_TAG) || (TAGOF(code) == CONSTANT_TAG && getConstant(code).type == INTEGER_TYPE))
          return unify(MAKE_INTEGER(a->data[0]), code);
-      representation_error(characterCodeAtom, code);
+      return representation_error(characterCodeAtom, code);
    }
    if (!must_be_integer(code))
       return ERROR;
    Integer code_obj = getConstant(code).data.integer_data;
    if (code_obj->data < 0)
-      representation_error(characterCodeAtom, code);
+      return representation_error(characterCodeAtom, code);
    char a = (char)code_obj->data;
    return unify(MAKE_NATOM(&a, 1), ch);
 })
@@ -1221,7 +1223,7 @@ PREDICATE(number_chars, 2, (word number, word chars)
                break;
       }
       else
-         type_error(numberAtom, number);
+         return type_error(numberAtom, number);
       assert(rc >= 0 && rc < 31);
       List list;
       init_list(&list);
@@ -1291,7 +1293,7 @@ PREDICATE(number_codes, 2, (word number, word codes)
                break;
       }
       else
-         type_error(numberAtom, number);
+         return type_error(numberAtom, number);
       assert(rc >= 0 && rc < 31);
       List list;
       init_list(&list);
@@ -1456,4 +1458,67 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
       return type_error(integerAtom, value);
 })
 
+PREDICATE(keysort, 2, (word in, word out)
+{
+   // Lets just use qsort for now
+   // First count the number of entries in in
+   int i = 0;
+   word list = in;
+   while (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+   {
+      i++;
+      list = ARGOF(list,1);
+   }
+   // Now make an array
+   word* array = malloc(sizeof(word)*i);
+   // And fill it in
+   list = in;
+   i = 0;
+   while (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+   {
+      array[i++] = ARGOF(list, 0);
+      list = ARGOF(list,1);
+   }
+   // Now sort
+   qsort(array, i, sizeof(word), &qcompare_keys);
+
+   // And now make a new list
+   list = emptyListAtom;
+   while (--i >= 0)
+      list = MAKE_VCOMPOUND(listFunctor, array[i], list);
+   free(array);
+   return unify(out, list);
+})
+
+PREDICATE(sort, 2, (word in, word out)
+{
+   // Lets just use qsort for now
+   // First count the number of entries in in
+   int i = 0;
+   word list = in;
+   while (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+   {
+      i++;
+      list = ARGOF(list,1);
+   }
+   // Now make an array
+   word* array = malloc(sizeof(word)*i);
+   // And fill it in
+   list = in;
+   i = 0;
+   while (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+   {
+      array[i++] = ARGOF(list, 0);
+      list = ARGOF(list,1);
+   }
+   // Now sort
+   qsort(array, i, sizeof(word), &qcompare_terms);
+
+   // And now make a new list
+   list = emptyListAtom;
+   while (--i >= 0)
+      list = MAKE_VCOMPOUND(listFunctor, array[i], list);
+   free(array);
+   return unify(out, list);
+})
 

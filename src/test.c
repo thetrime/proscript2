@@ -30,11 +30,10 @@ void do_test()
    RC result = execute_query(w);
    if (result == ERROR)
    {
-      printf("Error %08lx\n", getException());
-      printf("Error: "); PORTRAY(getException()); printf("\n");
+      printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
    }
    else if (result == FAIL)
-      printf("Failed\n");
+      printf("Top level Failed\n");
    else
    {
       printf("Success! %d\n", result);
@@ -50,7 +49,7 @@ void do_test()
          }
          else if (result == FAIL)
          {
-            printf("Failed\n");
+            printf("No more solutions: Failed\n");
          }
          else
          {

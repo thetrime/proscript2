@@ -1613,6 +1613,8 @@ int head_functor(word head, Module* module, word* functor)
       *module = FR->contextModule;
       return 1;
    }
+   else if (TAGOF(head) == VARIABLE_TAG)
+      return instantiation_error();
    return type_error(callableAtom, head);
 }
 
