@@ -71,7 +71,7 @@ void freeToken(Token t)
          free(t);
          break;
       case SyntaxErrorTokenType:
-         free(t->data.syntax_error_data);
+         //free(t->data.syntax_error_data);
          free(t);
          break;
       case StringTokenType:
@@ -743,6 +743,12 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                mpz_t m;
                mpz_init_set_str(m, t0->data.biginteger_data, 10);
                lhs = MAKE_BIGINTEGER(m);
+               break;
+            }
+            case SyntaxErrorTokenType:
+            {
+               // FIXME: Not good
+               lhs = MAKE_ATOM("syntax_error");
                break;
             }
             default:
