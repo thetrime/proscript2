@@ -328,10 +328,15 @@ int evaluate(word a, number* n)
          {
             case IntegerType:
             {
-               if (!__builtin_smull_overflow(n0.i, n1.i, &n->i))
+               if (__builtin_smull_overflow(n0.i, n1.i, &n->i))
                {
                   if (!is_unbounded)
                      return integer_overflow();
+               }
+               else
+               {
+                  n->type = IntegerType;
+                  return 1;
                }
             }
             case BigIntegerType:
