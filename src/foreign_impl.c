@@ -1478,6 +1478,10 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
 PREDICATE(keysort, 2, (word in, word out)
 {
    // Lets just use qsort for now
+   if (in == emptyListAtom)
+      return unify(out, emptyListAtom);
+
+
    // First count the number of entries in in
    int i = 0;
    word list = in;
@@ -1510,6 +1514,10 @@ PREDICATE(keysort, 2, (word in, word out)
 PREDICATE(sort, 2, (word in, word out)
 {
    // Lets just use qsort for now
+   if (in == emptyListAtom)
+      return unify(out, emptyListAtom);
+
+
    // First count the number of entries in in
    int i = 0;
    word list = in;
@@ -1531,10 +1539,19 @@ PREDICATE(sort, 2, (word in, word out)
    // Now sort
    qsort(array, i, sizeof(word), &qcompare_terms);
 
-   // And now make a new list
-   list = emptyListAtom;
+   // And now make a new list. We must also remove duplicates. Add the first item to the list here
+   // and then remember the last item we added from now on
+   word last = array[--i];
+   list = MAKE_VCOMPOUND(listFunctor, array[i], emptyListAtom);
+
    while (--i >= 0)
-      list = MAKE_VCOMPOUND(listFunctor, array[i], list);
+   {
+      if (array[i] != last)
+      {
+         list = MAKE_VCOMPOUND(listFunctor, array[i], list);
+         last = array[i];
+      }
+   }
    free(array);
    return unify(out, list);
 })
