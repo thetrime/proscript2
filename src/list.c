@@ -1,5 +1,6 @@
 #include "list.h"
 #include "kernel.h"
+#include "errors.h"
 #include "constants.h"
 
 void init_list(List* list)
@@ -196,5 +197,5 @@ int populate_list_from_term(List* list, word w)
       list_append(list, ARGOF(l, 0));
       l = ARGOF(l, 1);
    }
-   return l == emptyListAtom || type_error(listAtom, w);
+   return (l == emptyListAtom) || type_error(listAtom, w);
 }

@@ -51,6 +51,7 @@ FUNCTOR(multiFile, "multi_file", 1)
 FUNCTOR(discontiguous, "discontiguous", 1)
 FUNCTOR(initialization, "initialization", 1)
 FUNCTOR(dbCell, "$db", 2)
+FUNCTOR(subAtomContext, "$sc", 6)
 FUNCTOR(fail, "fail", 0)
 
 ATOM(instantiationError, "instantiation_error")

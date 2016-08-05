@@ -1049,7 +1049,107 @@ NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word back
 // 8.16.3
 NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, word subatom, word backtrack)
 {
-   assert(0 && "Not implemented");
+   if (!must_be_atom(atom))
+      return ERROR;
+   if (TAGOF(before) != VARIABLE_TAG && !must_be_integer(before))
+      return ERROR;
+   if (TAGOF(length) != VARIABLE_TAG && !must_be_integer(length))
+      return ERROR;
+   if (TAGOF(after) != VARIABLE_TAG && !must_be_integer(after))
+      return ERROR;
+   Atom input = getConstant(atom).data.atom_data;
+   long _start = 0;
+   long fixed_start = 0;
+   long _length = 0;
+   long fixed_length = 0;
+   long _remaining = 0;
+   long fixed_remaining = 0;
+   if (backtrack == 0)
+   {
+      // First call
+      if (TAGOF(before) == CONSTANT_TAG)
+      {
+         fixed_start = 1;
+         _start = getConstant(before).data.integer_data->data;
+      }
+      if (TAGOF(length) == CONSTANT_TAG)
+      {
+         fixed_length = 1;
+         _length = getConstant(length).data.integer_data->data;
+      }
+      if (TAGOF(after) == CONSTANT_TAG)
+      {
+         fixed_remaining = 1;
+         _remaining = getConstant(after).data.integer_data->data;
+      }
+      if (fixed_start && fixed_remaining && !fixed_length)
+      {
+         // Deterministic. Will end up in the general case below
+         _length = input->length - _start - _remaining;
+         fixed_length = 1;
+      }
+      if (fixed_remaining && fixed_length && !fixed_start)
+      {
+         // Deterministic. Will end up in the general case below
+         _start = input->length - _length - _remaining;
+         fixed_start = 1;
+      }
+      if (fixed_start && fixed_length)
+      {
+         // General deterministic case
+         return unify(after, MAKE_INTEGER(input->length - _start - _length)) &&
+            unify(before, MAKE_INTEGER(_start)) &&
+            unify(length, MAKE_INTEGER(_length)) &&
+            unify(subatom, MAKE_NATOM(&input->data[_start], _length));
+      }
+   }
+   else
+   {
+      // Redo
+      _start = getConstant(ARGOF(backtrack, 0)).data.integer_data->data;
+      fixed_start = getConstant(ARGOF(backtrack, 1)).data.integer_data->data;
+      _length = getConstant(ARGOF(backtrack, 2)).data.integer_data->data;
+      fixed_length = getConstant(ARGOF(backtrack, 3)).data.integer_data->data;
+      _remaining = getConstant(ARGOF(backtrack, 4)).data.integer_data->data;
+      fixed_remaining = getConstant(ARGOF(backtrack, 5)).data.integer_data->data;
+      if (!fixed_length)
+      {
+         _length++;
+         if (_start + _length > input->length);
+         {
+            _length = 0;
+            if (!fixed_start)
+            {
+               _start++;
+               if (_start > _length)
+               {
+                  return FAIL;
+               }
+            }
+            else
+            {
+               // start is fixed, so length and remaining are free
+               // but remaining is always just computed
+               return FAIL;
+            }
+         }
+      }
+      else
+      {
+         // length is fixed, so start and remaining must be free
+         _start++;
+         _remaining--;
+         if (_length + _start > input->length)
+         {
+            return FAIL;
+         }
+      }
+   }
+   make_foreign_choicepoint(MAKE_VCOMPOUND(subAtomContextFunctor, MAKE_INTEGER(_start), MAKE_INTEGER(fixed_start), MAKE_INTEGER(_length), MAKE_INTEGER(fixed_length), MAKE_INTEGER(_remaining), MAKE_INTEGER(fixed_remaining)));
+   return unify(after, MAKE_INTEGER(input->length - _start - _length)) &&
+      unify(before, MAKE_INTEGER(_start)) &&
+      unify(length, MAKE_INTEGER(_length)) &&
+      unify(subatom, MAKE_NATOM(&input->data[_start], _length));
 })
 
 // 8.16.4
