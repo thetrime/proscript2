@@ -283,7 +283,7 @@ NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
    Predicate p = lookup_predicate(module, functor);
    if (p == NULL)
       return FAIL;
-   if (p->flags && PREDICATE_FOREIGN)
+   if ((p->flags & PREDICATE_DYNAMIC) == 0)
       permission_error(accessAtom, privateProcedureAtom, predicate_indicator(head));
    word list;
    if (backtrack == 0)
@@ -340,40 +340,27 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
 // 8.9.1
 PREDICATE(asserta, 1, (word term)
 {
+   Module module;
+   word clause;
+   if (TAGOF(term) == VARIABLE_TAG)
+      return instantiation_error();
+   strip_module(term, &clause, &module);
    //printf("asserta:\n");
-   //PORTRAY(term); printf("\n");
-   Module m;
-   if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
-   {
-      m = find_module(ARGOF(term, 0));
-      if (m == NULL)
-         m = create_module(ARGOF(term, 0));
-      asserta(m, ARGOF(term, 1));
-   }
-   else
-   {
-      m = get_current_module();
-      asserta(m, term);
-   }
+   //PORTRAY(clause); printf("\n");
+
+   asserta(module, clause);
    return 1;
 })
 
 // 8.9.2
 PREDICATE(assertz, 1, (word term)
 {
-   Module m;
-   if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == crossModuleCallFunctor)
-   {
-      m = find_module(ARGOF(term, 0));
-      if (m == NULL)
-         m = create_module(ARGOF(term, 0));
-      assertz(m, ARGOF(term, 1));
-   }
-   else
-   {
-      m = get_current_module();
-      assertz(m, term);
-   }
+   Module module;
+   word clause;
+   if (TAGOF(term) == VARIABLE_TAG)
+      return instantiation_error();
+   strip_module(term, &clause, &module);
+   assertz(module, clause);
    return 1;
 })
 
@@ -1003,9 +990,9 @@ NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word back
    if (backtrack == 0)
    { // First call
       if (TAGOF(atom1) == VARIABLE_TAG && TAGOF(atom12) == VARIABLE_TAG)
-         instantiation_error();
+         return instantiation_error();
       if (TAGOF(atom2) == VARIABLE_TAG && TAGOF(atom12) == VARIABLE_TAG)
-         instantiation_error();
+         return instantiation_error();
       if (TAGOF(atom1) != VARIABLE_TAG)
          if (!must_be_atom(atom1))
             return ERROR;
@@ -1031,7 +1018,9 @@ NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word back
       index = 0;
    }
    else
+   {
       index = getConstant(backtrack).data.integer_data->data;
+   }
    Atom a12 = getConstant(atom12).data.atom_data;
    if (index == a12->length+1)
       return FAIL;
@@ -1042,7 +1031,7 @@ NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word back
 // 8.16.3
 NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, word subatom, word backtrack)
 {
-   assert(0);
+   assert(0 && "Not implemented");
 })
 
 // 8.16.4
@@ -1064,6 +1053,8 @@ PREDICATE(atom_chars, 2, (word atom, word chars)
             return ERROR;
          w = ARGOF(w, 1);
       }
+      if (TAGOF(w) == VARIABLE_TAG)
+         return instantiation_error();
       if (w != emptyListAtom)
          return type_error(listAtom, chars);
       char* buffer = malloc(i);
@@ -1111,7 +1102,7 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
          i++;
          if (!must_be_bound(ARGOF(w, 0)))
             return ERROR;
-         if (!must_be_positive_integer(ARGOF(w, 0)))
+         if (!must_be_character_code(ARGOF(w, 0)))
             return ERROR;
          w = ARGOF(w, 1);
       }
