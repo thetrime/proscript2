@@ -1,3 +1,5 @@
+#ifndef _PARSER_H
+#define _PARSER_H
 #include "types.h"
 #include "stream.h"
 #include "options.h"
@@ -61,4 +63,6 @@ typedef charbuffer* CharBuffer;
 
 int is_graphic_char(char);
 int read_term(Stream s, Options* options, word* w);
-
+Token lex(Stream s);
+void freeToken(Token t);
+#endif

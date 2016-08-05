@@ -1321,10 +1321,41 @@ PREDICATE(number_chars, 2, (word number, word chars)
       buffer[i] = '\0';
       // Ok, now we have the buffer and it is null-terminated. We can pass it to the parser and see what it makes of it!
       Stream stream = stringBufferStream(buffer, i);
-      int rc = read_term(stream, NULL, &w);
+      //int rc = read_term(stream, NULL, &w);
+      Token token = lex(stream);
+      int rc = peek_raw_char(stream) == -1;
       freeStream(stream);
       free(buffer);
-      return rc && unify(w, number);
+      if (!rc)
+      {
+         freeToken(token);
+         syntax_error(MAKE_ATOM("illegal number"));
+      }
+      switch (token->type)
+      {
+         case IntegerTokenType:
+            rc &= unify(number, MAKE_INTEGER(token->data.integer_data));
+            freeToken(token);
+            break;
+         case BigIntegerTokenType:
+         {
+            mpz_t m;
+            mpz_init_set_str(m, token->data.biginteger_data, 10);
+            rc &= unify(number, MAKE_BIGINTEGER(m));
+            freeToken(token);
+            break;
+         }
+         case FloatTokenType:
+         {
+            rc &= unify(number, MAKE_FLOAT(token->data.float_data));
+            freeToken(token);
+            break;
+         }
+         default:
+            freeToken(token);
+            return syntax_error(MAKE_ATOM("illegal number"));
+      }
+      return rc;
    }
    else if (TAGOF(number) == CONSTANT_TAG)
    {
@@ -1391,10 +1422,41 @@ PREDICATE(number_codes, 2, (word number, word codes)
       buffer[i] = '\0';
       // Ok, now we have the buffer and it is null-terminated. We can pass it to the parser and see what it makes of it!
       Stream stream = stringBufferStream(buffer, i);
-      int rc = read_term(stream, NULL, &w);
+      //int rc = read_term(stream, NULL, &w);
+      Token token = lex(stream);
+      int rc = peek_raw_char(stream) == -1;
       freeStream(stream);
       free(buffer);
-      return rc && unify(w, number);
+      if (!rc)
+      {
+         freeToken(token);
+         syntax_error(MAKE_ATOM("illegal number"));
+      }
+      switch (token->type)
+      {
+         case IntegerTokenType:
+            rc &= unify(number, MAKE_INTEGER(token->data.integer_data));
+            freeToken(token);
+            break;
+         case BigIntegerTokenType:
+         {
+            mpz_t m;
+            mpz_init_set_str(m, token->data.biginteger_data, 10);
+            rc &= unify(number, MAKE_BIGINTEGER(m));
+            freeToken(token);
+            break;
+         }
+         case FloatTokenType:
+         {
+            rc &= unify(number, MAKE_FLOAT(token->data.float_data));
+            freeToken(token);
+            break;
+         }
+         default:
+            freeToken(token);
+            return syntax_error(MAKE_ATOM("illegal number"));
+      }
+      return rc;
    }
    else if (TAGOF(number) == CONSTANT_TAG)
    {

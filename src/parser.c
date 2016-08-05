@@ -460,16 +460,16 @@ Token lex(Stream s)
       }
       if (!seen_decimal && !seen_exp)
       {
-         char* s = finalize(sb);
+         char* str = finalize(sb);
          char* sp;
-         long l = strtol(s, &sp, base);
+         long l = strtol(str, &sp, base);
          if (errno == ERANGE)
          {
-            return BigIntegerToken(s);
+            return BigIntegerToken(str);
          }
          else
          {
-            free(s);
+            free(str);
             return IntegerToken(l);
          }
       }
