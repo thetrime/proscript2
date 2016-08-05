@@ -167,6 +167,7 @@ word list_shift(List* list)
       new_head->next->prev = new_head; // General case.
    free(list->head);
    list->head = new_head;
+   list->length--;
    return result;
 }
 
@@ -182,6 +183,7 @@ word list_pop(List* list)
       new_tail->prev->next = new_tail; // General case.
    free(list->tail);
    list->tail = new_tail;
+   list->length--;
    return result;
 }
 
