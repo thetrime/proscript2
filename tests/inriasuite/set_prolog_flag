@@ -6,7 +6,7 @@
 [set_prolog_flag(5, decimals), type_error(atom,5)].
 [set_prolog_flag(date, 'July 1999'), domain_error(prolog_flag,date)].
 [set_prolog_flag(debug, no), domain_error(flag_value,debug+no)].
-[set_prolog_flag(max_arity, 40), permission_error(modify, flag, max_arity)].
+[set_prolog_flag(bounded, false), permission_error(modify, flag, bounded)].
 /* swindles to get tests of double quotes flag to work. */
 
 [set_prolog_flag(double_quotes, atom), success].
