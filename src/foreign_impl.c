@@ -395,10 +395,10 @@ NONDET_PREDICATE(retract, 1, (word term, word backtrack)
    {
       word functor;
       if (!head_functor(term, &m, &functor))
-      {
-         return 0; // Error
-      }
+         return ERROR;
       Predicate p = lookup_predicate(m, functor);
+      if (p == NULL)
+         return FAIL; // Cannot retract it if it does not exist
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
          return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(term));
       list = term_from_list(&p->clauses, emptyListAtom);
