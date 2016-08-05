@@ -118,11 +118,15 @@ PREDICATE(functor, 3, (word term, word name, word arity)
    {
       if (!(must_be_positive_integer(arity) &&
             must_be_bound(name) &&
-            must_be_atom(name)))
-         return 0;
+            must_be_atomic(name)))
+      {
+         return ERROR;
+      }
       long a = getConstant(arity).data.integer_data->data;
       if (a == 0)
          return unify(term, name);
+      if (a > 0 && !must_be_atom(name))
+         return ERROR;
       word* args = malloc(sizeof(word) * a);
       for (int i = 0; i < a; i++)
          args[i] = MAKE_VAR();
@@ -1326,14 +1330,24 @@ NONDET_PREDICATE(current_prolog_flag, 2, (word flag, word value, word backtrack)
       {
          constant c = getConstant(flag);
          if (c.type == ATOM_TYPE)
-            return unify(value, get_prolog_flag(c.data.atom_data->data));
+         {
+            word v = get_prolog_flag(c.data.atom_data->data);
+            if (v == 0)
+               return domain_error(prologFlagAtom, flag);
+            return unify(value, v);
+         }
       }
-      return type_error(prologFlagAtom, flag);
+      return type_error(atomAtom, flag);
    }
    word list = backtrack==0?prolog_flag_keys():backtrack;
    if (ARGOF(list, 1) != emptyListAtom)
       make_foreign_choicepoint(ARGOF(list, 1));
-   return unify(flag, ARGOF(list,0)) && unify(value, get_prolog_flag(getConstant(ARGOF(list, 0)).data.atom_data->data));
+   if (!unify(flag, ARGOF(list,0)))
+      return FAIL;
+   word v = get_prolog_flag(getConstant(ARGOF(list, 0)).data.atom_data->data);
+   if (v == 0) // This really shouldnt happen since we were the ones who made the key!
+      return existence_error(prologFlagAtom, flag);
+   return unify(value, v);
 })
 
 PREDICATE(halt, 0, ()

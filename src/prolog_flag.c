@@ -122,7 +122,7 @@ void initialize_prolog_flags()
    char_conversion_flag.value = offAtom;
    hashmap_put(flags, "char_conversion", &char_conversion_flag);
    debug_flag.value = offAtom;
-   hashmap_put(flags, "debug_atom", &debug_flag);
+   hashmap_put(flags, "debug", &debug_flag);
    unknown_flag.value = errorAtom;
    hashmap_put(flags, "unknown", &unknown_flag);
    double_quotes_flag.value = codesAtom;
