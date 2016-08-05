@@ -700,15 +700,15 @@ Query compile_query(word term)
    init_list(&variables);
    init_instruction_list(&instructions);
    find_variables(term, &variables);
-   int ignored;
-   if (!compile_clause(MAKE_VCOMPOUND(clauseFunctor, MAKE_LCOMPOUND(queryAtom, &variables), term), &instructions, &ignored))
+   int slot_count;
+   if (!compile_clause(MAKE_VCOMPOUND(clauseFunctor, MAKE_LCOMPOUND(queryAtom, &variables), term), &instructions, &slot_count))
       return NULL;
    Query q = malloc(sizeof(query));
    q->variable_count = 0;
    q->variables = malloc(sizeof(word) * list_length(&variables));
    list_apply(&variables, q, set_variables);
    q->clause = assemble(&instructions);
-   q->clause->slot_count = q->variable_count;
+   q->clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
    free_list(&variables);
    return q;
