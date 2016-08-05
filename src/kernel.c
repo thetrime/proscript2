@@ -459,7 +459,7 @@ void unwind_trail(unsigned int from)
 // After executing, cut_to(X), we ensure that X is the current choicepoint.
 int cut_to(Choicepoint point)
 {
-   while (CP != point)
+   while (CP > point)
    {
       if (CP == NULL) // Fatal, I guess?
          fatal("Cut to non-existent choicepoint");
@@ -1120,17 +1120,34 @@ RC execute()
             PC++;
             continue;
          case C_CUT:
+         {
+
             //print_choices();
-            //printf("Cut to %p\n", FR->slots[CODE16(PC+1)]);
-            if (cut_to((Choicepoint)FR->slots[CODE16(PC+1)]) == YIELD)
+            //printf("Cut to %p from %p\n", FR->slots[CODE16(PC+1)], CP);
+            if (cut_to(((Choicepoint)FR->slots[CODE16(PC+1)])) == YIELD)
                return YIELD;
             PC+=3;
             continue;
+         }
          case C_LCUT:
-            if (cut_to((Choicepoint)FR->slots[CODE16(PC+1)] + 1) == YIELD)
-               return YIELD;
-            PC+=3;
+         {
+            Choicepoint C = CP;
+            //printf("CP is %p\n", CP);
+            //printf("We are looking for the choicepoint after %p\n", ((Choicepoint)FR->slots[CODE16(PC+1)]));
+            while (C > ((Choicepoint)FR->slots[CODE16(PC+1)]))
+            {
+               assert(C != NULL); // The choicepoint we are looking for is gone
+               if (C->CP == ((Choicepoint)FR->slots[CODE16(PC+1)]))
+               {
+                  //printf("Found it\n");
+                  if (cut_to(C) == YIELD)
+                     return YIELD;
+                  PC+=3;
+                  break;
+               }
+            }
             continue;
+         }
          case C_IF_THEN:
             FR->slots[CODE16(PC+1)] = (word)CP;
             //printf("Saved the current choicepoint in %p: %p\n", &FR->slots[CODE16(PC+1)], CP);
@@ -1138,7 +1155,7 @@ RC execute()
             continue;
          case C_IF_THEN_ELSE:
          {
-            //printf("Saving the current choicepoint of CP %p\n", CP);
+            //printf("Saving the current choicepoint of CP %p in %p\n", CP, &FR->slots[CODE16(PC+1+sizeof(word))] );
             FR->slots[CODE16(PC+1+sizeof(word))] = (word)CP;
             unsigned char* address = PC+CODEPTR(PC+1);
             //printf("Creating a choicepoint at %p with a continuation of %p \n", SP, address);
