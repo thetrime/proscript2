@@ -46,13 +46,15 @@ Choicepoint CP = NULL;
 unsigned int TR;
 
 #define HEAP_SIZE 655350
+#define TRAIL_SIZE 65535
+#define STACK_SIZE 655350
 
-word trail[65535];
+word trail[TRAIL_SIZE];
 word HEAP[HEAP_SIZE];
 word* HTOP = &HEAP[HEAP_SIZE];
 word* H = &HEAP[0];
-word STACK[65535];
-word* STOP = &STACK[65535];
+word STACK[STACK_SIZE];
+word* STOP = &STACK[STACK_SIZE];
 word* SP = &STACK[0];
 uintptr_t argStack[64];
 uintptr_t* argStackP = argStack;
@@ -325,7 +327,7 @@ word MAKE_FUNCTOR(word name, int arity)
 void _bind(word var, word value)
 {
    //printf("TR: %d\n", TR);
-   assert(TR < 65535);
+   assert(TR+1 < TRAIL_SIZE);
    trail[TR++] = var;
    *((Word)var) = value;
 }
@@ -903,7 +905,9 @@ RC execute()
             { // Not implemented yet
             }
             else if (rc == ERROR)
+            {
                goto b_throw_foreign;
+            }
          }
          i_exit:
          //printf("   Jumped to I_EXIT\n");
@@ -1039,6 +1043,7 @@ RC execute()
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
             //printf("Frame at %p has functor ", NFR); PORTRAY(functor); printf("\n");
+            assert(NFR < STOP);
             if (!prepare_frame(functor, NULL, NFR))
                goto b_throw_foreign;
             NFR->returnPC = PC+3;
@@ -1544,7 +1549,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p, ARGP=%p, H=%p) %s ", FR, CP, SP, ARGP, H, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p, ARGP=%p, H=%p, TR=%d) %s ", FR, CP, SP, ARGP, H, TR, instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
