@@ -11,6 +11,7 @@
 #include "list.h"
 #include "options.h"
 #include "operators.h"
+#include "errors.h"
 
 token ListOpenToken_ = {ConstantTokenType, .data = {.constant_data = "["}}; Token ListOpenToken = &ListOpenToken_;
 token ListCloseToken_ = {ConstantTokenType, .data = {.constant_data = "]"}}; Token ListCloseToken = &ListCloseToken_;
@@ -22,11 +23,10 @@ token BarToken_ = {ConstantTokenType, .data = {.constant_data = "|"}}; Token Bar
 token CommaToken_ = {ConstantTokenType, .data = {.constant_data = ","}}; Token CommaToken = &CommaToken_;
 token PeriodToken_ = {ConstantTokenType, .data = {.constant_data = "."}}; Token PeriodToken = &PeriodToken_;
 
-word parse_infix(Stream s, word lhs, int precedence, map_t vars);
-word parse_postfix(Stream s, word lhs, int precedence, map_t vars);
+int parse_infix(Stream s, word lhs, int precedence, map_t vars, word*);
+int parse_postfix(Stream s, word lhs, int precedence, map_t vars, word*);
 
 
-word syntax_error = 0; // FIXME: Not sure about what to do here
 
 void print_token(Token t)
 {
@@ -71,7 +71,7 @@ void freeToken(Token t)
          free(t);
          break;
       case SyntaxErrorTokenType:
-         //free(t->data.syntax_error_data);
+         free(t->data.syntax_error_data);
          free(t);
          break;
       case StringTokenType:
@@ -229,10 +229,12 @@ char* finalize(CharBuffer buffer)
 
 Token SyntaxErrorToken(char* message)
 {
-   Token t = malloc(sizeof(token));
-   t->type = SyntaxErrorTokenType;
-   t->data.syntax_error_data = message;
-   return t;
+//   Token t = malloc(sizeof(token));
+//   t->type = SyntaxErrorTokenType;
+//   t->data.syntax_error_data = strdup(message);
+//   return t;
+   syntax_error(MAKE_ATOM(message));
+   return NULL;
 
 }
 
@@ -387,6 +389,7 @@ Token lex(Stream s)
       CharBuffer sb = charBuffer();
       pushChar(sb, c);
       int seen_decimal = 0;
+      int seen_exp = 0;
       while(1)
       {
          c = peek_raw_char_with_conversion(s);
@@ -409,8 +412,22 @@ Token lex(Stream s)
                break;
             }
          }
+         else if (c == 'E' && !seen_exp)
+         {
+            seen_exp = 1;
+            pushChar(sb, 'E');
+            get_raw_char_with_conversion(s);
+         }
+         else if ((c == '+' || c == '-') && seen_exp)
+         {
+            pushChar(sb, c);
+            get_raw_char_with_conversion(s);
+         }
          else if (is_char(c))
+         {
+            printf("Bad char %d\n", c);
             return SyntaxErrorToken("illegal number");
+         }
          else
             break;
       }
@@ -596,11 +613,14 @@ word make_curly(List* list, word tail)
 }
 
 
-word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars)
+int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars, word* result)
 {
    Token t0 = read_token(s);
    if (t0 == NULL)
-      return endOfFileAtom;
+   {
+      *result = endOfFileAtom;
+      return 1;
+   }
    word lhs = 0;
    Operator prefixOperator;
    Operator infixOperator;
@@ -636,7 +656,11 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                lhs = curlyAtom;
                break;
             }
-            word arg = read_expression(s, 1201, 1, 1, vars);
+            word arg;
+            if (!read_expression(s, 1201, 1, 1, vars, &arg))
+            {
+               // FIXME
+            }
             Token next = read_token(s);
             if (next == CommaToken)
             {
@@ -657,27 +681,34 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
             else if (next == BarToken && t0 == ListOpenToken)
             {
                list_append(&list, arg);
-               word tail = read_expression(s, 1201, 1, 1, vars);
+               word tail;
+               if (!read_expression(s, 1201, 1, 1, vars, &tail))
+               {
+                  // FIXME
+               }
                lhs = term_from_list(&list, tail);
                next = read_token(s);
                if (next == ListCloseToken)
                   break;
-               return syntax_error; // Missing ]
+               return syntax_error(MAKE_ATOM("Missing ]"));
             }
             else
             {
                freeToken(next);
-               return syntax_error; // Mismatched 'token' at 'next'
+               return syntax_error(MAKE_ATOM("Mismatched <token> at <next>"));
             }
          }
          free_list(&list);
       }
       else if (t0 == ParenOpenToken)
       {
-         lhs = read_expression(s, 12001, 0, 0, vars);
+         if (!read_expression(s, 12001, 0, 0, vars, &lhs))
+         {
+            // FIXME:
+         }
          Token next = read_token(s);
          if (next != ParenCloseToken)
-            return syntax_error; // Mismatched ( at <next>
+            return syntax_error(MAKE_ATOM("Mismatched ( at <next>"));
       }
       else if (t0->type == VariableTokenType)
       {
@@ -759,14 +790,24 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
    }
    else if (prefixOperator->fixity == FX)
    {
-      lhs = MAKE_VCOMPOUND(prefixOperator->functor, read_expression(s, prefixOperator->precedence, isArg, isList, vars));
+      word w;
+      if (!read_expression(s, prefixOperator->precedence, isArg, isList, vars, &w))
+      {
+         // FIXME:
+      }
+      lhs = MAKE_VCOMPOUND(prefixOperator->functor, w);
    }
    else if (prefixOperator->fixity == FY)
    {
-      lhs = MAKE_VCOMPOUND(prefixOperator->functor, read_expression(s, prefixOperator->precedence+1, isArg, isList, vars));
+      word w;
+      if (!read_expression(s, prefixOperator->precedence+1, isArg, isList, vars, &w))
+      {
+         // FIXME:
+      }
+      lhs = MAKE_VCOMPOUND(prefixOperator->functor, w);
    }
    else
-      return syntax_error; // parse error
+      return syntax_error(MAKE_ATOM("Parse error"));
    // At this point, lhs has been set. We no longer need t0
    freeToken(t0);
    while (1)
@@ -774,7 +815,8 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
       Token t1 = peek_token(s);
       if (t1 == NULL)
       {
-         return lhs;
+         *result = lhs;
+         return 1;
       }
       if (t1->type == IntegerTokenType && t1->data.integer_data <= 0)
       {
@@ -794,7 +836,12 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
          init_list(&list);
          while (1)
          {
-            list_append(&list, read_expression(s, 1201, 1, 0, vars));
+            word w;
+            if (!read_expression(s, 1201, 1, 0, vars, &w))
+            {
+               // FIXME:
+            }
+            list_append(&list, w);
             Token next = read_token(s);
             if (next == ParenCloseToken)
                break;
@@ -805,7 +852,7 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                if (next == NULL)
                {
                   printf("Syntax error: end of file in term\n");
-                  return syntax_error; // end of file in term
+                  return syntax_error(MAKE_ATOM("end of file in term"));
                }
                else
                {
@@ -813,7 +860,7 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
                   print_token(next);
                   printf("\n");
                   freeToken(next);
-                  return syntax_error; // Unexpected token 'next'
+                  return syntax_error(MAKE_ATOM("unexpected token <next>"));
                }
             }
          }
@@ -823,34 +870,67 @@ word read_expression(Stream s, int precedence, int isArg, int isList, map_t vars
          t1 = peek_token(s);
       }
       else if (t1 == PeriodToken)
-         return lhs;
+      {
+         *result = lhs;
+         return 1;
+      }
       else if (t1 == CommaToken && isArg)
-         return lhs;
+      {
+         *result = lhs;
+         return 1;
+      }
       else if (t1 == BarToken && isList)
-         return lhs;
+      {
+         *result = lhs;
+         return 1;
+      }
       else if (t1 == NULL)
-         return lhs;
+      {
+         *result = lhs;
+         return 1;
+      }
       else if (token_operator(t1, &infixOperator, Infix))
       {
          if (infixOperator->fixity == XFX && precedence > infixOperator->precedence)
-            lhs = parse_infix(s, lhs, infixOperator->precedence, vars);
+         {
+            if (!parse_infix(s, lhs, infixOperator->precedence, vars, &lhs))
+               return 0;
+         }
          else if (infixOperator->fixity == XFY && precedence > infixOperator->precedence)
-            lhs = parse_infix(s, lhs, infixOperator->precedence+1, vars);
+         {
+            if (!parse_infix(s, lhs, infixOperator->precedence+1, vars, &lhs))
+               return 0;
+         }
          else if (infixOperator->fixity == YFX && precedence >= infixOperator->precedence)
-            lhs = parse_infix(s, lhs, infixOperator->precedence, vars);
+         {
+            if (!parse_infix(s, lhs, infixOperator->precedence, vars, &lhs))
+               return 0;
+         }
          else if (infixOperator->fixity == XF && precedence > infixOperator->precedence)
-            lhs = parse_postfix(s, lhs, infixOperator->precedence, vars);
+         {
+            if (!parse_postfix(s, lhs, infixOperator->precedence, vars, &lhs))
+               return 0;
+         }
          else if (infixOperator->fixity == YF && precedence >= infixOperator->precedence)
-            lhs = parse_postfix(s, lhs, infixOperator->precedence, vars);
+         {
+            if (!parse_postfix(s, lhs, infixOperator->precedence, vars, &lhs))
+               return 0;
+         }
          else
-            return lhs;
+         {
+            *result = lhs;
+            return 1;
+         }
       }
       else
-         return lhs;
+      {
+         *result = lhs;
+         return 1;
+      }
    }
 }
 
-word parse_infix(Stream s, word lhs, int precedence, map_t vars)
+int parse_infix(Stream s, word lhs, int precedence, map_t vars, word* result)
 {
    Token t = read_token(s);
    assert(t->type == AtomTokenType || t == CommaToken);
@@ -866,19 +946,24 @@ word parse_infix(Stream s, word lhs, int precedence, map_t vars)
       data = ",";
       len = 1;
    }
-   word rhs = read_expression(s, precedence, 0, 0, vars);
-   word result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(data, len), 2), lhs, rhs);
+   word rhs;
+   if (!read_expression(s, precedence, 0, 0, vars, &rhs))
+   {
+      freeToken(t);
+      return 0;
+   }
+   *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(data, len), 2), lhs, rhs);
    freeToken(t);
-   return result;
+   return 1;
 }
 
-word parse_postfix(Stream s, word lhs, int precedence, map_t vars)
+int parse_postfix(Stream s, word lhs, int precedence, map_t vars, word* result)
 {
    Token t = read_token(s);
    assert(t->type == AtomTokenType || t == CommaToken);
-   word result =  MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 1), lhs);
+   *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 1), lhs);
    freeToken(t);
-   return result;
+   return 1;
 }
 
 
@@ -888,14 +973,14 @@ int free_key(any_t ignored, char* key, any_t value)
    return MAP_OK;
 }
 
-word read_term(Stream stream, Options* options)
+int read_term(Stream stream, Options* options, word* t)
 {
    token_lookahead_index = 0;
    map_t vars = hashmap_new();
-   word t = read_expression(stream, 12001, 0, 0, vars);
+   int rc = read_expression(stream, 12001, 0, 0, vars, t);
    any_t tmp;
    hashmap_iterate(vars, free_key, &tmp);
    hashmap_free(vars);
    //printf("Read term: "); PORTRAY(t); printf("\n");
-   return t;
+   return rc;
 }

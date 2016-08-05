@@ -12,3 +12,4 @@ int io_error(word what, word where);
 int integer_overflow();
 int float_overflow();
 int zero_divisor();
+int syntax_error(word message);

@@ -60,3 +60,10 @@ int io_error(word what, word where) // Non-ISO
    SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(ioErrorFunctor, what, where), MAKE_VAR()));
    return 0;
 }
+
+int syntax_error(word message) // Non-ISO
+{
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(syntaxErrorFunctor, message), MAKE_VAR()));
+   return 0;
+
+}

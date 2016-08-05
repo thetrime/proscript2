@@ -1463,8 +1463,17 @@ void consult_file(char* filename)
 {
    Stream s = fileReadStream(filename);
    word clause;
-   while ((clause = read_term(s, NULL)) != endOfFileAtom)
+   while (1)
    {
+      word clause;
+      if (!read_term(s, NULL, &clause))
+      {
+         CLEAR_EXCEPTION();
+         printf("Syntax error reading file\n");
+         break;
+      }
+      if (clause == endOfFileAtom)
+         break;
       //PORTRAY(clause); printf("\n");
       if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
       {
@@ -1521,8 +1530,17 @@ void consult_string(char* string)
 {
    Stream s = stringBufferStream(string, strlen(string));
    word clause;
-   while ((clause = read_term(s, NULL)) != endOfFileAtom)
+   while (1)
    {
+      word clause;
+      if (!read_term(s, NULL, &clause))
+      {
+         CLEAR_EXCEPTION();
+         printf("Syntax error reading file\n");
+         break;
+      }
+      if (clause == endOfFileAtom)
+         break;
       if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
       {
          assert(0);

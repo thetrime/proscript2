@@ -60,5 +60,5 @@ typedef charbuffer* CharBuffer;
 
 
 int is_graphic_char(char);
-word read_term(Stream s, Options* options);
+int read_term(Stream s, Options* options, word* w);
 

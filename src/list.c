@@ -190,10 +190,11 @@ word list_pop(List* list)
 
 int populate_list_from_term(List* list, word w)
 {
-   while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
+   word l = w;
+   while (TAGOF(l) == COMPOUND_TAG && FUNCTOROF(l) == listFunctor)
    {
-      list_append(list, ARGOF(w, 0));
-      w = ARGOF(w, 1);
+      list_append(list, ARGOF(l, 0));
+      l = ARGOF(l, 1);
    }
-   return w == emptyListAtom;
+   return l == emptyListAtom || type_error(listAtom, w);
 }

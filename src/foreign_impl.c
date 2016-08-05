@@ -210,6 +210,11 @@ PREDICATE(=.., 2, (word term, word univ)
          free_list(&list);
          return 0; // Error
       }
+      if (list_length(&list) == 0)
+      {
+         free_list(&list);
+         return domain_error(nonEmptyListAtom, univ);
+      }
       word fname = list_shift(&list);
       if (!must_be_bound(fname))
       {
@@ -710,9 +715,10 @@ PREDICATE(read_term, 2, (word term, word options)
    Options _options;
    init_options(&_options);
    options_from_term(&_options, options);
-   word t = read_term(current_input, &_options);
+   word t;
+   int rc = read_term(current_input, &_options, &t);
    free_options(&_options);
-   return unify(term, t);
+   return rc && unify(term, t);
 })
 PREDICATE(read_term, 3, (word stream, word term, word options)
 {
@@ -722,17 +728,19 @@ PREDICATE(read_term, 3, (word stream, word term, word options)
    Options _options;
    init_options(&_options);
    options_from_term(&_options, options);
-   word t = read_term(s, &_options);
+   word t;
+   int rc = read_term(s, &_options, &t);
    free_options(&_options);
-   return unify(term, t);
+   return rc && unify(term, t);
 })
 PREDICATE(read, 1, (word term)
 {
    Options _options;
    init_options(&_options);
-   word t = read_term(current_input, &_options);
+   word t;
+   int rc = read_term(current_input, &_options, &t);
    free_options(&_options);
-   return unify(term, t);
+   return rc && unify(term, t);
 })
 PREDICATE(read, 2, (word stream, word term)
 {
@@ -741,10 +749,11 @@ PREDICATE(read, 2, (word stream, word term)
       return ERROR;
    Options _options;
    init_options(&_options);
-   word t = read_term(s, &_options);
+   word t;
+   int rc = read_term(s, &_options, &t);
    //printf("Read this term\n"); PORTRAY(t); printf("\n");
    free_options(&_options);
-   return unify(term, t);
+   return rc && unify(term, t);
 })
 
 // 8.14.2 write_term/2,3 write/1,2, writeq/1,2, write_canonical/1,2 IMPLEMENT
@@ -1208,10 +1217,10 @@ PREDICATE(number_chars, 2, (word number, word chars)
       buffer[i] = '\0';
       // Ok, now we have the buffer and it is null-terminated. We can pass it to the parser and see what it makes of it!
       Stream stream = stringBufferStream(buffer, i);
-      w = read_term(stream, NULL);
+      int rc = read_term(stream, NULL, &w);
       freeStream(stream);
       free(buffer);
-      return unify(w, number);
+      return rc && unify(w, number);
    }
    else if (TAGOF(number) == CONSTANT_TAG)
    {
@@ -1278,10 +1287,10 @@ PREDICATE(number_codes, 2, (word number, word codes)
       buffer[i] = '\0';
       // Ok, now we have the buffer and it is null-terminated. We can pass it to the parser and see what it makes of it!
       Stream stream = stringBufferStream(buffer, i);
-      w = read_term(stream, NULL);
+      int rc = read_term(stream, NULL, &w);
       freeStream(stream);
       free(buffer);
-      return unify(w, number);
+      return rc && unify(w, number);
    }
    else if (TAGOF(number) == CONSTANT_TAG)
    {
