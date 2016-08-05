@@ -1201,15 +1201,45 @@ int arith_compare(word a, word b)
       switch(common_type(na, nb))
       {
          case IntegerType:
+         {
             if (na.i > nb.i)
                return 1;
             if (na.i == nb.i)
                return 0;
             return -1;
-         default:
-            assert(0);
+         }
+         case BigIntegerType:
+         {
+            mpz_t ba, bb;
+            toBigIntegerAndFree(na, &ba);
+            toBigIntegerAndFree(nb, &bb);
+            int rc = mpz_cmp(ba, bb);
+            mpz_clear(ba);
+            mpz_clear(bb);
+            return rc;
+         }
+         case FloatType:
+         {
+            double fa, fb;
+            fa = toFloatAndFree(na);
+            fb = toFloatAndFree(nb);
+            if (fa > fb)
+               return 1;
+            if (fa == fb)
+               return 0;
+            return -1;
+         }
+         case RationalType:
+         {
+            mpq_t ra, rb;
+            toRationalAndFree(na, &ra);
+            toRationalAndFree(nb, &rb);
+            int rc = mpq_cmp(ra, rb);
+            mpq_clear(ra);
+            mpq_clear(rb);
+            return rc;
+         }
       }
    }
-   else
-      return 0;
+   return 0;
 }
