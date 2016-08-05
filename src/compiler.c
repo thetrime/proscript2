@@ -533,6 +533,9 @@ int get_reserved_slots(word t)
          return get_reserved_slots(ARGOF(t, 0)) + get_reserved_slots(ARGOF(t, 1)) + 1;
       if (FUNCTOROF(t) == notFunctor)
          return get_reserved_slots(ARGOF(t, 0)) + 1;
+      if (FUNCTOROF(t) == notUnifiableFunctor)
+         return get_reserved_slots(ARGOF(t, 0)) + 1;
+
    }
    if (t == catchAtom)
       return 4; // One for each arg on the frame, plus an extra one for the choicepoint
