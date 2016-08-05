@@ -378,6 +378,7 @@ void PORTRAY(word w)
             printf("%s<%p>", c.data.blob_data->type, c.data.blob_data->ptr);
             break;
          default:
+            printf("Unknown type: %d\n", c.type);
             assert(0);
 
       }
@@ -455,6 +456,7 @@ void unwind_trail(unsigned int from)
 }
 
 
+// After executing, cut_to(X), we ensure that X is the current choicepoint.
 int cut_to(Choicepoint point)
 {
    while (CP != point)
@@ -1043,7 +1045,7 @@ RC execute()
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
             //printf("Frame at %p has functor ", NFR); PORTRAY(functor); printf("\n");
-            assert(NFR < STOP);
+            assert((word*)NFR < STOP);
             if (!prepare_frame(functor, NULL, NFR))
                goto b_throw_foreign;
             NFR->returnPC = PC+3;
@@ -1084,7 +1086,8 @@ RC execute()
             Query query = compile_query(goal);
             if (query == NULL)
                goto b_throw_foreign;
-//            print_clause(query->clause);
+            //PORTRAY(goal); printf(" compiles to\n");
+            //print_clause(query->clause);
             NFR->parent = FR;
             //printf("Functor of usercall frame %p is set to <meta-call>/1\n", NFR);
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
@@ -1098,6 +1101,11 @@ RC execute()
                NFR->slots[i] = query->variables[i];
             }
             FR = NFR;
+            if ((uintptr_t)CP < (uintptr_t)FR)
+            {
+               SP = ARGP + FR->clause->slot_count;
+               //printf("Fencing in meta-call arguments by moving SP to %p (%d slots)\n", SP, FR->clause->slot_count);
+            }
             //printf(" usercall frame is now set to %p\n", FR);
             PC = FR->clause->code;
             free_query(query);
@@ -1125,6 +1133,7 @@ RC execute()
             continue;
          case C_IF_THEN:
             FR->slots[CODE16(PC+1)] = (word)CP;
+            //printf("Saved the current choicepoint in %p: %p\n", &FR->slots[CODE16(PC+1)], CP);
             PC+=3;
             continue;
          case C_IF_THEN_ELSE:
