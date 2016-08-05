@@ -52,8 +52,8 @@ word* H = &HEAP[0];
 word STACK[65535];
 word* STOP = &STACK[65535];
 word* SP = &STACK[0];
-word* argStack[64];
-word** argStackP = argStack;
+uintptr_t argStack[64];
+uintptr_t* argStackP = argStack;
 
 Frame FR, NFR;
 word *ARGP;
@@ -961,7 +961,7 @@ RC execute()
          case B_THROW_FOREIGN:
          b_throw_foreign:
          {
-            printf("in b_throw_foreign\n");
+            //printf("in b_throw_foreign\n");
             if (current_exception == 0)
                assert(0 && "throw but not exception?");
             word backtrace = emptyListAtom;
@@ -1092,6 +1092,8 @@ RC execute()
             PC++;
             continue;
          case C_CUT:
+            //print_choices();
+            //printf("Cut to %p\n", FR->slots[CODE16(PC+1)]);
             if (cut_to((Choicepoint)FR->slots[CODE16(PC+1)]) == YIELD)
                return YIELD;
             PC+=3;
@@ -1107,6 +1109,7 @@ RC execute()
             continue;
          case C_IF_THEN_ELSE:
          {
+            //printf("Saving the current choicepoint of CP %p\n", CP);
             FR->slots[CODE16(PC+1+sizeof(word))] = (word)CP;
             unsigned char* address = PC+CODEPTR(PC+1);
             //printf("Creating a choicepoint at %p with a continuation of %p \n", SP, address);
@@ -1179,7 +1182,7 @@ RC execute()
             continue;
          }
          case B_POP:
-            ARGP = *(--argStackP);
+            ARGP = (word*)*(--argStackP);
             //printf("ARGP is now to %p\n", ARGP);
             PC++;
             continue;
@@ -1197,7 +1200,7 @@ RC execute()
             word t = MAKE_COMPOUND(FR->clause->constants[CODE16(PC+1)]);
             //printf("NFR->parent: %p\n", NFR->parent);
             *(ARGP++) = t;
-            *(argStackP++) = ARGP;
+            *(argStackP++) = (uintptr_t)ARGP;
             ARGP = ARGPOF(t);
             PC+=3;
             continue;
@@ -1207,8 +1210,10 @@ RC execute()
             if (mode == WRITE)
             {
                //printf("Write mode. ArgP is %p \n", ARGP);
+               //PORTRAY(*ARGP); printf("\n");
                FR->slots[CODE16(PC+1)] = MAKE_VAR();
                _bind(*(ARGP++),FR->slots[CODE16(PC+1)]);
+               //printf("Written\n");
             }
             else
             {
@@ -1229,14 +1234,14 @@ RC execute()
             {
                if (FUNCTOROF(arg) == functor)
                {
-                  *(argStackP++) = ARGP;
+                  *(argStackP++) = (uintptr_t)ARGP | mode;
                   ARGP = ARGPOF(arg);
                   continue;
                }
             }
             else if (TAGOF(arg) == VARIABLE_TAG)
             {
-               *(argStackP++) = ARGP;
+               *(argStackP++) = (uintptr_t)ARGP | mode;
                word t = MAKE_COMPOUND(functor);
                _bind(arg, t);
                ARGP = ARGPOF(t);
@@ -1249,9 +1254,13 @@ RC execute()
             return FAIL;
          }
          case H_POP:
-            ARGP = *--argStackP;
+         {
+            uintptr_t t = *--argStackP;
+            mode = t & 1;
+            ARGP = (word*)(t & ~1);
             PC++;
             continue;
+         }
          case H_ATOM:
          {
             //printf("Arg is at %p\n", ARGP);

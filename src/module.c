@@ -158,24 +158,16 @@ int assertz(Module module, word clause)
 
 int abolish(Module module, word indicator)
 {
-   printf("Abolishing\n");
-   PORTRAY(indicator); printf("\n");
    if (!must_be_predicate_indicator(indicator))
    {
-      PORTRAY(ARGOF(indicator, 1));
-      constant c = getConstant(ARGOF(indicator, 1));
-      printf(": Not a PI: %d\n", c.type);
-      printf("%d\n", c.type == INTEGER_TYPE);
       return ERROR;
    }
-   printf("Here\n");
    word functor = MAKE_FUNCTOR(ARGOF(indicator, 0), getConstant(ARGOF(indicator, 1)).data.integer_data->data);
    Predicate p = lookup_predicate(module, functor);
    if ((p->flags & PREDICATE_DYNAMIC) == 0)
       return permission_error(modifyAtom, staticProcedureAtom, indicator);
    whashmap_remove(module->predicates, functor);
    free_predicate(p);
-   printf("Abolished\n");
    return SUCCESS;
 }
 

@@ -478,6 +478,7 @@ int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_s
       var_info_t* varinfo;
       if (whashmap_get(map, term, (any_t)&varinfo) == MAP_MISSING)
       {
+         //printf("Allocating slot %d to variable\n", *next_slot);
          varinfo = VarInfo(term, 1, (*next_slot)++);
          whashmap_put(map, term, varinfo);
          rc++;
@@ -645,13 +646,13 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
       else
          arg_slots = 0;
       int local_cut_slots = get_reserved_slots(body);
-      int next_slot = arg_slots + local_cut_slots;
+      int next_slot = arg_slots;
       analyze_variables(head, 1, 0, variables, &next_slot);
       analyze_variables(body, 0, 1, variables, &next_slot);
-      *slot_count = next_slot;
+      *slot_count = next_slot + local_cut_slots;
       compile_head(head, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_ENTER));
-      int next_reserved = next_slot - local_cut_slots;
+      int next_reserved = next_slot;
       int size = 0;
       if (!compile_body(body, variables, instructions, 1, &next_reserved, -1, &size))
       {
