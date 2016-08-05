@@ -15,7 +15,7 @@ typedef struct
 
 int static_flag(word name, word value)
 {
-   return SET_EXCEPTION(permission_error(modifyAtom, flagAtom, name));
+   return permission_error(modifyAtom, flagAtom, name);
 }
 
 int set_char_conversion(word name, word value);
@@ -46,7 +46,7 @@ int set_char_conversion(word name, word value)
    else if (value == onAtom)
       char_conversion_flag.value = onAtom;
    else
-      return SET_EXCEPTION(domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value)));
+      return domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value));
    return 1;
 }
 
@@ -58,7 +58,7 @@ int set_debug(word name, word value)
    else if (value == onAtom)
       debug_flag.value = onAtom;
    else
-      return SET_EXCEPTION(domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value)));
+      return domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value));
    return 1;
 }
 
@@ -72,7 +72,7 @@ int set_unknown(word name, word value)
    else if (value == warningAtom)
       unknown_flag.value = warningAtom;
    else
-      return SET_EXCEPTION(domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value)));
+      return domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value));
    return 1;
 }
 
@@ -86,7 +86,7 @@ int set_double_quotes(word name, word value)
    else if (value == atomAtom)
       double_quotes_flag.value = atomAtom;
    else
-      return SET_EXCEPTION(domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value)));
+      return domain_error(flagValueAtom, MAKE_VCOMPOUND(addFunctor, name, value));
    return 1;
 }
 
@@ -105,7 +105,7 @@ int set_prolog_flag(word flag, word value)
    prolog_flag_t* _flag;
    if (hashmap_get(flags, getConstant(flag).data.atom_data->data, (any_t*)&_flag) == MAP_OK)
       return _flag->set(flag, value);
-   return SET_EXCEPTION(domain_error(prologFlagAtom, flag));
+   return domain_error(prologFlagAtom, flag);
 }
 
 
