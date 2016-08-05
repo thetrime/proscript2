@@ -1057,6 +1057,8 @@ NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, 
       return ERROR;
    if (TAGOF(after) != VARIABLE_TAG && !must_be_integer(after))
       return ERROR;
+   if (TAGOF(subatom) != VARIABLE_TAG && !must_be_atom(subatom))
+      return ERROR;
    Atom input = getConstant(atom).data.atom_data;
    long _start = 0;
    long fixed_start = 0;
@@ -1115,13 +1117,13 @@ NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, 
       if (!fixed_length)
       {
          _length++;
-         if (_start + _length > input->length);
+         if (_start + _length > input->length)
          {
             _length = 0;
             if (!fixed_start)
             {
                _start++;
-               if (_start > _length)
+               if (_start > input->length)
                {
                   return FAIL;
                }
