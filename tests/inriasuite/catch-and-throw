@@ -7,7 +7,7 @@
 [catch(number_chars(A,L), error(instantiation_error, _), fail), failure].
 % Check that we use the right handler
 [catch(catch(number_chars(A,L), error(type_error(number, _)), true), error(instantiation_error, _), fail), failure].
-[catch(catch(number_chars(A,L), error(type_error(number, _)), fail), error(instantiation_error, Trace), true), [[Trace<--[catch/3,catch/3,number_chars/2]]]].
+[catch(catch(number_chars(A,L), error(type_error(number, _)), fail), error(instantiation_error, Trace), true), [[Trace<--[catch/3,'<meta-call>'/1,catch/3,'<meta-call>'/1,number_chars/2]]]].
 
 
 /* end of file catch-and-throw */
