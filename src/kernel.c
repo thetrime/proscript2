@@ -484,20 +484,20 @@ int cut_to(Choicepoint point)
          fatal("Cut to non-existent choicepoint");
       Choicepoint c = CP;
       CP = CP->CP;
-      //printf("Cleanup: %p\n", c->cleanup);
       if (c->cleanup != NULL)
       {
-         if (c->cleanup->foreign != NULL)
+         Frame cleanupFrame = c->cleanup;
+         if (unify(cleanupFrame->slots[1], cutAtom))
          {
-            // FIXME: call a foreign goal
+            // call a prolog goal.
+            PC--;
+            ARGP = &cleanupFrame->slots[3]; // i_usercall looks at the slot before this one, which will be slot[2], holding the Cleanup goal
+            // When the usercall returns we will end up back at the current PC, which means we will try to cut_to again.
+            // However, next time, c->cleanup will be NULL and we will not run this cleanup again
+            c->cleanup = NULL;
+            return AGAIN;
          }
-         else
-         {
-            if (unify(c->cleanup->catcher, cutAtom))
-            {
-               // FIXME: call a prolog goal
-            }
-         }
+         c->cleanup = NULL; // Missed your chance then
       }
    }
    return 1;
@@ -526,7 +526,7 @@ int apply_choicepoint(Choicepoint c)
    {
       ARGP = NFR->slots;
    }
-   return (PC != 0);
+   return (PC != NULL);
 }
 
 int backtrack()
@@ -995,7 +995,11 @@ RC execute()
          }
          case B_CLEANUP_CHOICEPOINT:
          {
-            // Not implemented yet
+            // This just leaves a fake choicepoint (one you cannot backtrack onto) with a .cleanup value set to the cleanup handler
+            CreateChoicepoint(NULL, FR->clause, Body);
+            CP->cleanup = FR;
+            //CP->cleanup->cleanup = *(ARGP-1);
+            //CP->cleanup->catcher = *(ARGP-2);
             PC++;
             continue;
          }
@@ -1142,20 +1146,29 @@ RC execute()
             continue;
          }
          case I_CUT:
+         {
             //printf("Cutting to %p\n", FR->choicepoint);
-            if (cut_to(FR->choicepoint) == YIELD)
+            RC rc = cut_to(FR->choicepoint);
+            if (rc == YIELD)
                return YIELD;
+            else if (rc == AGAIN)
+               goto i_usercall;
             //printf("Done\n");
             FR->choicepoint = CP;
             PC++;
             continue;
+         }
          case C_CUT:
          {
 
             //print_choices();
             //printf("Cut to %p from %p\n", FR->slots[CODE16(PC+1)], CP);
-            if (cut_to(((Choicepoint)FR->slots[CODE16(PC+1)])) == YIELD)
+
+            RC rc = cut_to(((Choicepoint)FR->slots[CODE16(PC+1)]));
+            if (rc == YIELD)
                return YIELD;
+            if (rc == AGAIN)
+               goto i_usercall;
             PC+=3;
             continue;
          }
@@ -1164,18 +1177,24 @@ RC execute()
             Choicepoint C = CP;
             //printf("CP is %p\n", CP);
             //printf("We are looking for the choicepoint after %p\n", ((Choicepoint)FR->slots[CODE16(PC+1)]));
+            int found = 0;
             while (C > ((Choicepoint)FR->slots[CODE16(PC+1)]))
             {
                assert(C != NULL); // The choicepoint we are looking for is gone
                if (C->CP == ((Choicepoint)FR->slots[CODE16(PC+1)]))
                {
                   //printf("Found it\n");
-                  if (cut_to(C) == YIELD)
+                  RC rc = cut_to(C);
+                  if (rc == YIELD)
                      return YIELD;
+                  if (rc == AGAIN)
+                     goto i_usercall;
                   PC+=3;
+                  found = 1;
                   break;
                }
             }
+            assert(found);
             continue;
          }
          case C_IF_THEN:
@@ -1769,4 +1788,9 @@ Module get_current_module()
 void halt(int i)
 {
    halted = 1;
+}
+
+word get_choicepoint_depth()
+{
+   return MAKE_POINTER(CP);
 }

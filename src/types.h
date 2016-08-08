@@ -106,13 +106,6 @@ struct constant
 typedef struct constant constant;
 typedef constant* Constant;
 
-typedef struct
-{
-   void* foreign;
-   word catcher;
-} cleanup;
-
-typedef cleanup* Cleanup;
 
 typedef enum
 {
@@ -133,7 +126,7 @@ struct choicepoint
    word functor;
    Clause clause;
    Module module;
-   Cleanup cleanup;
+   struct frame* cleanup;
 };
 typedef struct choicepoint choicepoint;
 typedef choicepoint* Choicepoint;

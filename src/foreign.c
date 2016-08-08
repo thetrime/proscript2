@@ -105,6 +105,12 @@ int term_difference(word a, word b)
       }
       return 0;
    }
+   if (TAGOF(a) == POINTER_TAG)
+   {
+      if (TAGOF(b) != POINTER_TAG)
+         return -1;
+      return GET_POINTER(a) - GET_POINTER(b);
+   }
    assert(0);
 }
 

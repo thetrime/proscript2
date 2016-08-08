@@ -98,7 +98,8 @@ typedef enum
    SUCCESS_WITH_CHOICES,
    YIELD,
    ERROR,
-   HALT
+   HALT,
+   AGAIN
 } RC;
 
 #define PREDICATE_FOREIGN 1
@@ -133,4 +134,4 @@ extern word HEAP[];
 
 word copy_local_with_extra_space(word t, word** local, int extra);
 word copy_local(word t, word** local);
-
+word get_choicepoint_depth();

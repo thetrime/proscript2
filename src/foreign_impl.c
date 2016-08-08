@@ -2043,3 +2043,8 @@ PREDICATE(format, 3, (word sink, word format, word args)
    free(result);
    return rc;
 })
+
+PREDICATE($choicepoint_depth, 1, (word t)
+{
+   return unify(t, get_choicepoint_depth());
+})
