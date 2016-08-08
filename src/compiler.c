@@ -335,7 +335,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
             // (Cut)
             s1 += push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
             // Then
-            rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, cut_point, &s1);
+            rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, local_cut, &s1);
             // (and now jump out before the Else)
             instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
             s2 = push_instruction(instructions, jump);
