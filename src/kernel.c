@@ -124,7 +124,10 @@ word MAKE_VCOMPOUND(word functor, ...)
    H++;
    assert(H + f->arity < HTOP);
    for (int i = 0; i < f->arity; i++)
-      *(H++) = va_arg(argp, word);
+   {
+      word w = va_arg(argp, word);
+      *(H++) = w;
+   }
    return addr | COMPOUND_TAG;
 }
 
@@ -385,6 +388,7 @@ void PORTRAY(word w)
    }
    else if (TAGOF(w) == COMPOUND_TAG)
    {
+      printf("Pointer to a compound %08lx. This points to a functor at %08lx\n", w, w&~3);
       Functor functor = getConstant(FUNCTOROF(w)).data.functor_data;
       PORTRAY(functor->name);
       printf("(");
@@ -729,6 +733,7 @@ int prepare_frame(word functor, Module optionalContext, Frame frame)
       if (frame->clause == NULL)
          return 0;
    }
+   frame->is_local = 0;
    frame->parent = FR;
    if (FR != NULL)
       frame->depth = FR->depth+1;
@@ -934,6 +939,11 @@ RC execute()
             }
             //printf("   Wound SP back to %p\n", SP);
             PC = FR->returnPC;
+            if (FR->is_local && (word)FR > (word)CP)
+            {
+               // Free the clause if it was generated specifically for this frame and we cannot possibly backtrack into it
+               free_clause(FR->clause);
+            }
             FR = FR->parent;
             NFR = (Frame)SP;
             //printf("FR is now %p\n", FR);
@@ -951,6 +961,11 @@ RC execute()
             //printf("Setting parent of frame %p to be %p\n", NFR, FR->parent);
             NFR->parent = FR->parent;
             ARGP = NFR->slots;
+            if (FR->is_local && (word)FR > (word)CP)
+            {
+               // Free the clause if it was generated specifically for this frame and we cannot possibly backtrack into it
+               free_clause(FR->clause);
+            }
             FR = NFR;
             if ((uintptr_t)CP < (uintptr_t)FR)
             {
@@ -1095,6 +1110,7 @@ RC execute()
             //printf("Functor of usercall frame %p is set to <meta-call>/1\n", NFR);
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
             NFR->clause = query->clause;
+            NFR->is_local = 1;
             NFR->returnPC = PC+1;
             NFR->choicepoint = CP;
             ARGP = NFR->slots;
