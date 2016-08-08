@@ -415,6 +415,7 @@ void CLEAR_EXCEPTION()
 {
    if (exception_local != NULL)
       free(exception_local);
+   exception_local = NULL;
    current_exception = 0;
 }
 
