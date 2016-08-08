@@ -1178,7 +1178,6 @@ int evaluate_term(word expr, word* result)
    number n;
    if (!evaluate(expr, &n))
    {
-      free_number(n);
       return 0;
    }
    word w;

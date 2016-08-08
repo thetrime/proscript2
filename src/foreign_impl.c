@@ -1329,7 +1329,7 @@ PREDICATE(number_chars, 2, (word number, word chars)
       if (!rc)
       {
          freeToken(token);
-         syntax_error(MAKE_ATOM("illegal number"));
+         return syntax_error(MAKE_ATOM("illegal number"));
       }
       switch (token->type)
       {
@@ -1430,7 +1430,7 @@ PREDICATE(number_codes, 2, (word number, word codes)
       if (!rc)
       {
          freeToken(token);
-         syntax_error(MAKE_ATOM("illegal number"));
+         return syntax_error(MAKE_ATOM("illegal number"));
       }
       switch (token->type)
       {
