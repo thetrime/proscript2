@@ -1,8 +1,10 @@
-directives
-modules
 format/3
-meta-predicates
 emscripten
+yielding
+setup-call-cleanup
 
-Current task:
-It seems that when we read foo/1 from a file the 1 is read as an /atom/ and not an integer
+bugs
+----
+
+There must be something wrong with recorda/recorded/erase or findall. If one of the inria tests fail, the bip is reported many
+times
