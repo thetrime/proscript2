@@ -15,6 +15,7 @@
 #include "parser.h"
 #include "prolog_flag.h"
 #include "foreign.h"
+#include "checks.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -1488,9 +1489,8 @@ int clause_functor(word t, word* functor)
    return 1;
 }
 
-void consult_file(char* filename)
+void consult_stream(Stream s)
 {
-   Stream s = fileReadStream(filename);
    word clause;
    while (1)
    {
@@ -1503,18 +1503,78 @@ void consult_file(char* filename)
       }
       if (clause == endOfFileAtom)
          break;
-      //PORTRAY(clause); printf("\n");
       if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
       {
          word directive = ARGOF(clause, 0);
          if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == moduleFunctor)
          {
+            if (!must_be_atom(ARGOF(directive, 0)))
+            {
+               CLEAR_EXCEPTION();
+               printf("Error in module declaration\n");
+               break;
+            }
+            word exports = ARGOF(directive, 1);
+            while (TAGOF(exports) == COMPOUND_TAG && FUNCTOROF(exports) == listFunctor)
+            {
+               word export = ARGOF(exports, 0);
+               exports = ARGOF(exports, 1);
+               if (!must_be_predicate_indicator(export))
+               {
+                  CLEAR_EXCEPTION();
+                  printf("Illegal export\n");
+                  break;
+               }
+               // For an export of foo/3, add a clause foo(A,B,C):- Module:foo(A,B,C).  to user
+               long arity = getConstant(ARGOF(export, 1)).data.integer_data->data;
+               word functor = MAKE_FUNCTOR(ARGOF(export, 0), arity);
+               word head = MAKE_COMPOUND(functor);
+               word shim = MAKE_VCOMPOUND(clauseFunctor, head, MAKE_VCOMPOUND(crossModuleCallFunctor, ARGOF(directive, 0), head));
+               add_clause(userModule, functor, shim);
+            }
+            if (exports != emptyListAtom)
+            {
+               printf("Illegal export list\n");
+               break;
+            }
+            currentModule = create_module(ARGOF(directive, 0));
          }
          else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == metaPredicateFunctor)
          {
+            if (!must_be_compound(ARGOF(directive, 0)))
+            {
+               printf("Illegal meta-predicate decalaration\n");
+               break;
+            }
+            word functor = FUNCTOROF(ARGOF(directive, 0));
+            Functor f = getConstant(functor).data.functor_data;
+            char* meta = malloc(f->arity + 1);
+            for (int i = 0; i < f->arity; i++)
+            {
+               word arg = ARGOF(ARGOF(directive, 0),i);
+               constant c = getConstant(arg);
+               if (c.type == ATOM_TYPE)
+                  meta[i] = c.data.atom_data->data[0];
+               else if (c.type == INTEGER_TYPE)
+                  meta[i] = c.data.integer_data->data + '0';
+               else
+               {
+                  free(meta);
+                  printf("Illegal meta-specifier\n");
+                  break;
+               }
+               set_meta(currentModule, functor, meta);
+            }
          }
          else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == dynamicFunctor)
          {
+            if (!must_be_compound(ARGOF(directive, 0)))
+            {
+               printf("Illegal dynamic decalaration\n");
+               break;
+            }
+            word functor = MAKE_FUNCTOR(ARGOF(ARGOF(directive,0),0), getConstant(ARGOF(ARGOF(directive,0),1)).data.integer_data->data);
+            set_dynamic(currentModule, functor);
          }
          else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == multiFileFunctor)
          {
@@ -1549,47 +1609,24 @@ void consult_file(char* filename)
          }
       }
    }
-   s->close(s);
-   freeStream(s);
    // In case this has changed, set it back after consulting any file
    currentModule = userModule;
+
+}
+
+void consult_file(char* filename)
+{
+   Stream s = fileReadStream(filename);
+   consult_stream(s);
+   s->close(s);
+   freeStream(s);
 }
 
 void consult_string(char* string)
 {
    Stream s = stringBufferStream(string, strlen(string));
-   word clause;
-   while (1)
-   {
-      word clause;
-      if (!read_term(s, NULL, &clause))
-      {
-         CLEAR_EXCEPTION();
-         printf("Syntax error reading file\n");
-         break;
-      }
-      if (clause == endOfFileAtom)
-         break;
-      if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
-      {
-         assert(0);
-      }
-      else
-      {
-         // Ordinary clause
-         word functor;
-         if (clause_functor(clause, &functor))
-             add_clause(currentModule, functor, clause);
-         else
-         {
-            printf("Error: <FIXME write the error>\n");
-            CLEAR_EXCEPTION();
-         }
-      }
-   }
+   consult_stream(s);
    freeStream(s);
-   // In case this has changed, set it back after consulting any file
-   currentModule = userModule;
 }
 
 void print_clause(Clause clause)

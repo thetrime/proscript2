@@ -104,6 +104,44 @@ Module find_module(word name)
    return NULL;
 }
 
+int set_meta(Module module, word functor, char* meta)
+{
+   Predicate p;
+   if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
+   {
+      p->meta = meta;
+   }
+   else
+   {
+      p = malloc(sizeof(predicate));
+      init_list(&p->clauses);
+      p->flags = 0;
+      p->meta = meta;
+      p->firstClause = NULL;
+      whashmap_put(module->predicates, functor, p);
+   }
+   return 1;
+}
+
+int set_dynamic(Module module, word functor)
+{
+   Predicate p;
+   if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
+   {
+      p->flags = PREDICATE_DYNAMIC;
+   }
+   else
+   {
+      p = malloc(sizeof(predicate));
+      init_list(&p->clauses);
+      p->flags = PREDICATE_DYNAMIC;
+      p->meta = NULL;
+      p->firstClause = NULL;
+      whashmap_put(module->predicates, functor, p);
+   }
+   return 1;
+}
+
 void add_clause(Module module, word functor, word clause)
 {
    Predicate p;
