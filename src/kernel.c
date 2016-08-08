@@ -167,6 +167,19 @@ word MAKE_LCOMPOUND(word functor, List* list)
    return addr | COMPOUND_TAG;
 }
 
+void _make_backtrace(word cell, void* result)
+{
+   word* r = (word*)result;
+   *r = MAKE_VCOMPOUND(listFunctor, predicate_indicator(DEREF(cell)), *r);
+}
+
+word make_backtrace(List* list)
+{
+   word result = emptyListAtom;
+   list_apply(list, &result, _make_backtrace);
+   return result;
+}
+
 void* allocAtom(void* data, int length)
 {
    Atom a = malloc(sizeof(atom));
@@ -388,7 +401,7 @@ void PORTRAY(word w)
    }
    else if (TAGOF(w) == COMPOUND_TAG)
    {
-      printf("Pointer to a compound %08lx. This points to a functor at %08lx\n", w, w&~3);
+      //printf("Pointer to a compound %08lx. This points to a functor at %08lx\n", w, w&~3);
       Functor functor = getConstant(FUNCTOROF(w)).data.functor_data;
       PORTRAY(functor->name);
       printf("(");
@@ -994,26 +1007,20 @@ RC execute()
             //printf("in b_throw_foreign\n");
             if (current_exception == 0)
                assert(0 && "throw but not exception?");
-            word backtrace = emptyListAtom;
-            if (TAGOF(current_exception) == COMPOUND_TAG && FUNCTOROF(current_exception) == errorFunctor && (TAGOF(ARGOF(current_exception, 1)) == VARIABLE_TAG))
-            {
-               backtrace = emptyListAtom;
-            }
+            List backtrace;
+            init_list(&backtrace);
             //printf("Looking for handler for "); PORTRAY(current_exception); printf("\n");
             while(FR != NULL)
             {
                //printf("Checking for catch/3 in %p\n", FR); PORTRAY(FR->functor); printf("\n");
-               if (backtrace != 0)
-               {
-                  Functor f = getConstant(FR->functor).data.functor_data;
-                  backtrace = MAKE_VCOMPOUND(listFunctor, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity)), backtrace);
-               }
+               list_append(&backtrace, FR->functor);
                if (FR->functor == catchFunctor)
                {
                   //printf("Found a catch/3 in %p\n", FR);
                   //printf("SP is now %p\n", SP);
                   backtrack_to(FR->choicepoint);
-                  // And then undo the fake choicepoint
+
+                  // And then undo the fake choicepoint. Note that this resets H destroying all terms created since the catch was called
                   apply_choicepoint(CP);
                   //printf("Unwound to catch/3. CP is now %p\n", CP);
                   //printf("Current exception is now "); PORTRAY(current_exception); printf("\n");
@@ -1025,9 +1032,11 @@ RC execute()
                      // Success! Exception is successfully handled.
                      if (TAGOF(current_exception) == COMPOUND_TAG && FUNCTOROF(current_exception) == errorFunctor && (TAGOF(ARGOF(current_exception, 1)) == VARIABLE_TAG))
                      {
-                        unify(ARGOF(DEREF(FR->slots[1]), 1), backtrace);
+                        unify(ARGOF(DEREF(FR->slots[1]), 1), make_backtrace(&backtrace));
                      }
+                     free_list(&backtrace);
                      CLEAR_EXCEPTION();
+
                      // Now we just have to do i_usercall after adjusting the registers to point to the handler
                      // Things get a bit weird here because we are breaking the usual logic flow by ripping the VM out of whatever state it was in and starting
                      // it off in a totally different place. We have to reset argP, argI and PC then pretend the next instruction was i_usercall
@@ -1046,6 +1055,7 @@ RC execute()
                }
                FR = FR->parent;
             }
+            free_list(&backtrace);
             return ERROR;
          }
          case I_SWITCH_MODULE:
