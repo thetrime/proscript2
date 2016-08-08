@@ -53,6 +53,8 @@ FUNCTOR(initialization, "initialization", 1)
 FUNCTOR(dbCell, "$db", 2)
 FUNCTOR(subAtomContext, "$sc", 6)
 FUNCTOR(fail, "fail", 0)
+FUNCTOR(formatError, "format_error", 1)
+FUNCTOR(atom, "atom", 1)
 
 ATOM(instantiationError, "instantiation_error")
 ATOM(cut, "!")

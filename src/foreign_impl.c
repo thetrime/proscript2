@@ -1842,7 +1842,20 @@ PREDICATE(format, 3, (word sink, word format, word args)
                   case 'f': // floating point as non-exponential
                   case 'g': // shorter of e or f
                   case 'G': // shorter of E or f
-                     assert(0 && "Not implemented");
+                  {
+                     // We can use stdio to do much of this for us, happily.
+                     NEXT_FORMAT_ARG;
+                     char str[128];
+                     number n;
+                     if (!evaluate(arg, &n))
+                        BAD_FORMAT;
+                     double d = toFloatAndFree(n);
+                     char fmt[32]; // This will fit any radix up to LONG_MAX plus an identifier and null terminator (at least!)
+                     sprintf(fmt, "%%.%d%c", radix == -1?6:radix, input->data[i]);
+                     sprintf(str, fmt, d);
+                     append_string(output, strdup(str), strlen(str));
+                     break;
+                  }
                   case 'i': // ignore
                   {
                      NEXT_FORMAT_ARG;
