@@ -70,7 +70,6 @@ word* exception_local = NULL;
 Stream current_input = NULL;
 Stream current_output = NULL;
 
-
 void print_choices()
 {
    Choicepoint q = CP;
@@ -806,7 +805,7 @@ RC execute()
             if ((uintptr_t)CP < (uintptr_t)FR)
             {
                // The top of the stack needs to be protected before we can allocate the frame
-               //printf("Protecting frame by moving SP from %p to %p (%p + %d + %d)\n", SP, ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word), ((word*)FR), FR->clause->slot_count, sizeof(frame) / sizeof(word));
+               //printf("Protecting frame by moving SP from %p to %p (%d slots)\n", SP, ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word), FR->clause->slot_count);
                SP = ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word);
             }
             NFR = (Frame)SP;
@@ -1163,12 +1162,12 @@ RC execute()
 
             //print_choices();
             //printf("Cut to %p from %p\n", FR->slots[CODE16(PC+1)], CP);
-
             RC rc = cut_to(((Choicepoint)FR->slots[CODE16(PC+1)]));
             if (rc == YIELD)
                return YIELD;
             if (rc == AGAIN)
                goto i_usercall;
+            //print_choices();
             PC+=3;
             continue;
          }
@@ -1568,6 +1567,7 @@ void consult_stream(Stream s)
             word functor = FUNCTOROF(ARGOF(directive, 0));
             Functor f = getConstant(functor).data.functor_data;
             char* meta = malloc(f->arity + 1);
+            meta[f->arity] = 0;
             for (int i = 0; i < f->arity; i++)
             {
                word arg = ARGOF(ARGOF(directive, 0),i);
