@@ -48,7 +48,11 @@ save_instances(Template, _^Generator) :-
 
 save_instances(Template, Generator) :-
         recorda(., -, _),
-        call(Generator),
+        catch(Generator,
+              Exception,
+              ( list_instances([], _),
+                throw(Exception)
+              )),
         recorda(., Template, _),
 	fail.
 save_instances(_, _).
