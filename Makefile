@@ -1,5 +1,5 @@
-ARCH=c
-#ARCH=js
+#ARCH=c
+ARCH=js
 
 FILESYSTEM=--embed-file test.pl --embed-file src/builtin.pl --embed-file tests
 
@@ -8,10 +8,10 @@ CC=emcc
 TARGET=build/proscript.js
 #CFLAGS=-O2
 OPT_LEVEL=-O3
-MEMORY_REQUIRED=-s TOTAL_MEMORY=134217738
+MEMORY_REQUIRED=-s TOTAL_MEMORY=150994944
 #MEMORY_REQUIRED=-s ALLOW_MEMORY_GROWTH=1
 CFLAGS=$(OPT_LEVEL) -s NO_EXIT_RUNTIME=1 $(MEMORY_REQUIRED) -Ilib/gmp.js -s ASSERTIONS=2 -Werror
-LDFLAGS=$(OPT_LEVEL) -Llib/gmp.js/.libs --llvm-lto 1 -s ASM_JS=1 $(MEMORY_REQUIRED) -s ASSERTIONS=2
+LDFLAGS=$(OPT_LEVEL) --llvm-lto 1 -s ASM_JS=1 $(MEMORY_REQUIRED) -s ASSERTIONS=2 lib/gmp.js/.libs/libgmp.a
 BOOT=--pre-js $(BOOTFILE)
 BOOTFILE=src/pre.js
 BOOT_FS=$(FILESYSTEM)
