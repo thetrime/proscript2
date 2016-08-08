@@ -266,7 +266,7 @@ void retract(Module module, word clause)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
-      // Retract the *first* value for clause that matches
+      // Retract the *first* value for clause that unifies
       list_delete_first(&p->clauses, DEREF(clause));
       free_clauses(p->firstClause);
       p->firstClause = compile_predicate(p);

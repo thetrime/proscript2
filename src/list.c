@@ -32,15 +32,28 @@ void list_splice(List* list, struct cell_t* cell)
       cell->next->prev = cell->prev;
    else
       list->tail = cell->prev;
+   list->length--;
 }
 
 void list_delete_first(List* list, word w)
 {
    struct cell_t* cell = list->head;
-   while (cell != NULL && cell->data != w)
+   while (cell != NULL)
+   {
+      // FIXME: This actually generates trailing which we dont really need
+      word* local;
+      word copy = copy_local(cell->data, &local);
+      if (unify(copy, w))
+      {
+         list_splice(list, cell);
+         free(local);
+         return;
+      }
+      free(local);
+      printf("Cell %p doesn't match: %08lx = ", cell, DEREF(cell->data)); PORTRAY(cell->data); printf("\n");
       cell = cell->next;
-   if (cell != NULL)
-      list_splice(list, cell);
+   }
+   printf("No such value\n");
 }
 
 struct cell_t* list_append(List* list, word w)

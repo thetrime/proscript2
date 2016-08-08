@@ -413,6 +413,8 @@ NONDET_PREDICATE(retract, 1, (word term, word backtrack)
    }
    else
       list = backtrack;
+   if (list == emptyListAtom)
+      return FAIL;
    if (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
       make_foreign_choicepoint(ARGOF(list, 1));
    if (unify(ARGOF(list, 0), term))
