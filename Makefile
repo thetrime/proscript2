@@ -8,7 +8,7 @@ CC=emcc
 TARGET=build/proscript.js
 #CFLAGS=-O2
 CFLAGS=-O1 -s NO_EXIT_RUNTIME=1 -s TOTAL_MEMORY=134217738 -Ilib/gmp.js
-LDFLAGS=-Llib/gmp.js/.libs -lgmp --llvm-lto 1 -s ASM_JS=1
+LDFLAGS=-Llib/gmp.js/.libs -lgmp --llvm-lto 1 -s ASM_JS=1 -s TOTAL_MEMORY=134217738
 BOOT=--pre-js $(BOOTFILE)
 BOOTFILE=src/pre.js
 BOOT_FS=$(FILESYSTEM)

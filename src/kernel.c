@@ -246,6 +246,7 @@ uint32_t hash32(uint32_t key)
    return key;
 }
 
+#ifdef mpz_limbs_read
 uint32_t hashmpz(mpz_t key)
 {
    mp_limb_t hash = 0;
@@ -259,6 +260,16 @@ uint32_t hashmpz(mpz_t key)
    else
       assert(0 && "Cannot deal with mp_limb size");
 }
+#else
+uint32_t hashmpz(mpz_t key)
+{
+   // Oh well, we tried
+   char* str = mpz_get_str(NULL, 10, key);
+   uint32_t result = uint32_hash((unsigned char*)str, strlen(str));
+   free(str);
+   return result;
+}
+#endif
 
 uint32_t hashmpq(mpq_t key)
 {
@@ -744,7 +755,9 @@ int prepare_frame(word functor, Module optionalContext, Frame frame)
       frame->functor = functor;
       frame->clause = get_predicate_code(p);
       if (frame->clause == NULL)
+      {
          return 0;
+      }
    }
    frame->is_local = 0;
    frame->parent = FR;
@@ -1079,7 +1092,9 @@ RC execute()
             //printf("Frame at %p has functor ", NFR); PORTRAY(functor); printf("\n");
             assert((word*)NFR < STOP);
             if (!prepare_frame(functor, NULL, NFR))
+            {
                goto b_throw_foreign;
+            }
             NFR->returnPC = PC+3;
             ARGP = NFR->slots;
             FR = NFR;
