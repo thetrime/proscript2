@@ -50,10 +50,8 @@ void list_delete_first(List* list, word w)
          return;
       }
       free(local);
-      printf("Cell %p doesn't match: %08lx = ", cell, DEREF(cell->data)); PORTRAY(cell->data); printf("\n");
       cell = cell->next;
    }
-   printf("No such value\n");
 }
 
 struct cell_t* list_append(List* list, word w)
