@@ -24,6 +24,10 @@ void initialize_modules()
 
 void free_clause(Clause c)
 {
+   if (c->code != NULL)
+      free(c->code);
+   if (c->constants != NULL)
+      free(c->constants);
    free(c);
 }
 
