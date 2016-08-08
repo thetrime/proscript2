@@ -22,9 +22,25 @@ void initialize_modules()
    modules = whashmap_new();
 }
 
+void free_clause(Clause c)
+{
+   free(c);
+}
+
+void free_clauses(Clause c)
+{
+   while (c != NULL)
+   {
+      Clause next = c->next;
+      free_clause(c);
+      c = next;
+   }
+}
+
 void free_predicate(Predicate p)
 {
-   printf("FIXME: Predicate is not freed\n");
+   free_clauses(p->firstClause);
+   free(p);
 }
 
 int define_foreign_predicate_c(Module module, word functor, int(*func)(), int flags)
@@ -132,7 +148,7 @@ int asserta(Module module, word clause)
       p->firstClause = NULL;
       whashmap_put(module->predicates, functor, p);
    }
-   //printf("Compiling asserted clause\n");
+   free_clauses(p->firstClause);
    p->firstClause = compile_predicate(p);
    //printf("Assert complete: %p\n", p->firstClause);
    if (p->firstClause == NULL)
@@ -171,6 +187,7 @@ int assertz(Module module, word clause)
       p->firstClause = NULL;
       whashmap_put(module->predicates, functor, p);
    }
+   free_clauses(p->firstClause);
    p->firstClause = compile_predicate(p);
    if (p->firstClause == NULL)
    {
@@ -209,6 +226,7 @@ void retract(Module module, word clause)
    {
       // Retract the *first* value for clause that matches
       list_delete_first(&p->clauses, DEREF(clause));
+      free_clauses(p->firstClause);
       p->firstClause = compile_predicate(p);
    }
 }
