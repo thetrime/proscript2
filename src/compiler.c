@@ -540,6 +540,8 @@ int get_reserved_slots(word t)
          return get_reserved_slots(ARGOF(t, 0)) + 1;
       if (FUNCTOROF(t) == notUnifiableFunctor)
          return get_reserved_slots(ARGOF(t, 0)) + 1;
+      if (FUNCTOROF(t) == crossModuleCallFunctor)
+         return get_reserved_slots(ARGOF(t, 1));
 
    }
    if (t == catchAtom)
@@ -741,7 +743,9 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
       for (int i = 0; meta[i] != '\0'; i++)
       {
          if (!(meta[i] == '+' || meta[i] == '?' || meta[i] == '-'))
+         {
             push_instruction(&instructions, INSTRUCTION_SLOT(S_QUALIFY, i));
+         }
       }
    }
    if (with_choicepoint)
