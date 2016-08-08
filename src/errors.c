@@ -65,5 +65,10 @@ int syntax_error(word message) // Non-ISO
 {
    SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(syntaxErrorFunctor, message), MAKE_VAR()));
    return 0;
+}
 
+int format_error(word message) // Non-ISO
+{
+   SET_EXCEPTION(MAKE_VCOMPOUND(errorFunctor, MAKE_VCOMPOUND(formatErrorFunctor, message), MAKE_VAR()));
+   return 0;
 }

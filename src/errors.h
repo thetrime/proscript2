@@ -13,3 +13,4 @@ int integer_overflow();
 int float_overflow();
 int zero_divisor();
 int syntax_error(word message);
+int format_error(word message);

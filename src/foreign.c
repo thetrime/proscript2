@@ -210,6 +210,8 @@ int qcompare_terms(const void * a, const void* b)
    return term_difference(*((word*)a), *((word*)b));
 }
 
+#define NEXT_FORMAT_ARG {if(TAGOF(args) == COMPOUND_TAG && FUNCTOROF(args) == listFunctor) { arg = ARGOF(args, 0); args = ARGOF(args, 1); } else { freeStringBuilder(output); return format_error(MAKE_ATOM("Not enough arguments")); }}
+#define BAD_FORMAT { freeStringBuilder(output); return ERROR; }
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
