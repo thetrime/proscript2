@@ -40,33 +40,6 @@ word make_dbref(word t, word** local, word** slot)
    return (word)(*local) | COMPOUND_TAG;
 }
 
-
-// Produce a thing which is like a term but is not on the heap
-// FIXME: we need to clean up this local storage at some point!
-/*
-word denature_term(word t, word** local, word** slot)
-{
-   List variables;
-   init_list(&variables);
-   int i = count_compounds(t);
-   find_variables(t, &variables);
-   i+= list_length(&variables);
-   i+=3; // Save space for the ref itself
-   *local = malloc(sizeof(word) * i);
-   int ptr = 3+list_length(&variables);
-   word w = denature_term_(t, &variables, *local, &ptr);
-   free_list(&variables);
-   // Write the functor
-   (*local)[0] = dbCellFunctor;
-   (*local)[1] = w;
-   // Make slot a variable for now so that the term isnt temporary garbage
-   (*local)[2] = (word)&((*local)[2]);
-   // Pass it out so we can fill it in later
-   *slot = &((*local)[2]);
-   return (word)(*local) | COMPOUND_TAG;
-}
-*/
-
 word intern_record(List* list, word key, struct cell_t* cell, word* ptr)
 {
    struct record_t* record = malloc(sizeof(struct record_t));
@@ -122,7 +95,9 @@ int erase(word ref)
    struct record_t* record = (struct record_t*)GET_POINTER(ref);
    list_splice(record->list, record->cell);
    if (record->local != NULL)
+   {
       free(record->local);
+   }
    free(record);
    return SUCCESS;
 }

@@ -143,6 +143,7 @@ struct frame
    struct frame* parent;
    int depth;
    Clause clause;
+   int is_local;            // If 1 then we must call free_clause() on the clause after we cannot backtrack here again
    Module contextModule;
    unsigned char* returnPC;
    Choicepoint choicepoint;
