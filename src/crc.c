@@ -114,7 +114,7 @@ unsigned long crc32(const unsigned char *s, unsigned int len)
    return crc32val;
 }
 
-uint32_t hash(const unsigned char *keystring, unsigned int keylen)
+uint32_t uint32_hash(const unsigned char *keystring, unsigned int keylen)
 {
 
    uint32_t key = crc32((unsigned char*)(keystring), keylen);

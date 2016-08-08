@@ -279,7 +279,7 @@ uint32_t hashmpq(mpq_t key)
 EMSCRIPTEN_KEEPALIVE
 word MAKE_NATOM(char* data, size_t length)
 {
-   return intern(ATOM_TYPE, hash((unsigned char*)data, length), data, length, allocAtom, NULL);
+   return intern(ATOM_TYPE, uint32_hash((unsigned char*)data, length), data, length, allocAtom, NULL);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -337,7 +337,7 @@ EMSCRIPTEN_KEEPALIVE
 word MAKE_FUNCTOR(word name, int arity)
 {
    Atom n = getConstant(name).data.atom_data;
-   word w =  intern(FUNCTOR_TYPE, hash((unsigned char*)n->data, n->length) + arity, &name, arity, allocFunctor, NULL);
+   word w =  intern(FUNCTOR_TYPE, uint32_hash((unsigned char*)n->data, n->length) + arity, &name, arity, allocFunctor, NULL);
    return w;
 }
 

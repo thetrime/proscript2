@@ -52,7 +52,7 @@ map_t hashmap_new() {
  */
 unsigned int hashmap_hash_int(hashmap_map * m, char* keystring){
 
-        return hash((unsigned char*)(keystring), strlen(keystring)) % m->table_size;
+        return uint32_hash((unsigned char*)(keystring), strlen(keystring)) % m->table_size;
 }
 
 /*
