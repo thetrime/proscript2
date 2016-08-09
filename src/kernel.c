@@ -72,6 +72,7 @@ word* exception_local = NULL;
 Stream current_input = NULL;
 Stream current_output = NULL;
 
+
 void print_choices()
 {
    Choicepoint q = CP;
@@ -526,7 +527,9 @@ int apply_choicepoint(Choicepoint c)
    while (f > c->FR)
    {
       if (f->is_local)
+      {
          free_clause(f->clause);
+      }
       f = f->parent;
    }
    FR = c->FR;
@@ -1044,15 +1047,16 @@ RC execute()
             List backtrace;
             init_list(&backtrace);
             //printf("Looking for handler for "); PORTRAY(current_exception); printf("\n");
-            while(FR != NULL)
+            Frame f = FR;
+            while(f != NULL)
             {
-               //printf("Checking for catch/3 in %p\n", FR); PORTRAY(FR->functor); printf("\n");
-               list_append(&backtrace, FR->functor);
-               if (FR->functor == catchFunctor)
+               //printf("Checking for catch/3 in %p\n", f); PORTRAY(f->functor); printf("\n");
+               list_append(&backtrace, f->functor);
+               if (f->functor == catchFunctor)
                {
-                  //printf("Found a catch/3 in %p\n", FR);
+                  //printf("Found a catch/3 in %p with choicepoint %p\n", f, f->choicepoint);
                   //printf("SP is now %p\n", SP);
-                  backtrack_to(FR->choicepoint);
+                  backtrack_to(f->choicepoint);
 
                   // And then undo the fake choicepoint. Note that this resets H destroying all terms created since the catch was called
                   apply_choicepoint(CP);
@@ -1061,12 +1065,12 @@ RC execute()
                   //printf("Unifier is %08lx at %p\n", FR->slots[1], &FR->slots[1]);
                   //PORTRAY(FR->slots[0]); printf("\n");
                   //PORTRAY(FR->slots[1]); printf("\n");
-                  if (unify(copy_term(current_exception), FR->slots[1]))
+                  if (unify(copy_term(current_exception), f->slots[1]))
                   {
                      // Success! Exception is successfully handled.
                      if (TAGOF(current_exception) == COMPOUND_TAG && FUNCTOROF(current_exception) == errorFunctor && (TAGOF(ARGOF(current_exception, 1)) == VARIABLE_TAG))
                      {
-                        unify(ARGOF(DEREF(FR->slots[1]), 1), make_backtrace(&backtrace));
+                        unify(ARGOF(DEREF(f->slots[1]), 1), make_backtrace(&backtrace));
                      }
                      free_list(&backtrace);
                      CLEAR_EXCEPTION();
@@ -1074,12 +1078,12 @@ RC execute()
                      // Now we just have to do i_usercall after adjusting the registers to point to the handler
                      // Things get a bit weird here because we are breaking the usual logic flow by ripping the VM out of whatever state it was in and starting
                      // it off in a totally different place. We have to reset argP, argI and PC then pretend the next instruction was i_usercall
-                     ARGP = FR->slots + 3;
-                     PC = &FR->clause->code[12];
-                     FR->functor = caughtFunctor;
+                     ARGP = f->slots + 3;
+                     PC = &f->clause->code[12];
+                     f->functor = caughtFunctor;
                      // Adjust for USERCALL so it sets up the right return address - we want to pretend this is where we are current executing
-                     PC = FR->returnPC-1;
-                     FR = FR->parent;
+                     PC = f->returnPC-1;
+                     FR = f->parent;
                      goto i_usercall;
                   }
                   else
@@ -1087,7 +1091,7 @@ RC execute()
                      //  printf("... but the handler does not unify\n");
                   }
                }
-               FR = FR->parent;
+               f = f->parent;
             }
             free_list(&backtrace);
             return ERROR;
@@ -1150,6 +1154,7 @@ RC execute()
             Query query = compile_query(goal);
             if (query == NULL)
                goto b_throw_foreign;
+            //printf("Compiled query (%d) with clause at %p: ", qqqueries, query->clause); PORTRAY(goal); printf("\n");
             //PORTRAY(goal); printf(" compiles to\n");
             //print_clause(query->clause);
             NFR->parent = FR;
@@ -1507,8 +1512,10 @@ RC execute_query(word goal)
 
 //   NFR = allocFrame();
    PC = FR->clause->code;
+   RC rc = execute();
+   free_clause(query->clause);
    free_query(query);
-   return execute();
+   return rc;
 }
 
 RC backtrack_query()
