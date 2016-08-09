@@ -498,7 +498,6 @@ int cut_to(Choicepoint point)
 
       // If the choicepoint is further down the stack than the current frame then we can move SP all the way back to FR + fence
       // This implies that we should free any frames between FR and CP
-      // FIXME: It also implies we should decrease SP!
       if (c->FR > FR)
       {
          Frame f = c->FR;
@@ -528,6 +527,25 @@ int cut_to(Choicepoint point)
          c->cleanup = NULL; // Missed your chance then
       }
    }
+
+   word* CPS = (word*)CP + sizeof(choicepoint)/sizeof(word);
+   word* FRS = (word*)FR + FR->clause->slot_count + sizeof(frame) / sizeof(word);
+   if (CPS > FRS)
+   {
+      //printf("Moving SP from %p down to the top of the next choicepoint: %p\n", SP, CPS);
+      SP = CPS;
+   }
+   else
+   {
+      //printf("Moving SP from %p down to the top of the current frame: %p\n", SP, FRS);
+      SP = FRS;
+      NFR = (Frame)SP;
+      ARGP = NFR->slots;
+   }
+   // We can now set SP to the maximum of:
+   //    CP + sizeof(choicepoint)
+   //    FR + fence
+
    return 1;
 }
 
