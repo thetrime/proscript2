@@ -186,7 +186,10 @@ int asserta(Module module, word clause)
    {
       //printf("Assert has found a clause for "); PORTRAY(functor); printf(" already exists\n");
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
+      {
+         free(local);
          return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(functor));
+      }
       // Existing predicate. Put the new clause at the start
       cell = list_unshift(&p->clauses, clause);
    }
@@ -207,6 +210,7 @@ int asserta(Module module, word clause)
    if (p->firstClause == NULL)
    {
       // Compilation failed. Scrub out that clause
+      free(local);
       list_splice(&p->clauses, cell);
       return ERROR;
    }
@@ -221,11 +225,16 @@ int assertz(Module module, word clause)
    Predicate p;
    word* local;
    struct cell_t* cell;
-   clause = copy_local(clause, &local); // FIXME: this is never freed
+   copy_local(clause, &local);
+   clause = (word)local; // See asserta for an explanation of what is happening here
+
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
+      {
+         free(local);
          return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(functor));
+      }
       // Existing predicate. Put the new clause at the start
       cell = list_append(&p->clauses, clause);
    }
@@ -245,6 +254,7 @@ int assertz(Module module, word clause)
    if (p->firstClause == NULL)
    {
       // Compilation failed. Scrub out that clause
+      free(local);
       list_splice(&p->clauses, cell);
       return ERROR;
    }
