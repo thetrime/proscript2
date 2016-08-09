@@ -375,22 +375,6 @@ word DEREF(word t)
    return t;
 }
 
-word XDEREF(word t)
-{
-   printf("SP: %p, H: %p, TR: %p\n", SP, H, TR);
-   word t1;
-   while (TAGOF(t) == VARIABLE_TAG)
-   {
-      t1 = *((Word)t);
-      printf("   %p -> %p\n", t, t1);
-      if (t1 == t)
-         return t;
-      t = t1;
-   }
-   return t;
-}
-
-
 void PORTRAY(word w)
 {
    w = DEREF(w);
