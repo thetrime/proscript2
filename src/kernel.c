@@ -632,7 +632,7 @@ int count_compounds(word t)
    return 0;
 }
 
-word make_local_(word t, List* variables, word* heap, int* ptr, int extra)
+word make_local_(word t, List* variables, word* heap, int* ptr, int size)
 {
    t = DEREF(t);
    switch(TAGOF(t))
@@ -651,15 +651,17 @@ word make_local_(word t, List* variables, word* heap, int* ptr, int extra)
          (*ptr) += f->arity;
          for (int i = 0; i < f->arity; i++)
          {
-            heap[argp++] = make_local_(ARGOF(t, i), variables, heap, ptr, extra);
+            heap[argp++] = make_local_(ARGOF(t, i), variables, heap, ptr, size);
          }
          return result;
       }
       case VARIABLE_TAG:
       {
+         // The variables appear, backwards, at the end of the heap. This is so that
+         // The term we want is also identifiable as (word)heap
          int i = list_index(variables, t);
-         heap[i+extra] = (word)&heap[i+extra];
-         return (word)&heap[i+extra];
+         heap[size-i-1] = (word)&heap[size-i-1];
+         return (word)&heap[size-i-1];
       }
    }
    assert(0);
@@ -673,9 +675,11 @@ word copy_local_with_extra_space(word t, word** local, int extra)
    find_variables(t, &variables);
    i += list_length(&variables);
    i += extra;
+   i++;
    *local = malloc(sizeof(word) * i);
-   int ptr = extra+list_length(&variables);
-   word w = make_local_(t, &variables, *local, &ptr, extra);
+   int ptr = extra + 1;
+   word w = make_local_(t, &variables, *local, &ptr, i);
+   (*local)[extra] = w;
    free_list(&variables);
    return w;
 }

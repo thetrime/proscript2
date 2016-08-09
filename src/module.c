@@ -14,6 +14,7 @@
 #include "compiler.h"
 #include "checks.h"
 #include <stdio.h>
+#include <assert.h>
 
 wmap_t modules = NULL;
 
@@ -44,6 +45,7 @@ void free_clauses(Clause c)
 void free_predicate(Predicate p)
 {
    free_clauses(p->firstClause);
+   free_list(&p->clauses);
    free(p);
 }
 
@@ -169,7 +171,16 @@ int asserta(Module module, word clause)
       return ERROR;
    Predicate p;
    word* local;
-   clause = copy_local(clause, &local); // FIXME: this is never freed
+
+   // This bears some explaining. copy_local will allocate some space on the heap and copy the term there to ensure it is safe
+   // even in the event of backtracking mucking up the global stack. However, we now have 2 things to keep track of - the (copied)
+   // clause and the memory that we must free. Fortunately, there is a trick here - because variables in Prolog are just pointers
+   // if we cast local to a word, then we have a variable that is pre-bound to the copied term
+   // This means that DEREF(local) will be clause, but we can still free(local) later.
+   // Note that this ONLY applies for copy_local, and not copy_local_with_extra_space!
+   copy_local(clause, &local);
+   clause = (word)local;
+
    struct cell_t* cell;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
@@ -240,6 +251,12 @@ int assertz(Module module, word clause)
    return SUCCESS;
 }
 
+void _free_asserted_terms(word term, void* ignored)
+{
+   if (term != 0)
+      free((void*)term);
+}
+
 int abolish(Module module, word indicator)
 {
    if (!must_be_predicate_indicator(indicator))
@@ -251,6 +268,7 @@ int abolish(Module module, word indicator)
    if ((p->flags & PREDICATE_DYNAMIC) == 0)
       return permission_error(modifyAtom, staticProcedureAtom, indicator);
    whashmap_remove(module->predicates, functor);
+   list_apply(&p->clauses, NULL, _free_asserted_terms);
    free_predicate(p);
    return SUCCESS;
 }
@@ -267,7 +285,9 @@ void retract(Module module, word clause)
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
       // Retract the *first* value for clause that unifies
-      list_delete_first(&p->clauses, DEREF(clause));
+      word deleted_term = list_delete_first(&p->clauses, DEREF(clause));
+      if (deleted_term != 0)
+         free((void*)deleted_term);
       free_clauses(p->firstClause);
       p->firstClause = compile_predicate(p);
    }

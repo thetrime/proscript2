@@ -779,7 +779,7 @@ void _compile_predicate(word term, void* _context)
 {
    struct predicate_context_t* context = (struct predicate_context_t*)_context;
    //printf("Compiling clause: "); PORTRAY(term); printf("\n");
-   Clause q = compile_predicate_clause(term, context->index + 1 < context->length, context->meta);
+   Clause q = compile_predicate_clause(DEREF(term), context->index + 1 < context->length, context->meta);
    context->index++;
    *(context->next) = q;
    context->next = &(q->next);
