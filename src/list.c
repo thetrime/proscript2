@@ -32,6 +32,7 @@ void list_splice(List* list, struct cell_t* cell)
       cell->next->prev = cell->prev;
    else
       list->tail = cell->prev;
+   free(cell);
    list->length--;
 }
 
@@ -45,9 +46,10 @@ word list_delete_first(List* list, word w)
       word copy = copy_local(cell->data, &local);
       if (unify(copy, w))
       {
+         word data = cell->data;
          list_splice(list, cell);
          free(local);
-         return cell->data;
+         return data;
       }
       free(local);
       cell = cell->next;
