@@ -72,7 +72,6 @@ word* exception_local = NULL;
 Stream current_input = NULL;
 Stream current_output = NULL;
 
-
 void print_choices()
 {
    Choicepoint q = CP;
@@ -496,6 +495,22 @@ int cut_to(Choicepoint point)
       if (CP == NULL) // Fatal, I guess?
          fatal("Cut to non-existent choicepoint");
       Choicepoint c = CP;
+
+      // If the choicepoint is further down the stack than the current frame then we can move SP all the way back to FR + fence
+      // This implies that we should free any frames between FR and CP
+      // FIXME: It also implies we should decrease SP!
+      if (c->FR > FR)
+      {
+         Frame f = c->FR;
+         while (f > FR)
+         {
+            if (f->is_local)
+            {
+               free_clause(f->clause);
+            }
+            f = f->parent;
+         }
+      }
       CP = CP->CP;
       if (c->cleanup != NULL)
       {
@@ -1520,9 +1535,11 @@ RC execute_query(word goal)
 
 RC backtrack_query()
 {
+   RC rc;
    if (backtrack())
-      return execute();
-   return FAIL;
+      rc = execute();
+   else rc = FAIL;
+   return rc;
 }
 
 
