@@ -44,14 +44,15 @@ instruction_info_t instruction_info[] = {
 uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
-unsigned int TR;
 
 #define HEAP_SIZE 655350
 #define TRAIL_SIZE 655350
 #define STACK_SIZE 655350
 #define ARG_STACK_SIZE 256
 
-word trail[TRAIL_SIZE];
+word TRAIL[TRAIL_SIZE];
+word* TTOP = &TRAIL[TRAIL_SIZE];
+word* TR = &TRAIL[0];
 word HEAP[HEAP_SIZE];
 word* HTOP = &HEAP[HEAP_SIZE];
 word* H = &HEAP[0];
@@ -356,8 +357,8 @@ word MAKE_FUNCTOR(word name, int arity)
 void _bind(word var, word value)
 {
    //printf("TR: %d\n", TR);
-   assert(TR+1 < TRAIL_SIZE);
-   trail[TR++] = var;
+   assert(TR < TTOP);
+   *(TR++) = var;
    *((Word)var) = value;
 }
 
@@ -477,11 +478,11 @@ int unify(word a, word b)
 }
 
 
-void unwind_trail(unsigned int from)
+void unwind_trail(word* from)
 {
-   for (int i = TR; i < from; i++)
+   for (word* T = TR; T < from; T++)
    {
-      *((Word)trail[i]) = trail[i];
+      *((Word)*T) = *T;
       //printf("Unbound variable %p\n", trail[i]);
    }
 }
@@ -591,7 +592,7 @@ int apply_choicepoint(Choicepoint c)
 int backtrack()
 {
    //printf("Backtracking: %p\n", CP);
-   unsigned int oldTR = TR;
+   word* oldTR = TR;
    while(1)
    {
       if (CP == NULL)
@@ -612,7 +613,7 @@ int backtrack_to(Choicepoint c)
    {
       if (CP == NULL)
          return 0;
-      unsigned int oldTR = TR;
+      word* oldTR = TR;
       apply_choicepoint(CP); // Modifies CP
       unwind_trail(oldTR);
    }
@@ -1755,7 +1756,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p, ARGP=%p, H=%p, TR=%d) %s ", FR, CP, SP, ARGP, H, TR, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p, ARGP=%p, H=%p, TR=%p) %s ", FR, CP, SP, ARGP, H, TR, instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {

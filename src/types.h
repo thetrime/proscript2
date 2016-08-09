@@ -119,7 +119,7 @@ struct choicepoint
    struct frame* FR;
    struct frame* NFR;
    word* SP;
-   uintptr_t TR;
+   word* TR;
    word* H;
    ChoicepointType type;
    struct choicepoint* CP;
