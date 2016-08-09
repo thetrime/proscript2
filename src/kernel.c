@@ -46,7 +46,7 @@ int halted = 0;
 Choicepoint CP = NULL;
 
 #define HEAP_SIZE 655350
-#define TRAIL_SIZE 655350
+#define TRAIL_SIZE 65535
 #define STACK_SIZE 655350
 #define ARG_STACK_SIZE 256
 
@@ -362,13 +362,6 @@ void _bind(word var, word value)
    *((Word)var) = value;
 }
 
-word _link(word value)
-{
-   word v = MAKE_VAR();
-   _bind(v, value);
-   return v;
-}
-
 word DEREF(word t)
 {
    word t1;
@@ -381,6 +374,22 @@ word DEREF(word t)
    }
    return t;
 }
+
+word XDEREF(word t)
+{
+   printf("SP: %p, H: %p, TR: %p\n", SP, H, TR);
+   word t1;
+   while (TAGOF(t) == VARIABLE_TAG)
+   {
+      t1 = *((Word)t);
+      printf("   %p -> %p\n", t, t1);
+      if (t1 == t)
+         return t;
+      t = t1;
+   }
+   return t;
+}
+
 
 void PORTRAY(word w)
 {
@@ -1307,7 +1316,7 @@ RC execute()
             //printf("Making var in slot %d: At %p\n", CODE16(PC+1), &FR->slots[CODE16(PC+1)]);
             FR->slots[CODE16(PC+1)] = MAKE_VAR();
             //printf("Writing var to %p\n", ARGP);
-            *(ARGP++) = _link(FR->slots[CODE16(PC+1)]);
+            *(ARGP++) = (word)(&FR->slots[CODE16(PC+1)]);
             PC+=3;
             continue;
          case B_ARGVAR:
@@ -1317,6 +1326,7 @@ RC execute()
             if (TAGOF(arg) == VARIABLE_TAG)
             {
                *ARGP = MAKE_VAR();
+               // FIXME: Maybe this should be the other way around?
                _bind(*(ARGP++), arg);
             }
             else
@@ -1338,10 +1348,16 @@ RC execute()
             }
             //printf("Writing linked variable to %p\n", ARGP);
             //printf("NFR is %p\n", NFR);
-            //printf("Variable should deref to %08lx\n which is:", FR->slots[slot]);
+            //printf("Variable should deref to %08lx (%08lx)\n which is:", FR->slots[slot], XDEREF(FR->slots[slot]));
             //PORTRAY(FR->slots[slot]); printf("\n");
-            word w = _link(FR->slots[slot]);
+            word w = (word)(&FR->slots[slot]);
             //printf("But actual value is %08lx\n", w);
+
+            // We had better be writing on the stack here or else we will be leaving a pointer to the (transient) stack on the (permanent) heap!
+            assert(ARGP > (word*)FR);
+            //PORTRAY(w);
+            //printf("\n");
+            //XDEREF(w);
             *(ARGP++) = w;
             PC+=3;
             continue;
@@ -1373,18 +1389,25 @@ RC execute()
          }
          case H_FIRSTVAR:
          {
+            // ARGP is pointing to something we must match with a variable in the head that we have not seen until now (and is not an arg)
+            // It will necessarily be on the heap, however we do not need to trail so long as we make sure FR->slots[CODE16(PC+1)] points to
+            // ARGP, and not the other way around.
+            //   If *ARGP is a variable,
+            // For example the first X in foo(a(X),X)
             if (mode == WRITE)
             {
-               //printf("Write mode. ArgP is %p \n", ARGP);
-               //PORTRAY(*ARGP); printf("\n");
-               FR->slots[CODE16(PC+1)] = MAKE_VAR();
-               _bind(*(ARGP++),FR->slots[CODE16(PC+1)]);
-               //printf("Written\n");
+               // We are writing, so first make ARGP (which will be one of the args of the term we are constructing on the heap) into a fresh var
+               *ARGP = MAKE_VAR();
+               // Then make a our frame variable a pointer to that var so we link them together
+               FR->slots[CODE16(PC+1)] = (word)ARGP;
+               ARGP++;
             }
             else
             {
+               // We are reading (ie matching), so ARGP may point to either a variable, in which case we just make a pointer to it in our frame
+               // or else something non-var, in which case we can just copy it into the frame
                if (TAGOF(*ARGP) == VARIABLE_TAG)
-                  FR->slots[CODE16(PC+1)] = _link(*(ARGP++));
+                  FR->slots[CODE16(PC+1)] = (word)ARGP++;
                else
                   FR->slots[CODE16(PC+1)] = *(ARGP++);
             }
