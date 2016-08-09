@@ -716,7 +716,11 @@ Query compile_query(word term)
    find_variables(term, &variables);
    int slot_count;
    if (!compile_clause(MAKE_VCOMPOUND(clauseFunctor, MAKE_LCOMPOUND(queryAtom, &variables), term), &instructions, &slot_count))
+   {
+      deinit_instruction_list(&instructions);
+      free_list(&variables);
       return NULL;
+   }
    Query q = malloc(sizeof(query));
    q->variable_count = 0;
    q->variables = malloc(sizeof(word) * list_length(&variables));
@@ -752,7 +756,10 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
       push_instruction(&instructions, INSTRUCTION(TRY_ME_OR_NEXT_CLAUSE));
    int slot_count;
    if (!compile_clause(term, &instructions, &slot_count))
+   {
+      deinit_instruction_list(&instructions);
       return NULL;
+   }
    Clause clause = assemble(&instructions);
    clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);

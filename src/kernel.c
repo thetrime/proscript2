@@ -521,6 +521,14 @@ int apply_choicepoint(Choicepoint c)
    PC = c->PC;
    //printf("PC is now %p\n", PC);
    H = c->H;
+   // Must free any local clauses between FR and c->FR
+   Frame f = FR;
+   while (f > c->FR)
+   {
+      if (f->is_local)
+         free_clause(f->clause);
+      f = f->parent;
+   }
    FR = c->FR;
    NFR = c->NFR;
    SP = c->SP;
