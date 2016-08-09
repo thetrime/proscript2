@@ -25,9 +25,24 @@ var YIELD = 3;
 var FAIL = 0;
 var SUCCESS = 1;
 
+function yield_resumption()
+{
+    var ptr = _yield_ptr();
+    return function()
+    {
+        _resume_execution(ptr);
+    };
+}
+
 function sleep(duration)
 {
     duration = _integer_data(duration);
+    //var resume = yield_resumption();
+    console.log("Goodnight: " + duration * 1000);
+    setTimeout(function()
+               {
+                   _resume_yield(SUCCESS);
+               }, duration * 1000);
     return YIELD;
 };
 

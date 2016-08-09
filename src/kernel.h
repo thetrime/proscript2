@@ -105,8 +105,10 @@ typedef enum
 #define PREDICATE_FOREIGN 1
 #define PREDICATE_DYNAMIC 2
 
-RC execute_query(word);
-RC backtrack_query();
+typedef void(*ExecutionCallback)(RC);
+
+void execute_query(word, ExecutionCallback);
+void backtrack_query(ExecutionCallback);
 word getException();
 
 int clause_functor(word, word*);

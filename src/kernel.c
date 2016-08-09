@@ -845,10 +845,14 @@ void initialize_kernel()
 }
 
 
-RC execute()
+RC execute(int resume)
 {
    //printf("SP starts at %p\n", SP);
    //printf("sizeof(frame) = %d\n", sizeof(frame));
+   if (current_exception != 0)
+      goto b_throw_foreign;
+   if (resume)
+      goto i_exit;
    while (!halted)
    {
       //print_choices();
@@ -987,7 +991,7 @@ RC execute()
                goto i_exit;
             }
             else if (rc == YIELD)
-            { // Not implemented yet
+            { return YIELD;
             }
             else if (rc == ERROR)
             {
@@ -1520,8 +1524,49 @@ RC execute()
    return HALT;
 }
 
+ExecutionCallback yield_ptr = NULL;
 
-RC execute_query(word goal)
+
+void resume_execution(ExecutionCallback callback, int resume)
+{
+   RC rc = execute(resume);
+   if (rc != YIELD)
+   {
+      // FIXME: Er, we cannot free these if there are choicepoints?!
+      //free_clause(query->clause);
+      callback(rc);
+   }
+   else
+      yield_ptr = callback;
+}
+
+
+
+EMSCRIPTEN_KEEPALIVE
+void resume_yield(RC status)
+{
+   ExecutionCallback y = yield_ptr;
+   yield_ptr = NULL;
+   if (status == FAIL)
+   {
+      if (current_exception != 0)
+         resume_execution(y, 0);
+      else if (backtrack())
+         resume_execution(y, 0);
+      else
+         y(FAIL);
+   }
+   else if (status == SUCCESS)
+   {
+      resume_execution(y, 1);
+   }
+   else
+   {
+      printf("Unexpected return code: %d\n", status);
+   }
+}
+
+RC prepare_query(word goal)
 {
    goal = DEREF(goal);
    if (TAGOF(goal) == VARIABLE_TAG)
@@ -1531,7 +1576,9 @@ RC execute_query(word goal)
    }
    Query query = compile_query(goal);
    if (query == NULL)
+   {
       return ERROR;
+   }
    FR = allocFrame();
    FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
    FR->returnPC = NULL;
@@ -1555,19 +1602,37 @@ RC execute_query(word goal)
 
 //   NFR = allocFrame();
    PC = FR->clause->code;
-   RC rc = execute();
-   free_clause(query->clause);
    free_query(query);
+   return SUCCESS;
+}
+
+RC execute_query_sync(word goal)
+{
+   RC rc = prepare_query(goal);
+   if (rc != SUCCESS)
+      return rc;
+   rc = execute(0);
+   assert(rc != YIELD); // Do not do this.
    return rc;
 }
 
-RC backtrack_query()
+void execute_query(word goal, ExecutionCallback callback)
 {
-   RC rc;
+   RC rc = prepare_query(goal);
+   if (rc != SUCCESS)
+      callback(rc);
+   else
+      resume_execution(callback, 0);
+}
+
+void backtrack_query(ExecutionCallback callback)
+{
    if (backtrack())
-      rc = execute();
-   else rc = FAIL;
-   return rc;
+   {
+      resume_execution(callback, 0);
+   }
+   else
+      callback(FAIL);
 }
 
 
@@ -1693,7 +1758,7 @@ void consult_stream(Stream s)
          }
          else
          {
-            RC rc = execute_query(directive);
+            RC rc = execute_query_sync(directive);
             if (rc == SUCCESS || rc == SUCCESS_WITH_CHOICES)
                printf("     Directive succeeded\n");
             else if (rc == FAIL)

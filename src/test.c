@@ -12,12 +12,27 @@
 #define EMSCRIPTEN_KEEPALIVE
 #endif
 
+void query_complete(RC result)
+{
+   if (result == ERROR)
+   {
+      printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
+   }
+   else if (result == FAIL)
+   {
+      printf("Top level Failed\n");
+   }
+   else
+   {
+      printf("Success! %d\n", result);
+      if (result == SUCCESS_WITH_CHOICES)
+      {
+         printf("backtracking for other solutions...\n");
+         backtrack_query(query_complete);
+      }
+   }
+}
 
-//int main()
-//{
-//   initialize_constants();
-//   return 0;
-//}
 
 EMSCRIPTEN_KEEPALIVE
 void do_test()
@@ -27,38 +42,7 @@ void do_test()
    consult_file("test.pl");
    printf("Consulted. Running tests...\n");
    word w = MAKE_ATOM("run_all_tests");
-   RC result = execute_query(w);
-   if (result == ERROR)
-   {
-      printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
-   }
-   else if (result == FAIL)
-      printf("Top level Failed\n");
-   else
-   {
-      printf("Success! %d\n", result);
-      //PORTRAY(x); printf("\n");
-      //PORTRAY(y); printf("\n");
-      while(result == SUCCESS_WITH_CHOICES)
-      {
-         printf("backtracking for other solutions...\n");
-         result = backtrack_query();
-         if (result == ERROR)
-         {
-            printf("Error: "); PORTRAY(getException()); printf("\n");
-         }
-         else if (result == FAIL)
-         {
-            printf("No more solutions: Failed\n");
-         }
-         else
-         {
-            printf("Success! %d\n", result);
-            //PORTRAY(x); printf("\n");
-            //PORTRAY(y); printf("\n");
-         }
-      }
-   }
+   execute_query(w, query_complete);
 }
 
 /*
