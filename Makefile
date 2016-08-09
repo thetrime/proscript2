@@ -7,7 +7,7 @@ ifeq ($(ARCH),js)
 CC=emcc
 TARGET=build/proscript.js
 #CFLAGS=-O2
-OPT_LEVEL=-O3
+OPT_LEVEL=-O0
 MEMORY_REQUIRED=
 #MEMORY_REQUIRED=-s ALLOW_MEMORY_GROWTH=1
 CFLAGS=$(OPT_LEVEL) -s NO_EXIT_RUNTIME=1 $(MEMORY_REQUIRED) -Ilib/gmp.js -s ASSERTIONS=2 -Werror
@@ -24,7 +24,7 @@ BOOTFILE=main.o
 BOOT=main.o
 endif
 
-OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o arithmetic.o options.o char_conversion.o term_writer.o record.o string_builder.o
+OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o arithmetic.o options.o char_conversion.o term_writer.o record.o string_builder.o fli.o
 
 $(TARGET):	$(OBJECTS) $(BOOTFILE)
 		$(CC) $(OBJECTS) $(BOOT) $(BOOT_FS) $(LDFLAGS) -o $@

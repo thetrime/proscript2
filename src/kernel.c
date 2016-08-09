@@ -963,9 +963,11 @@ RC execute()
             else
             {
 #ifdef EMSCRIPTEN
+               printf("Hello Javascript! This is C calling\n");
                PC -= (3+sizeof(word));
                unsigned char* foreign_ptr = PC+1+sizeof(word);
-               rc = EM_ASM_INT({_foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(foreign_ptr)], CODEPTR(PC+1), f->arity, ARGP);
+               //printf("Calling with ARGP %p holding %08x\n", ARGP, *ARGP);
+               rc = EM_ASM_INT({return _foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(foreign_ptr)], CODEPTR(PC+1), f->arity, ARGP);
 #else
                rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
 #endif
@@ -974,14 +976,14 @@ RC execute()
                goto b_throw_foreign;
             if (rc == FAIL)
             {
-               //printf("Foreign Fail\n");
+               printf("Foreign Fail\n");
                if (backtrack())
                   continue;
                return FAIL;
             }
             else if (rc == SUCCESS)
             {
-               //printf("Foreign Success!\n");
+               printf("Foreign Success!\n");
                goto i_exit;
             }
             else if (rc == YIELD)

@@ -826,14 +826,14 @@ Clause foreign_predicate_c(int(*func)(), int arity, int flags)
    return clause;
 }
 
-Clause foreign_predicate_js(word func)
+Clause foreign_predicate_js(word func, int arity, int flags)
 {
    instruction_list_t instructions;
    init_instruction_list(&instructions);
-   push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_JS, 0, func));
+   push_instruction(&instructions, INSTRUCTION_SLOT_ADDRESS(I_FOREIGN_JS, arity, func));
    push_instruction(&instructions, INSTRUCTION(I_FOREIGN_JS_RETRY));
    Clause clause = assemble(&instructions);
-   // FIXME: set slot_count!
+   clause->slot_count = arity + ((flags & NON_DETERMINISTIC) != 0?1:0);
    deinit_instruction_list(&instructions);
    return clause;
 }

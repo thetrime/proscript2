@@ -95,8 +95,8 @@ typedef enum
 {
    FAIL = 0,
    SUCCESS = 1,
-   SUCCESS_WITH_CHOICES,
-   YIELD,
+   SUCCESS_WITH_CHOICES = 2,
+   YIELD = 3,
    ERROR,
    HALT,
    AGAIN

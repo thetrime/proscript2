@@ -69,11 +69,12 @@ int define_foreign_predicate_js(Module module, word functor, word func)
    Predicate p;
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
       return 0;
-   //printf("Defining foreign (JS) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
+   printf("Defining foreign (JS) predicate "); PORTRAY(module->name); printf(":"); PORTRAY(functor); printf("\n");
    p = malloc(sizeof(predicate));
    p->meta = NULL;
    p->flags = PREDICATE_FOREIGN;
-   p->firstClause = foreign_predicate_js(func);
+   Functor f = getConstant(functor).data.functor_data;
+   p->firstClause = foreign_predicate_js(func, f->arity, NON_DETERMINISTIC);
    whashmap_put(module->predicates, functor, p);
    return 1;
 }
