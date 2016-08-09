@@ -49,6 +49,7 @@ unsigned int TR;
 #define HEAP_SIZE 655350
 #define TRAIL_SIZE 655350
 #define STACK_SIZE 655350
+#define ARG_STACK_SIZE 256
 
 word trail[TRAIL_SIZE];
 word HEAP[HEAP_SIZE];
@@ -57,8 +58,9 @@ word* H = &HEAP[0];
 word STACK[STACK_SIZE];
 word* STOP = &STACK[STACK_SIZE];
 word* SP = &STACK[0];
-uintptr_t argStack[64];
-uintptr_t* argStackP = argStack;
+uintptr_t argStack[ARG_STACK_SIZE];
+uintptr_t* argStackP = &argStack[0];
+uintptr_t* argStackTop = &argStack[ARG_STACK_SIZE];
 
 Frame FR, NFR;
 word *ARGP;
@@ -536,6 +538,9 @@ int apply_choicepoint(Choicepoint c)
    {
       ARGP = NFR->slots;
    }
+   // We can start the arg stack again if we are trying again
+   argStackP = &argStack[0];
+
    return (PC != NULL);
 }
 
@@ -1309,6 +1314,7 @@ RC execute()
             word t = MAKE_COMPOUND(FR->clause->constants[CODE16(PC+1)]);
             //printf("NFR->parent: %p\n", NFR->parent);
             *(ARGP++) = t;
+            assert(argStackP < argStackTop);
             *(argStackP++) = (uintptr_t)ARGP;
             ARGP = ARGPOF(t);
             PC+=3;
@@ -1343,6 +1349,7 @@ RC execute()
             {
                if (FUNCTOROF(arg) == functor)
                {
+                  assert(argStackP < argStackTop);
                   *(argStackP++) = (uintptr_t)ARGP | mode;
                   ARGP = ARGPOF(arg);
                   continue;
@@ -1350,6 +1357,7 @@ RC execute()
             }
             else if (TAGOF(arg) == VARIABLE_TAG)
             {
+               assert(argStackP < argStackTop);
                *(argStackP++) = (uintptr_t)ARGP | mode;
                word t = MAKE_COMPOUND(functor);
                _bind(arg, t);
