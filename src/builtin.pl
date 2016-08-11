@@ -247,3 +247,6 @@ member_([C|A], B, _) :-
 
 
 memberchk(A, B):- member(A, B), !.
+
+is_list([]):- !.
+is_list([_|B]):- is_list(B).
