@@ -46,7 +46,7 @@ int halted = 0;
 Choicepoint CP = NULL;
 
 #define HEAP_SIZE 655350
-#define TRAIL_SIZE 65535
+#define TRAIL_SIZE 655350
 #define STACK_SIZE 655350
 #define ARG_STACK_SIZE 256
 
@@ -751,20 +751,20 @@ void CreateChoicepoint(unsigned char* address, Clause clause, int type)
 
 Choicepoint push_state()
 {
-   printf("Pushing state. CP is %p, PC is %p\n", CP, PC);
+   //printf("Pushing state. CP is %p, PC is %p\n", CP, PC);
    CreateChoicepoint(PC, FR->clause, Body);
    Choicepoint state = CP;
    CP = 0;
-   printf("State is now %p\n", state);
+   //printf("State is now %p\n", state);
    return state;
 }
 
 void restore_state(Choicepoint state)
 {
-   printf("Popping state from %p\n", state);
+   //printf("Popping state from %p\n", state);
    CP = state;
    apply_choicepoint(CP);
-   printf("Done. PC is now %p\n", PC);
+   //printf("Done. PC is now %p\n", PC);
 }
 
 uint8_t failOp = I_FAIL;
