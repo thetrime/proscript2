@@ -4,6 +4,7 @@
 #include "checks.h"
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 int atom_difference(Atom a, Atom b)
 {
@@ -75,11 +76,9 @@ int term_difference(word a, word b)
             if (cb.type == FLOAT_TYPE || cb.type == INTEGER_TYPE)
                return 1;
             else if (cb.type == ATOM_TYPE)
-            {
                return atom_difference(ca.data.atom_data, cb.data.atom_data);
-            }
-            return -1;
          }
+         return -1;
       }
       else
       {
@@ -111,7 +110,8 @@ int term_difference(word a, word b)
          return -1;
       return GET_POINTER(a) - GET_POINTER(b);
    }
-   assert(0);
+   printf(":: "); PORTRAY(a); printf("\n");
+   assert(0 && "Illegal tag");
 }
 
 int acyclic_term(word t)
