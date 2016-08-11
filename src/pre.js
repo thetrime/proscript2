@@ -453,6 +453,7 @@ var Module = Module || {};
 Module.onRuntimeInitialized = function()
 {
     Module._init_prolog();
+    /*
     console.log("Hello from an initialized system!");
     define_foreign("badger", badger);
     define_foreign("sleep", sleep);
@@ -462,4 +463,5 @@ Module.onRuntimeInitialized = function()
     Module._do_test(); // foobar was exported
     var d1 = new Date().getTime();
     console.log("Execution time: " + (d1-d0) + "ms");
+    */
 };
