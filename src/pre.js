@@ -39,9 +39,10 @@ var CONSTANT_TAG = 3;
 
 function yield_resumption()
 {
+    var ptr = _current_yield();
     return function(p)
     {
-        _resume_yield(p);
+        _resume_yield(p, ptr);
     };
 }
 

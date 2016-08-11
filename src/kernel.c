@@ -63,6 +63,7 @@ uintptr_t argStack[ARG_STACK_SIZE];
 uintptr_t* argStackP = &argStack[0];
 uintptr_t* argStackTop = &argStack[ARG_STACK_SIZE];
 
+ExecutionCallback current_yield_ptr = NULL;
 Frame FR, NFR;
 word *ARGP;
 Module currentModule = NULL;
@@ -919,6 +920,7 @@ RC execute(int resume)
          case I_FOREIGN:
          {
             RC rc = FAIL;
+            ExecutionCallback yp = current_yield_ptr; // We must save this in case the foreign predicate trashes it
             Functor f = getConstant(FR->functor).data.functor_data;
             //printf("argP is at %p\n", ARGP);
             //PORTRAY(*ARGP); printf("\n");
@@ -939,6 +941,7 @@ RC execute(int resume)
                   // Too many args! This should be impossible since the installer would have rejected it
                   rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
             }
+            current_yield_ptr = yp;
             if (current_exception != 0)
                goto b_throw_foreign;
             if (rc == FAIL)
@@ -971,6 +974,7 @@ RC execute(int resume)
          {
             RC rc = FAIL;
             Functor f = getConstant(FR->functor).data.functor_data;
+            ExecutionCallback yp = current_yield_ptr; // We must save this in case the foreign predicate trashes it
             if (*PC == I_FOREIGN_RETRY || *PC == I_FOREIGN_NONDET)
             {
                // Go back to the actual FOREIGN_NONDET or FOREIGN_JS call
@@ -1006,6 +1010,7 @@ RC execute(int resume)
                rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
 #endif
             }
+            current_yield_ptr = yp;
             if (current_exception != 0)
                goto b_throw_foreign;
             if (rc == FAIL)
@@ -1562,11 +1567,10 @@ RC execute(int resume)
    return HALT;
 }
 
-ExecutionCallback yield_ptr = NULL;
-
 
 void resume_execution(ExecutionCallback callback, int resume)
 {
+   current_yield_ptr = callback;
    RC rc = execute(resume);
    if (rc != YIELD)
    {
@@ -1574,17 +1578,17 @@ void resume_execution(ExecutionCallback callback, int resume)
       //free_clause(query->clause);
       callback(rc);
    }
-   else
-      yield_ptr = callback;
 }
 
-
+EMSCRIPTEN_KEEPALIVE
+ExecutionCallback current_yield()
+{
+   return current_yield_ptr;
+}
 
 EMSCRIPTEN_KEEPALIVE
-void resume_yield(RC status)
+void resume_yield(RC status, ExecutionCallback y)
 {
-   ExecutionCallback y = yield_ptr;
-   yield_ptr = NULL;
    if (status == FAIL)
    {
       if (current_exception != 0)
