@@ -307,7 +307,7 @@ function _exists_predicate(a, b)
 
 function _get_exception()
 {
-    return _DEREF(__get_exception());
+    return __get_exception();
 }
 
 function _set_exception(a)
