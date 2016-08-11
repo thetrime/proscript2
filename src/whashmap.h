@@ -81,4 +81,6 @@ extern void whashmap_free(wmap_t in);
  */
 extern int whashmap_length(wmap_t in);
 
+extern wmap_t whashmap_copy(wmap_t in, any_t(*clone)(any_t));
+
 #endif // __WHASHMAP_H__

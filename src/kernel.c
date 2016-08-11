@@ -560,6 +560,7 @@ int apply_choicepoint(Choicepoint c)
       if (f->is_local)
       {
          free_clause(f->clause);
+         f->is_local = 0;
       }
       f = f->parent;
    }
@@ -710,14 +711,17 @@ word copy_local_with_extra_space(word t, word** local, int extra)
    i += list_length(&variables);
    i += extra;
    i++;
-   *local = malloc(sizeof(word) * i);
+   word* localptr = malloc(sizeof(word) * i);
+   if (local != NULL)
+      *local = localptr;
    int ptr = extra + 1;
-   word w = make_local_(t, &variables, *local, &ptr, i);
-   (*local)[extra] = w;
+   word w = make_local_(t, &variables, localptr, &ptr, i);
+   localptr[extra] = w;
    free_list(&variables);
    return w;
 }
 
+EMSCRIPTEN_KEEPALIVE
 word copy_local(word t, word** local)
 {
    return copy_local_with_extra_space(t, local, 0);
@@ -746,16 +750,20 @@ void CreateChoicepoint(unsigned char* address, Clause clause, int type)
 
 Choicepoint push_state()
 {
+   printf("Pushing state. CP is %p, PC is %p\n", CP, PC);
    CreateChoicepoint(PC, FR->clause, Body);
    Choicepoint state = CP;
    CP = 0;
+   printf("State is now %p\n", state);
    return state;
 }
 
 void restore_state(Choicepoint state)
 {
+   printf("Popping state from %p\n", state);
    CP = state;
    apply_choicepoint(CP);
+   printf("Done. PC is now %p\n", PC);
 }
 
 uint8_t failOp = I_FAIL;
@@ -850,6 +858,7 @@ Frame allocFrame()
    f->contextModule = currentModule;
    f->returnPC = 0;
    f->choicepoint = CP;
+   f->is_local = 0;
    return f;
 }
 
@@ -1533,6 +1542,13 @@ RC execute(int resume)
             word value = DEREF(FR->slots[slot]);
             if (!(TAGOF(value) == COMPOUND_TAG && FUNCTOROF(value) == crossModuleCallFunctor))
                FR->slots[slot] = MAKE_VCOMPOUND(crossModuleCallFunctor, FR->parent->contextModule->name, value);
+            PC+=3;
+            continue;
+         }
+         case C_VAR:
+         {
+            unsigned int slot = CODE16(PC+1);
+            FR->slots[slot] = MAKE_VAR();
             PC+=3;
             continue;
          }

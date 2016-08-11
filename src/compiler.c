@@ -38,6 +38,15 @@ typedef struct
    int count;
 }instruction_list_t;
 
+typedef struct
+{
+   instruction_list_t* left;
+   instruction_list_t* right;
+   wmap_t right_map;
+   int* left_size;
+   int* right_size;
+} cvar_context_t;
+
 void init_instruction_list(instruction_list_t* list)
 {
    list->head = NULL;
@@ -59,8 +68,12 @@ void deinit_instruction_list(instruction_list_t* list)
 
 void instruction_list_apply(instruction_list_t* list, void* data, void(*fn)(void*, instruction_t*))
 {
-   for (instruction_t* cell = list->head; cell; cell = cell->next)
-      fn(data, cell);
+   for (instruction_t* cell = list->head; cell;)
+   {
+      instruction_t* next = cell->next;
+      fn(data, cell); // This is allowed to change cell->next!
+      cell = next;
+   }
 }
 
 int push_instruction(instruction_list_t* list, instruction_t* i)
@@ -78,6 +91,16 @@ int push_instruction(instruction_list_t* list, instruction_t* i)
       list->tail = i;
    }
    return i->size;
+}
+
+void _print_instruction(void* ignored, instruction_t* i)
+{
+   printf("%s\n", instruction_info[i->opcode].name);
+}
+
+void _append_instruction(void* list, instruction_t* i)
+{
+   push_instruction((instruction_list_t*)list, i);
 }
 
 instruction_t* INSTRUCTION(unsigned char opcode)
@@ -158,6 +181,46 @@ instruction_t* INSTRUCTION_CONST(unsigned char opcode, word constant)
 int instruction_count(instruction_list_t* list)
 {
    return list->count;
+}
+
+var_info_t* VarInfo(word variable, int fresh, int slot)
+{
+   var_info_t* v = malloc(sizeof(var_info_t));
+   v->variable = variable;
+   v->fresh = fresh;
+   v->slot = slot;
+   return v;
+}
+
+int free_varinfo(any_t ignored, word key, any_t value)
+{
+   free(value);
+   return MAP_OK;
+}
+
+
+any_t _copy_varinfo(any_t varinfo)
+{
+   var_info_t* v = (var_info_t*)varinfo;
+   return VarInfo(v->variable, v->fresh, v->slot);
+}
+
+int _make_cvars(any_t cx, word variable, any_t vi)
+{
+   var_info_t* leftvar = (var_info_t*)vi;
+   cvar_context_t* context = (cvar_context_t*)cx;
+   var_info_t* rightvar;
+   assert(whashmap_get(context->right_map, variable, (any_t*)&rightvar) == MAP_OK);
+   if (leftvar->fresh && !rightvar->fresh)
+   {
+      *(context->left_size) += push_instruction(context->left, INSTRUCTION_SLOT(C_VAR, leftvar->slot));
+      leftvar->fresh = 0; // Var is no longer fresh
+   }
+   else if (!leftvar->fresh && rightvar->fresh)
+   {
+      *(context->right_size) += push_instruction(context->right, INSTRUCTION_SLOT(C_VAR, rightvar->slot));
+   }
+   return MAP_OK;
 }
 
 int compile_argument(word arg, wmap_t variables, instruction_list_t* instructions, int embedded)
@@ -335,19 +398,39 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
             // (Cut)
             s1 += push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
             // Then
+            wmap_t varcopy = whashmap_copy(variables, _copy_varinfo);
             rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, local_cut, &s1);
             // (and now jump out before the Else)
             instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
-            s2 = push_instruction(instructions, jump);
-            if_then_else->address = s1 + s2;
-            size += s1 + s2;
-            s1 = 0;
-            rc &= compile_body(ARGOF(term, 1), variables, instructions, 0, next_reserved, local_cut, &s1);
-            jump->address = s1 + s2;
+            if_then_else->address = s1; // s1 is the size of C_IF_THEN_ELSE, if, C_CUT, then
             size += s1;
+            s1 = 0;
+            instruction_list_t else_instructions;
+            init_instruction_list(&else_instructions);
+            rc &= compile_body(ARGOF(term, 1), varcopy, &else_instructions, 0, next_reserved, local_cut, &s1);
+            size += s1;
+            // Compute C_VAR instructions
+            cvar_context_t context;
+            int s3 = 0;
+            int s4 = 0;
+            context.right_map = varcopy;
+            context.left = instructions;
+            context.right = &else_instructions;
+            context.left_size = &s3;
+            context.right_size = &s4;
+            whashmap_iterate(variables, _make_cvars, &context);
+            jump->address = s1 + s4;
+            if_then_else->address +=  s3; // s1 is the size any C_VAR appearing in the if-side
+            s1 += s3 + s4;
+            s2 = push_instruction(instructions, jump);
+            size += s2 + s3+ s4;
+            if_then_else->address += s2;      // s2 is the size of the jump
+            jump->address += s2;
+            instruction_list_apply(&else_instructions, instructions, _append_instruction);
             if (is_tail)
                size += push_instruction(instructions, INSTRUCTION(I_EXIT));
-
+            whashmap_iterate(varcopy, free_varinfo, NULL);
+            whashmap_free(varcopy);
          }
          else
          {
@@ -356,20 +439,47 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
             int s2 = 0;
             instruction_t* or = INSTRUCTION_ADDRESS(C_OR, -1);
             s1 += push_instruction(instructions, or);
-            rc &= compile_body(ARGOF(term, 0), variables, instructions, 0, next_reserved, local_cut, &s1);
+            wmap_t varcopy = whashmap_copy(variables, _copy_varinfo);
+            rc &= compile_body(ARGOF(term, 0), variables, instructions, is_tail, next_reserved, local_cut, &s1);
             instruction_t* jump;
             if (is_tail)
                jump = INSTRUCTION(I_EXIT);
             else
                jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
-            s2 = push_instruction(instructions, jump);
-            or->address = s1+s2;
-            size += s1+s2;
-            s1 = 0;
-            rc &= compile_body(ARGOF(term, 1), variables, instructions, is_tail, next_reserved, local_cut, &s1);
-            if (!is_tail)
-               jump->address = s1 + s2;
             size += s1;
+            or->address = s1;
+            s1 = 0;
+            instruction_list_t else_instructions;
+            init_instruction_list(&else_instructions);
+            rc &= compile_body(ARGOF(term, 1), varcopy, &else_instructions, is_tail, next_reserved, local_cut, &s1);
+            if (!is_tail)
+            {
+               // Compute C_VAR instructions
+               cvar_context_t context;
+               int s3 = 0;
+               int s4 = 0;
+               context.right_map = varcopy;
+               context.left = instructions;
+               context.right = &else_instructions;
+               context.left_size = &s3;
+               context.right_size = &s4;
+               whashmap_iterate(variables, _make_cvars, &context);
+               jump->address = s1 + s4;
+               or->address += s3;
+               s1 += s3 + s4;
+            }
+            s2 = push_instruction(instructions, jump);
+            if (!is_tail)
+            {
+               jump->address += s2;
+            }
+            or->address += s2;
+            size += s1+s2;
+            instruction_list_apply(&else_instructions, instructions, _append_instruction);
+            // This is not required - it would delete the instructions. appending them to the other list ensures they will be freed
+            // deinit_instruction_list(&else_instructions);
+            whashmap_iterate(varcopy, free_varinfo, NULL);
+            whashmap_free(varcopy);
          }
       }
       else if (FUNCTOROF(term) == notFunctor)
@@ -460,14 +570,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
    return rc;
 }
 
-var_info_t* VarInfo(word variable, int fresh, int slot)
-{
-   var_info_t* v = malloc(sizeof(var_info_t));
-   v->variable = variable;
-   v->fresh = fresh;
-   v->slot = slot;
-   return v;
-}
+
 
 void find_variables(word term, List* list)
 {
@@ -642,11 +745,6 @@ Clause assemble(instruction_list_t* instructions)
    return context.clause;
 }
 
-int free_varinfo(any_t ignored, word key, any_t value)
-{
-   free(value);
-   return MAP_OK;
-}
 
 int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
 {
@@ -673,6 +771,7 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
       int size = 0;
       if (!compile_body(body, variables, instructions, 1, &next_reserved, -1, &size))
       {
+         whashmap_iterate(variables, free_varinfo, NULL);
          whashmap_free(variables);
          if (getException() == 0)
          {
@@ -834,6 +933,7 @@ Clause foreign_predicate_js(word func, int arity, int flags)
    push_instruction(&instructions, INSTRUCTION(I_FOREIGN_JS_RETRY));
    Clause clause = assemble(&instructions);
    clause->slot_count = arity + ((flags & NON_DETERMINISTIC) != 0?1:0);
+   // FIXME: set slot_count!
    deinit_instruction_list(&instructions);
    return clause;
 }

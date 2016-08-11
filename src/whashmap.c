@@ -202,7 +202,7 @@ int whashmap_iterate(wmap_t in, PWFany f, any_t item) {
 	/* Cast the hashmap */
 	hashmap_map* m = (hashmap_map*) in;
 
-	/* On empty hashmap, return immediately */
+        /* On empty hashmap, return immediately */
         if (whashmap_length(m) <= 0)
 		return MAP_MISSING;	
 
@@ -269,4 +269,20 @@ int whashmap_length(wmap_t in){
 	hashmap_map* m = (hashmap_map *) in;
 	if(m != NULL) return m->size;
 	else return 0;
+}
+
+wmap_t whashmap_copy(wmap_t in, any_t(*clone)(any_t))
+{
+        int i;
+        wmap_t copy = whashmap_new();
+        hashmap_map* m = (hashmap_map*) in;
+        if (whashmap_length(m) <= 0)
+           return copy;
+
+        for(i = 0; i< m->table_size; i++)
+        {
+           if(m->data[i].in_use != 0)
+              whashmap_put(copy, m->data[i].key, clone(m->data[i].data));
+        }
+        return copy;
 }
