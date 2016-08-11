@@ -178,7 +178,7 @@ int _exists_predicate(word module, word functor)
 
 void jscall(RC result)
 {
-   EM_ASM_({_jscallback($0)}, result == SUCCESS);
+   EM_ASM_({_jscallback($0)}, (result == SUCCESS || result == SUCCESS_WITH_CHOICES));
 }
 
 EMSCRIPTEN_KEEPALIVE
