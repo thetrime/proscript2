@@ -93,6 +93,7 @@ void fatal(char* string)
    assert(0);
 }
 
+EMSCRIPTEN_KEEPALIVE
 word MAKE_VAR()
 {
    word newVar = (word)H;
@@ -135,6 +136,7 @@ word MAKE_VCOMPOUND(word functor, ...)
 }
 
 // You MUST call MAKE_ACOMPOUND with a functor as the first arg
+EMSCRIPTEN_KEEPALIVE
 word MAKE_ACOMPOUND(word functor, word* values)
 {
    constant c = getConstant(functor);
@@ -362,6 +364,7 @@ void _bind(word var, word value)
    *((Word)var) = value;
 }
 
+EMSCRIPTEN_KEEPALIVE
 word DEREF(word t)
 {
    word t1;
@@ -398,7 +401,7 @@ void PORTRAY(word w)
             printf("%f", c.data.float_data->data);
             break;
          case BLOB_TYPE:
-            printf("%s<%p>", c.data.blob_data->type, c.data.blob_data->ptr);
+            printf("<%s>(%p)", c.data.blob_data->type, c.data.blob_data->ptr);
             break;
          default:
             printf("Unknown type: %d\n", c.type);
@@ -443,6 +446,7 @@ void CLEAR_EXCEPTION()
    current_exception = 0;
 }
 
+EMSCRIPTEN_KEEPALIVE
 int unify(word a, word b)
 {
    a = DEREF(a);
@@ -740,6 +744,20 @@ void CreateChoicepoint(unsigned char* address, Clause clause, int type)
    c->PC = address;
 }
 
+Choicepoint push_state()
+{
+   CreateChoicepoint(PC, FR->clause, Body);
+   Choicepoint state = CP;
+   CP = 0;
+   return state;
+}
+
+void restore_state(Choicepoint state)
+{
+   CP = state;
+   apply_choicepoint(CP);
+}
+
 uint8_t failOp = I_FAIL;
 clause failClause = {NULL, &failOp, NULL, 1, 0};
 
@@ -760,8 +778,9 @@ int prepare_frame(word functor, Module optionalContext, Frame frame)
 {
    Module module = (optionalContext != NULL)?optionalContext:currentModule;
    Predicate p = lookup_predicate(module, functor);
-   if (p == NULL && currentModule != userModule)
+   if (p == NULL && module != userModule)
    {
+      //printf("Trying again in user\n");
       // try again in module(user)
       p = lookup_predicate(userModule, functor);
       if (p != NULL)
@@ -842,6 +861,8 @@ void initialize_kernel()
    current_output = consoleOuputStream();
    initialize_foreign();
    consult_file("src/builtin.pl");
+   PC = 0;
+   CP = 0;
 }
 
 
@@ -967,7 +988,7 @@ RC execute(int resume)
             else
             {
 #ifdef EMSCRIPTEN
-               printf("Hello Javascript! This is C calling\n");
+               //printf("Hello Javascript! This is C calling\n");
                PC -= (3+sizeof(word));
                unsigned char* foreign_ptr = PC+1+sizeof(word);
                //printf("Calling with ARGP %p holding %08x\n", ARGP, *ARGP);
@@ -980,14 +1001,14 @@ RC execute(int resume)
                goto b_throw_foreign;
             if (rc == FAIL)
             {
-               printf("Foreign Fail\n");
+               //printf("Foreign Fail\n");
                if (backtrack())
                   continue;
                return FAIL;
             }
             else if (rc == SUCCESS)
             {
-               printf("Foreign Success!\n");
+               //printf("Foreign Success!\n");
                goto i_exit;
             }
             else if (rc == YIELD)
@@ -1034,7 +1055,7 @@ RC execute(int resume)
          case I_DEPART:
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
-            if (!prepare_frame(functor, NULL, NFR))
+            if (!prepare_frame(functor, FR->contextModule, NFR))
                goto b_throw_foreign;
             NFR->returnPC = FR->returnPC;
             //printf("Setting parent of frame %p to be %p\n", NFR, FR->parent);
@@ -1134,6 +1155,7 @@ RC execute(int resume)
             word moduleName = FR->clause->constants[CODE16(PC+1)];
             currentModule = find_module(moduleName);
             FR->contextModule = currentModule;
+            //printf("Setting context module of %p to %p\n", FR, currentModule);
             PC+=3;
             continue;
          }
@@ -1145,7 +1167,7 @@ RC execute(int resume)
             word functor = FR->clause->constants[CODE16(PC+1)];
             //printf("Frame at %p has functor ", NFR); PORTRAY(functor); printf("\n");
             assert((word*)NFR < STOP);
-            if (!prepare_frame(functor, NULL, NFR))
+            if (!prepare_frame(functor, FR->contextModule, NFR))
             {
                goto b_throw_foreign;
             }
@@ -1579,11 +1601,12 @@ RC prepare_query(word goal)
    {
       return ERROR;
    }
+
    FR = allocFrame();
    FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
-   FR->returnPC = NULL;
+   FR->returnPC = PC;
    FR->clause = &exitQueryClause;
-   FR->choicepoint = NULL;
+   FR->choicepoint = CP;
 
    NFR = allocFrame();
    NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<query>"), 1);
@@ -1673,6 +1696,7 @@ void consult_stream(Stream s)
       }
       if (clause == endOfFileAtom)
          break;
+      //printf("Compiling clause:\n    "); PORTRAY(clause); printf("\n");
       if (TAGOF(clause) == COMPOUND_TAG && FUNCTOROF(clause) == directiveFunctor)
       {
          word directive = ARGOF(clause, 0);

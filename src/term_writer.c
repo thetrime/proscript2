@@ -186,9 +186,11 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       if (c.type == BLOB_TYPE)
       {
          Blob b = c.data.blob_data;
+         append_string_no_copy(sb, "<", 1);
          append_string_no_copy(sb, b->type, strlen(b->type));
+         append_string_no_copy(sb, ">", 1);
          char buffer[64];
-         sprintf((char*)buffer, "<%p>", b->ptr);
+         sprintf((char*)buffer, "(%p)", b->ptr);
          append_string(sb, strdup(buffer), strlen(buffer));
          return 1;
       }

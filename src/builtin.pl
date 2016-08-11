@@ -246,3 +246,4 @@ member_([C|A], B, _) :-
         member_(A, B, C).
 
 
+memberchk(A, B):- member(A, B), !.

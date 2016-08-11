@@ -96,6 +96,7 @@ Module create_module(word name)
    whashmap_put(modules, name, m);
    m->predicates = whashmap_new();
    return m;
+   //printf("Created a module: "); PORTRAY(name); printf("\n");
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -104,6 +105,7 @@ Module find_module(word name)
    Module m;
    if (whashmap_get(modules, name, (any_t)&m) == MAP_OK)
       return m;
+   printf("Could not find module "); PORTRAY(name); printf("\n");
    return NULL;
 }
 
