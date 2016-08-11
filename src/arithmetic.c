@@ -126,7 +126,7 @@ int common_type(number a, number b)
    else if (a.type == RationalType)
       type = RationalType;
    else
-      assert(0);
+      assert(0 && "Illegal number type");
    if (b.type == IntegerType)
    {
    }
@@ -146,7 +146,7 @@ int common_type(number a, number b)
          type = 3;
    }
    else
-      assert(0);
+      assert(0 && "Illegal number type");
    return type;
 }
 
