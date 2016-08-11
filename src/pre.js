@@ -224,12 +224,12 @@ function _make_compound(functor, args)
 
 function _save_state()
 {
-    return "a"; //__push_state();
+    return __push_state();
 }
 
 function _restore_state(a)
 {
-    //__restore_state(a);
+    __restore_state(a);
 }
 
 function _get_blob(type, w)
@@ -395,6 +395,17 @@ function _set_option(options, key, value)
     return __set_option(options, key, value);
 }
 
+function make_local(t)
+{
+    return _copy_local(t, 0);
+}
+
+function free_local(t)
+{
+    // For an explanation of why this works, see the comment in module.c in the definition of asserta
+    return _free(t);
+}
+
 
 module.exports = {_make_atom: _make_atom,
                   _make_functor: _make_functor,
@@ -431,7 +442,9 @@ module.exports = {_make_atom: _make_atom,
                   _format_term: _format_term,
                   _create_options: _create_options,
                   _set_option: _set_option,
-                  _yield: yield_resumption
+                  _yield: yield_resumption,
+                  _make_local: make_local,
+                  _free_local: free_local,
                  };
 
 /* This is the ACTUAL preamble */
@@ -440,7 +453,6 @@ var Module = Module || {};
 Module.onRuntimeInitialized = function()
 {
     Module._init_prolog();
-    /*
     console.log("Hello from an initialized system!");
     define_foreign("badger", badger);
     define_foreign("sleep", sleep);
@@ -450,5 +462,4 @@ Module.onRuntimeInitialized = function()
     Module._do_test(); // foobar was exported
     var d1 = new Date().getTime();
     console.log("Execution time: " + (d1-d0) + "ms");
-    */
 };
