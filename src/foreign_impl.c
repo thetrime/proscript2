@@ -11,6 +11,7 @@
 #include "record.h"
 #include "string_builder.h"
 #include <stdio.h>
+#include <ctype.h>
 
 // 8.2.1
 PREDICATE(=, 2, (word a, word b)
@@ -2049,4 +2050,30 @@ PREDICATE(format, 3, (word sink, word format, word args)
 PREDICATE($choicepoint_depth, 1, (word t)
 {
    return unify(t, get_choicepoint_depth());
+})
+
+PREDICATE(upcase_atom, 2, (word in, word out)
+{
+   if (!must_be_atom(in))
+      return ERROR;
+   Atom a = getConstant(in).data.atom_data;
+   char* buffer = malloc(a->length);
+   for (int i = 0; i < a->length; i++)
+      buffer[i] = toupper(a->data[i]);
+   RC rc = unify(out, MAKE_NATOM(buffer, a->length));
+   free(buffer);
+   return rc;
+})
+
+PREDICATE(downcase_atom, 2, (word in, word out)
+{
+   if (!must_be_atom(in))
+      return ERROR;
+   Atom a = getConstant(in).data.atom_data;
+   char* buffer = malloc(a->length);
+   for (int i = 0; i < a->length; i++)
+      buffer[i] = tolower(a->data[i]);
+   RC rc = unify(out, MAKE_NATOM(buffer, a->length));
+   free(buffer);
+   return rc;
 })
