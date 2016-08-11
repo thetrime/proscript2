@@ -126,12 +126,7 @@ extern int unify(word, word);
 EMSCRIPTEN_KEEPALIVE
 word _get_exception()
 {
-   word w = getException();
-   if (w != 0)
-   {
-      printf("Got an exception: "); PORTRAY(w); printf("\n");
-   }
-   return w;
+   return getException();
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -184,7 +179,7 @@ void jscall(RC result)
 EMSCRIPTEN_KEEPALIVE
 void executejs(word goal, int callback_ref)
 {
-   printf("Executing: "); PORTRAY(goal); printf("\n");
+   //printf("Executing: "); PORTRAY(goal); printf("\n");
    execute_query(goal, jscall);
 }
 
