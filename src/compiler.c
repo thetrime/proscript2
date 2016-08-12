@@ -396,12 +396,12 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
             int cut_point = (*next_reserved)++;
             instruction_t* if_then_else = INSTRUCTION_SLOT_ADDRESS(C_IF_THEN_ELSE, cut_point, -1);
             s1 += push_instruction(instructions, if_then_else);
+            wmap_t varcopy = whashmap_copy(variables, _copy_varinfo);
             // If
             rc &= compile_body(ARGOF(ARGOF(term,0),0), variables, instructions, 0, next_reserved, cut_point, &s1);
             // (Cut)
             s1 += push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
             // Then
-            wmap_t varcopy = whashmap_copy(variables, _copy_varinfo);
             rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, local_cut, &s1);
             // (and now jump out before the Else)
             instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
