@@ -63,6 +63,13 @@ int term_type(word a)
 }
 
 EMSCRIPTEN_KEEPALIVE
+int _is_blob(word a, char* type)
+{
+   constant c = getConstant(a);
+   return (c.type == BLOB_TYPE && strcmp(type, c.data.blob_data->type) == 0);
+}
+
+EMSCRIPTEN_KEEPALIVE
 word _term_functor(word a)
 {
    assert(TAGOF(a) == COMPOUND_TAG);
@@ -136,11 +143,16 @@ void _clear_exception()
    CLEAR_EXCEPTION();
 }
 
+char* _portray_js_blob(char* type, void* ptr, Options* options, int precedence, int* len)
+{
+   return (char*)EM_ASM_INT({return portray_js_blob($0, $1, $2, $3, $4, $5)}, type, strlen(type), (int)ptr, options, precedence, len);
+}
+
 EMSCRIPTEN_KEEPALIVE
 word _make_blob(char* type, int key)
 {
    //printf("Making blob of type %s\n", type);
-   word q = MAKE_BLOB(type, (void*)key);
+   word q = intern_blob(type, (void*)key, _portray_js_blob);
    //printf("Allocated blob %08x\n", q);
    return q;
 }

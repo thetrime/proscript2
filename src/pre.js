@@ -121,6 +121,11 @@ function _atom_chars(a)
     a = _DEREF(a);
     var length = _atom_length(a);
     var ptr = _atom_data(a);
+    return read_string(ptr, length);
+}
+
+function read_string(ptr, length)
+{
     var chunk_size = 0x8000;
     if (length > chunk_size)
     {
@@ -173,10 +178,18 @@ function _is_float(a)
     return (a & TAG_MASK) == CONSTANT_TAG && _term_type(a) == 4;
 }
 
-function _is_blob(a)
+function _is_blob(a, type)
 {
     a = _DEREF(a);
-    return (a & TAG_MASK) == CONSTANT_TAG && _term_type(a) == 7;
+    if ((a & TAG_MASK) == CONSTANT_TAG)
+    {
+        var ptr = _malloc(type.length+1);
+        writeStringToMemory(type, ptr);
+        var result = __is_blob(a, ptr);
+        _free(ptr);
+        return result;
+    }
+    return false;
 }
 
 function _is_variable(a)
@@ -186,6 +199,19 @@ function _is_variable(a)
 }
 
 var blobs = {};
+
+function portray_js_blob(typeptr, typelen, index, options, precedence, lenptr)
+{
+    var type = read_string(typeptr, typelen);
+    var b = blobs[type][index];
+    if (b.portray === undefined)
+        return 0;
+    var data = b.portray(options, precedence)
+    setValue(lenptr, data.length, '*');
+    var ptr = _malloc(data.length+1);
+    writeStringToMemory(data, ptr);
+    return ptr;
+}
 
 function _make_blob(type, object)
 {

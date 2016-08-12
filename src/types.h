@@ -1,9 +1,13 @@
+#ifndef _TYPES_H
+#define _TYPES_H
 #include <stdlib.h>
 #include "whashmap.h"
 #include "list.h"
+#include "options.h"
 #include <gmp.h>
 
-#ifndef _TYPES_H
+
+
 typedef uintptr_t word;
 typedef word* Word;
 
@@ -71,10 +75,13 @@ typedef struct
 
 typedef rational* Rational;
 
+struct options_t;
+
 typedef struct
 {
    void* ptr;
    char* type;
+   char* (*portray)(char*, void*, struct options_t*, int, int*);
 } blob;
 
 typedef blob* Blob;

@@ -6,9 +6,10 @@
 #define RATIONAL_TYPE 6
 #define BLOB_TYPE 7
 #include "types.h"
+#include "options.h"
 #include "bihashmap.h"
 
 word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(void*, int), int* isNew);
-word intern_blob(char* type, void* ptr);
+word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*));
 constant getConstant(word);
 void ctable_check();

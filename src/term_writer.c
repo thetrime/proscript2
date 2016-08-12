@@ -186,6 +186,17 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       if (c.type == BLOB_TYPE)
       {
          Blob b = c.data.blob_data;
+         if (b->portray != NULL)
+         {
+            int len;
+            char* buffer = b->portray(b->type, b->ptr, options, precedence, &len);
+            if (buffer != NULL)
+            {
+               append_string_no_copy(sb, buffer, len);
+               return 1;
+            }
+         }
+         // Either it is a native C blob or we failed to print it
          append_string_no_copy(sb, "<", 1);
          append_string_no_copy(sb, b->type, strlen(b->type));
          append_string_no_copy(sb, ">", 1);

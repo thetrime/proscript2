@@ -1,5 +1,6 @@
 #ifndef _OPTIONS_H
 #define _OPTIONS_H
+
 #include "types.h"
 #include "whashmap.h"
 

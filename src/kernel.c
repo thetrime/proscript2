@@ -322,7 +322,7 @@ word MAKE_ATOM(char* data)
 EMSCRIPTEN_KEEPALIVE
 word MAKE_BLOB(char* type, void* ptr)
 {
-   return intern_blob(type, ptr);
+   return intern_blob(type, ptr, NULL);
 }
 
 
@@ -915,7 +915,8 @@ RC execute(int resume)
    while (!halted)
    {
       //print_choices();
-      //print_instruction();
+      if (debugging)
+         print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -1355,21 +1356,9 @@ RC execute(int resume)
          {
             word t1 = *(ARGP-1);
             word t2 = *(ARGP-2);
-            if (debugging)
-            {
-               printf("First arg is %08x (deref to %08x)\n      ", t1, DEREF(t1)); PORTRAY(t1); printf("\n");
-               printf("Second arg is %08x (deref to %08x)\n", t2, DEREF(t2));
-            }
             ARGP-=2;
             if (unify(t1, t2))
             {
-               if (debugging)
-               {
-                  printf("After unification:\n");
-                  printf("First arg is %08x (deref to %08x)\n      ", t1, DEREF(t1)); PORTRAY(t1); printf("\n");
-                  printf("Second arg is %08x (deref to %08x)\n", t2, DEREF(t2));
-               }
-
                PC++;
                //printf("Unified\n");
                continue;
@@ -1377,12 +1366,6 @@ RC execute(int resume)
             //printf("Failed to unify\n");
             if (backtrack())
             {
-               if (debugging)
-               {
-                  printf("Failed to unify:\n");
-                  printf("First arg is %08x (deref to %08x)\n      ", t1, DEREF(t1)); PORTRAY(t1); printf("\n");
-                  printf("Second arg is %08x (deref to %08x)\n", t2, DEREF(t2));
-               }
                continue;
             }
             return FAIL;

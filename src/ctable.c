@@ -2,6 +2,7 @@
 #include "kernel.h"
 #include "ctable.h"
 #include "constants.h"
+#include "options.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -154,19 +155,20 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
 
 // Blobs are a bit special since they are assumed to never be equal to each other
 // This means we can skip the hashmap entirely - if you ever MAKE_BLOB then it is assumed you know that this is a new one
-Blob allocBlob(char* type, void* ptr)
+Blob allocBlob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*))
 {
    Blob b = malloc(sizeof(blob));
    b->type = strdup(type);
    b->ptr = ptr;
+   b->portray = portray;
    return b;
 }
 
 
-word intern_blob(char* type, void* ptr)
+word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*))
 {
    word w = (word)((CNext << 2) | CONSTANT_TAG);
-   Blob b = allocBlob(type, ptr);
+   Blob b = allocBlob(type, ptr, portray);
    CTable[CNext].type = BLOB_TYPE;
    CTable[CNext++].data.blob_data = b;
    return w;
