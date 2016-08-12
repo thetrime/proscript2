@@ -2077,3 +2077,11 @@ PREDICATE(downcase_atom, 2, (word in, word out)
    free(buffer);
    return rc;
 })
+
+extern void qqq();
+
+PREDICATE(qqq, 0, ()
+{
+   qqq();
+   return SUCCESS;
+})
