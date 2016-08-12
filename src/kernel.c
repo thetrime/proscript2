@@ -904,32 +904,18 @@ void initialize_kernel()
    CP = 0;
 }
 
-int qqqc = 0;
 int debugging = 0;
 
 RC execute(int resume)
 {
-   //printf("SP starts at %p\n", SP);
-   //printf("sizeof(frame) = %d\n", sizeof(frame));
    if (current_exception != 0)
-   {
-      printf("Error detected. going straight to b_throw_foreign\n");
-      PORTRAY(current_exception); printf("\n");
       goto b_throw_foreign;
-   }
-   if (resume)
-   {
-//      qqqc++;
-//      if (qqqc == 127) debugging = 1;
-//      printf("Going straight to I_EXIT (%d)\n", qqqc);
+   else if (resume)
       goto i_exit;
-   }
-//   printf("Not a resumption\n");
    while (!halted)
    {
       //print_choices();
-      if (debugging)
-         print_instruction();
+      //print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -1268,7 +1254,6 @@ RC execute(int resume)
             Query query = compile_query(goal);
             if (query == NULL)
                goto b_throw_foreign;
-            //printf("Compiled query (%d) with clause at %p: ", qqqueries, query->clause); PORTRAY(goal); printf("\n");
             //PORTRAY(goal); printf(" compiles to\n");
             //print_clause(query->clause);
             NFR->parent = FR;
