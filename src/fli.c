@@ -201,10 +201,18 @@ Options* _create_options()
    return options;
 }
 
+EMSCRIPTEN_KEEPALIVE
 void _set_option(Options* options, word key, word value)
 {
    set_option(options, key, value);
 }
+
+EMSCRIPTEN_KEEPALIVE
+void _free_options(Options* options)
+{
+   free_options(options);
+}
+
 
 EMSCRIPTEN_KEEPALIVE
 Choicepoint _push_state()

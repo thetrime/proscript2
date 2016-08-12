@@ -332,6 +332,7 @@ function _execute(context, goal, callback)
     var pointer = cTop;
     callbacks[cTop++] = callback;
     environments[eTop++] = context;
+    //console.log(_format_term(null, 1200, goal));
     _executejs(goal, pointer);
 }
 
@@ -396,6 +397,12 @@ function _set_option(options, key, value)
     return __set_option(options, key, value);
 }
 
+function _free_options(options)
+{
+    return __free_options(options);
+}
+
+
 function make_local(t)
 {
     return _copy_local(t, 0);
@@ -443,6 +450,7 @@ module.exports = {_make_atom: _make_atom,
                   _format_term: _format_term,
                   _create_options: _create_options,
                   _set_option: _set_option,
+                  _free_options: _free_options,
                   _yield: yield_resumption,
                   _make_local: make_local,
                   _free_local: free_local,
