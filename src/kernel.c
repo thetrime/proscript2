@@ -710,6 +710,24 @@ word make_local_(word t, List* variables, word* heap, int* ptr, int size)
 
 word copy_local_with_extra_space(word t, word** local, int extra)
 {
+   t = DEREF(t);
+   // First, if extra is 0 we can do some simple optimisations:
+   if (extra == 0)
+   {
+      if (TAGOF(t) == CONSTANT_TAG)
+         return t;
+      if (TAGOF(t) == POINTER_TAG)
+         return t;
+      if (TAGOF(t) == VARIABLE_TAG)
+      {
+         word* localptr = malloc(sizeof(word));
+         localptr[0] = (word)&localptr[0];
+         return (word)&localptr[0];
+      }
+      // For compounds we must do the normal complicated process
+   }
+
+
    List variables;
    init_list(&variables);
    int i = count_compounds(t);
@@ -718,8 +736,10 @@ word copy_local_with_extra_space(word t, word** local, int extra)
    i += extra;
    i++;
    word* localptr = malloc(sizeof(word) * i);
-   if (local != NULL)
-      *local = localptr;
+   assert(local != NULL);
+   //printf("Allocated buffer for "); PORTRAY(t); printf(" at %d\n", (int)localptr);
+   *local = localptr;
+
    int ptr = extra + 1;
    word w = make_local_(t, &variables, localptr, &ptr, i);
    localptr[extra] = w;
@@ -890,6 +910,7 @@ RC execute(int resume)
    if (current_exception != 0)
    {
       printf("Error detected. going straight to b_throw_foreign\n");
+      PORTRAY(current_exception); printf("\n");
       goto b_throw_foreign;
    }
    if (resume)
@@ -903,13 +924,8 @@ RC execute(int resume)
    while (!halted)
    {
       //print_choices();
-      //if (debugging)
-      //print_instruction();
-//      if (qqqx != NULL)
-//      {
-//         printf("Value at %p: ", qqqx); PORTRAY(*qqqx); printf("\n");
-//      }
-
+      if (debugging)
+         print_instruction();
       switch(*PC)
       {
          case I_FAIL:
@@ -1350,17 +1366,36 @@ RC execute(int resume)
          {
             word t1 = *(ARGP-1);
             word t2 = *(ARGP-2);
-            //PORTRAY(t1); printf(" vs "); PORTRAY(t2); printf("\n");
+            if (debugging)
+            {
+               printf("First arg is %08x (deref to %08x)\n      ", t1, DEREF(t1)); PORTRAY(t1); printf("\n");
+               printf("Second arg is %08x (deref to %08x)\n", t2, DEREF(t2));
+            }
             ARGP-=2;
             if (unify(t1, t2))
             {
+               if (debugging)
+               {
+                  printf("After unification:\n");
+                  printf("First arg is %08x (deref to %08x)\n      ", t1, DEREF(t1)); PORTRAY(t1); printf("\n");
+                  printf("Second arg is %08x (deref to %08x)\n", t2, DEREF(t2));
+               }
+
                PC++;
                //printf("Unified\n");
                continue;
             }
             //printf("Failed to unify\n");
             if (backtrack())
+            {
+               if (debugging)
+               {
+                  printf("Failed to unify:\n");
+                  printf("First arg is %08x (deref to %08x)\n      ", t1, DEREF(t1)); PORTRAY(t1); printf("\n");
+                  printf("Second arg is %08x (deref to %08x)\n", t2, DEREF(t2));
+               }
                continue;
+            }
             return FAIL;
          }
          case B_FIRSTVAR:
@@ -1375,7 +1410,7 @@ RC execute(int resume)
             //printf("Making var in slot %d: At %p\n", CODE16(PC+1), &FR->slots[CODE16(PC+1)]);
             (*ARGP) = MAKE_VAR();
             FR->slots[CODE16(PC+1)] = (word)(ARGP);
-            *(ARGP++);
+            ARGP++;
             PC+=3;
             continue;
          case B_ARGVAR:
@@ -1558,10 +1593,6 @@ RC execute(int resume)
             //printf("Creating a choicepoint at %p\n", SP);
             //printf("ReturnPC was %p\n", FR->returnPC);
             // We must ensure that this clause has enough space
-            if (qqqx != NULL)
-            {
-            }
-
             if (SP < ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word))
             {
                // FIXME: We could also shrink the space here if needed. In fact, is there any reason we cannot just ALWAYS set SP to this?
@@ -1570,11 +1601,6 @@ RC execute(int resume)
                //printf("Bumping up SP to ensure this frame has enough space: Moving to %p\n", SP);
             }
             CreateChoicepoint(FR->clause->next->code, FR->clause->next, Head);
-
-            if (qqqx != NULL)
-            {
-            }
-
             //printf("ReturnPC is now %p\n", FR->returnPC);
             //printf("Done\n");
             PC++;
@@ -2038,10 +2064,8 @@ word get_choicepoint_depth()
 }
 
 
-
+EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
-   if (qqqx == NULL)
-      qqqx = &FR->parent->slots[6];
-   printf("Slot 6 is at %p\n", &FR->parent->slots[6]);
+   debugging = 1;
 }

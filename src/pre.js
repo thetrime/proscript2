@@ -11,6 +11,10 @@ var environments = [];
 var eTop = 0;
 
 
+// FIXME: This assumes 32 bit. Currently asm.js is definitely 32 bit, but maybe not one day? We could get this at startup by calling a C function to get sizeof(uintptr_t)
+var SIZE_OF_WORD = 4;
+
+
 function define_foreign(name, fn)
 {
     var pointer = fTop;
@@ -213,8 +217,6 @@ function _make_compound(functor, args)
 {
     if (!_is_functor(functor))
         functor = _make_functor(functor, args.length);
-    // FIXME: This assumes 32 bit. Currently asm.js is definitely 32 bit, but maybe not one day? We could get this at startup by calling a C function to get sizeof(uintptr_t)
-    var SIZE_OF_WORD = 4;
     var ptr = _malloc(args.length * SIZE_OF_WORD);
     for (var i = 0; i < args.length; i++)
         setValue(ptr + (SIZE_OF_WORD*i), args[i], '*');
@@ -369,7 +371,6 @@ var default_options = null;
 
 function _format_term(options, priority, term)
 {
-    var SIZE_OF_WORD = 4;
     var lenptr = _malloc(SIZE_OF_WORD);
     var strptr = _malloc(SIZE_OF_WORD);
     if (options == null)
@@ -405,13 +406,27 @@ function _free_options(options)
 
 function make_local(t)
 {
-    return _copy_local(t, 0);
+    t = _DEREF(t);
+    var ptr = _malloc(SIZE_OF_WORD);
+    _copy_local(t, ptr);
+    var value = getValue(ptr, '*');
+    _free(ptr);
+    return value;
 }
 
 function free_local(t)
 {
-    // For an explanation of why this works, see the comment in module.c in the definition of asserta
+    // For an explanation of why this works, see the comment in module.c in the definition of asserta.
+    // It is CRITICAL that we do not try and dereference t before freeing it, otherwise the trick will
+    // not work and we will try to free the middle of a block!
+    if ((_DEREF(t) & TAG_MASK) == CONSTANT_TAG)
+        return; // The copy was never a copy to begin with
     return _free(t);
+}
+
+function qqq()
+{
+    _qqq();
 }
 
 
@@ -454,6 +469,7 @@ module.exports = {_make_atom: _make_atom,
                   _yield: yield_resumption,
                   _make_local: make_local,
                   _free_local: free_local,
+                  _qqq: qqq
                  };
 
 /* This is the ACTUAL preamble */
