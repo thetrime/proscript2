@@ -368,6 +368,7 @@ function _term_arg(a, i)
 }
 
 var default_options = null;
+var portray_options = null;
 
 function _format_term(options, priority, term)
 {
@@ -429,6 +430,26 @@ function qqq()
     _qqq();
 }
 
+function portray(t)
+{
+    return _format_term(null, 1200, t);
+}
+
+// WARNING: This may return 0 in the event of a parse error!
+function string_to_local_term(str)
+{
+    var ptr = _malloc(str.length+1);
+    writeStringToMemory(str, ptr);
+    var result = _string_to_local_term(ptr, str.length);
+    _free(ptr);
+    return result;
+}
+
+// WARNING: Calling this on NULL will produce undefined behaviour!
+function deref(t)
+{
+    return _DEREF(t);
+}
 
 module.exports = {_make_atom: _make_atom,
                   _make_functor: _make_functor,
@@ -469,6 +490,9 @@ module.exports = {_make_atom: _make_atom,
                   _yield: yield_resumption,
                   _make_local: make_local,
                   _free_local: free_local,
+                  _string_to_local_term: string_to_local_term,
+                  _portray: portray,
+                  _deref: deref,
                   _qqq: qqq
                  };
 

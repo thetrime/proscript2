@@ -10,6 +10,7 @@
 #include "options.h"
 #include "string_builder.h"
 #include "term_writer.h"
+#include "parser.h"
 
 EMSCRIPTEN_KEEPALIVE
 int atom_length(word a)
@@ -226,4 +227,18 @@ void _restore_state(Choicepoint w)
    restore_state(w);
 }
 
+EMSCRIPTEN_KEEPALIVE
+word string_to_local_term(char* string, int length)
+{
+   Stream stream = stringBufferStream(string, length);
+   word w;
+   if (read_term(stream, NULL, &w) == 0)
+      return 0;
+   word* ptr;
+   copy_local(w, &ptr);
+   freeStream(stream);
+   return (word)ptr;
+}
+
 #endif
+
