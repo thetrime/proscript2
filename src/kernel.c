@@ -776,9 +776,11 @@ void CreateChoicepoint(unsigned char* address, Clause clause, int type)
 
 Choicepoint push_state()
 {
-   //printf("Pushing state. CP is %p, PC is %p\n", CP, PC);
+   //printf("Pushing state. CP is %p, PC is %p, FR is %p, and frame locality is %d, ", CP, PC, FR, FR->is_local);
    CreateChoicepoint(PC, FR->clause, Body);
+   assert(FR->is_local >= 0 && FR->is_local <= 1);
    Choicepoint state = CP;
+   //printf("you can get back here by restoring %p\n", state);
    CP = 0;
    //printf("State is now %p\n", state);
    return state;
@@ -788,7 +790,9 @@ void restore_state(Choicepoint state)
 {
    //printf("Popping state from %p\n", state);
    CP = state;
+   //printf("Restoring state. from %p. CP is %p, PC is %p, FR is %p, and frame locality is %d\n", CP, CP->CP, CP->PC, CP->FR, CP->FR->is_local);
    apply_choicepoint(CP);
+   assert(FR->is_local >= 0 && FR->is_local <= 1);
    //printf("Done. PC is now %p\n", PC);
 }
 
