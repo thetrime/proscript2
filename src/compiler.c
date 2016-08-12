@@ -295,7 +295,10 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
       assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
       if (varinfo->fresh)
       {
-         size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
+         if (depth > 0)
+            size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot));
+         else
+            size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
          varinfo->fresh = 0;
       }
       else if (depth > 0)

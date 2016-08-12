@@ -41,6 +41,9 @@ instruction_info_t instruction_info[] = {
 #undef END_INSTRUCTIONS
 };
 
+
+word* qqqx = NULL;
+
 uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
@@ -432,6 +435,8 @@ void PORTRAY(word w)
       printf("Bad tag\n");
 }
 
+
+
 int SET_EXCEPTION(word w)
 {
    current_exception = copy_local(w, &exception_local);
@@ -737,7 +742,7 @@ void CreateChoicepoint(unsigned char* address, Clause clause, int type)
    c->H = H;
    CP = c;
    SP += sizeof(choicepoint)/sizeof(word);
-   //printf("Choicepoint extends until %p\n", SP);
+   //printf("Choicepoint extends from %p until %p\n", c, SP);
    c->type = type;
    c->FR = FR;
    c->clause = clause;
@@ -875,19 +880,36 @@ void initialize_kernel()
    CP = 0;
 }
 
+int qqqc = 0;
+int debugging = 0;
 
 RC execute(int resume)
 {
    //printf("SP starts at %p\n", SP);
    //printf("sizeof(frame) = %d\n", sizeof(frame));
    if (current_exception != 0)
+   {
+      printf("Error detected. going straight to b_throw_foreign\n");
       goto b_throw_foreign;
+   }
    if (resume)
+   {
+//      qqqc++;
+//      if (qqqc == 127) debugging = 1;
+//      printf("Going straight to I_EXIT (%d)\n", qqqc);
       goto i_exit;
+   }
+//   printf("Not a resumption\n");
    while (!halted)
    {
       //print_choices();
+      //if (debugging)
       //print_instruction();
+//      if (qqqx != NULL)
+//      {
+//         printf("Value at %p: ", qqqx); PORTRAY(*qqqx); printf("\n");
+//      }
+
       switch(*PC)
       {
          case I_FAIL:
@@ -957,7 +979,8 @@ RC execute(int resume)
                goto i_exit;
             }
             else if (rc == YIELD)
-            { // Not implemented yet
+            {
+               return YIELD;
             }
             else if (rc == ERROR)
                goto b_throw_foreign;
@@ -1026,7 +1049,9 @@ RC execute(int resume)
                goto i_exit;
             }
             else if (rc == YIELD)
-            { return YIELD;
+            {
+               //printf("Yielding control. PC is %p\n", PC);
+               return YIELD;
             }
             else if (rc == ERROR)
             {
@@ -1341,8 +1366,16 @@ RC execute(int resume)
          case B_FIRSTVAR:
             //printf("Making var in slot %d: At %p\n", CODE16(PC+1), &FR->slots[CODE16(PC+1)]);
             FR->slots[CODE16(PC+1)] = MAKE_VAR();
-            //printf("Writing var to %p\n", ARGP);
+            //printf("Writing var %8lx to %p (heap is %p to %p, stack is %p to %p)\n", FR->slots[CODE16(PC+1)], ARGP, HEAP, HTOP, STACK, STOP);
+            assert(ARGP > STACK && ARGP < STOP);
             *(ARGP++) = (word)(&FR->slots[CODE16(PC+1)]);
+            PC+=3;
+            continue;
+         case B_ARGFIRSTVAR:
+            //printf("Making var in slot %d: At %p\n", CODE16(PC+1), &FR->slots[CODE16(PC+1)]);
+            (*ARGP) = MAKE_VAR();
+            FR->slots[CODE16(PC+1)] = (word)(ARGP);
+            *(ARGP++);
             PC+=3;
             continue;
          case B_ARGVAR:
@@ -1380,7 +1413,7 @@ RC execute(int resume)
             //printf("But actual value is %08lx\n", w);
 
             // We had better be writing on the stack here or else we will be leaving a pointer to the (transient) stack on the (permanent) heap!
-            assert(ARGP > (word*)FR);
+            assert(ARGP > STACK && ARGP < STOP);
             //PORTRAY(w);
             //printf("\n");
             //XDEREF(w);
@@ -1525,6 +1558,10 @@ RC execute(int resume)
             //printf("Creating a choicepoint at %p\n", SP);
             //printf("ReturnPC was %p\n", FR->returnPC);
             // We must ensure that this clause has enough space
+            if (qqqx != NULL)
+            {
+            }
+
             if (SP < ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word))
             {
                // FIXME: We could also shrink the space here if needed. In fact, is there any reason we cannot just ALWAYS set SP to this?
@@ -1533,6 +1570,11 @@ RC execute(int resume)
                //printf("Bumping up SP to ensure this frame has enough space: Moving to %p\n", SP);
             }
             CreateChoicepoint(FR->clause->next->code, FR->clause->next, Head);
+
+            if (qqqx != NULL)
+            {
+            }
+
             //printf("ReturnPC is now %p\n", FR->returnPC);
             //printf("Done\n");
             PC++;
@@ -1571,6 +1613,7 @@ RC execute(int resume)
 void resume_execution(ExecutionCallback callback, int resume)
 {
    current_yield_ptr = callback;
+   //printf("Executing with %d\n", resume);
    RC rc = execute(resume);
    if (rc != YIELD)
    {
@@ -1589,8 +1632,10 @@ ExecutionCallback current_yield()
 EMSCRIPTEN_KEEPALIVE
 void resume_yield(RC status, ExecutionCallback y)
 {
+   //printf("Resuming from yield: %d\n", status);
    if (status == FAIL)
    {
+      //printf("Yield is fail\n");
       if (current_exception != 0)
          resume_execution(y, 0);
       else if (backtrack())
@@ -1600,6 +1645,7 @@ void resume_yield(RC status, ExecutionCallback y)
    }
    else if (status == SUCCESS)
    {
+      //printf("Yield is success\n");
       resume_execution(y, 1);
    }
    else
@@ -1989,4 +2035,13 @@ void halt(int i)
 word get_choicepoint_depth()
 {
    return MAKE_POINTER(CP);
+}
+
+
+
+void qqq()
+{
+   if (qqqx == NULL)
+      qqqx = &FR->parent->slots[6];
+   printf("Slot 6 is at %p\n", &FR->parent->slots[6]);
 }
