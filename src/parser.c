@@ -229,10 +229,6 @@ char* finalize(CharBuffer buffer)
 
 Token SyntaxErrorToken(char* message)
 {
-//   Token t = malloc(sizeof(token));
-//   t->type = SyntaxErrorTokenType;
-//   t->data.syntax_error_data = strdup(message);
-//   return t;
    syntax_error(MAKE_ATOM(message));
    return NULL;
 
