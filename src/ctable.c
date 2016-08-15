@@ -17,7 +17,13 @@ int CNext = 0;
 
 void ctable_check()
 {
-   bihashmap_check(map[FUNCTOR_TYPE]);
+   printf("%d %d %d %d %d %d\n",
+          bihashmap_length(map[ATOM_TYPE]),
+          bihashmap_length(map[INTEGER_TYPE]),
+          bihashmap_length(map[FUNCTOR_TYPE]),
+          bihashmap_length(map[FLOAT_TYPE]),
+          bihashmap_length(map[BIGINTEGER_TYPE]),
+          bihashmap_length(map[RATIONAL_TYPE]));
 }
 
 
