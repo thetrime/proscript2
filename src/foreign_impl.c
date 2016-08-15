@@ -1632,7 +1632,7 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
       return FAIL;
    long _low = getConstant(low, NULL).integer_data;
    long _high = getConstant(high, NULL).integer_data;
-   if ((TAGOF(value) == VARIABLE_TAG) && _high > _low)
+   if ((TAGOF(value) == VARIABLE_TAG) && _high >= _low)
    {
       // Nondet case
       long current;
@@ -1657,7 +1657,7 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
       cdata c = getConstant(value, &type);
       if (type == INTEGER_TYPE)
       {
-         return c.integer_data >= _high && c.integer_data <= _low;
+         return c.integer_data >= _low && c.integer_data <= _high;
       }
       return type_error(integerAtom, value);
    }
