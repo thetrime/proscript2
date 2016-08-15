@@ -43,23 +43,6 @@ typedef struct
 
 typedef token* Token;
 
-struct CharCell
-{
-   struct CharCell* next;
-   char data;
-};
-
-typedef struct CharCell CharCell;
-
-typedef struct
-{
-   int length;
-   CharCell* head;
-   CharCell* tail;
-} charbuffer;
-
-typedef charbuffer* CharBuffer;
-
 
 int is_graphic_char(char);
 int read_term(Stream s, Options* options, word* w);

@@ -12,6 +12,7 @@
 #include "options.h"
 #include "operators.h"
 #include "errors.h"
+#include "char_buffer.h"
 
 token ListOpenToken_ = {ConstantTokenType, .data = {.constant_data = "["}}; Token ListOpenToken = &ListOpenToken_;
 token ListCloseToken_ = {ConstantTokenType, .data = {.constant_data = "]"}}; Token ListCloseToken = &ListCloseToken_;
@@ -170,62 +171,6 @@ char peek_raw_char_with_conversion(Stream s)
         return tt;
 }
 
-CharBuffer charBuffer()
-{
-   CharBuffer cb = malloc(sizeof(charbuffer));
-   cb->head = NULL;
-   cb->tail = NULL;
-   cb->length = 0;
-   return cb;
-}
-
-void pushChar(CharBuffer cb, int c)
-{
-   cb->length++;
-   if (cb->tail == NULL)
-   {
-      cb->head = malloc(sizeof(CharCell));
-      cb->tail = cb->head;
-      cb->head->next = NULL;
-      cb->head->data = c;
-   }
-   else
-   {
-      cb->tail->next = malloc(sizeof(CharCell));
-      cb->tail = cb->tail->next;
-      cb->tail->data = c;
-      cb->tail->next = NULL;
-   }
-}
-
-int bufferLength(CharBuffer buffer)
-{
-   return buffer->length;
-}
-
-void free_buffer(CharBuffer buffer)
-{
-   free(buffer);
-}
-
-char* finalize(CharBuffer buffer)
-{
-   CharCell* c = buffer->head;
-   char* data = malloc(buffer->length + 1);
-   c = buffer->head;
-   int i = 0;
-   CharCell* d;
-   while (c != NULL)
-   {
-      data[i++] = c->data;
-      d = c->next;
-      free(c);
-      c = d;
-   }
-   data[i++] = '\0';
-   free(buffer);
-   return data;
-}
 
 Token SyntaxErrorToken(char* message)
 {
@@ -362,14 +307,14 @@ Token lex(Stream s)
    if ((c >= 'A' && c <= 'Z') || c == '_')
    {
       CharBuffer sb = charBuffer();
-      pushChar(sb, c);
+      push_char(sb, c);
       while (1)
       {
          c = peek_raw_char_with_conversion(s);
          if (is_char(c))
-            pushChar(sb, get_raw_char_with_conversion(s));
+            push_char(sb, get_raw_char_with_conversion(s));
          else
-            return VariableToken(finalize(sb));
+            return VariableToken(finalize_char_buffer(sb));
       }
    }
    else if ((c >= '0' && c <= '9') || (c == '-' && peek_raw_char_with_conversion(s) >= '0' && peek_raw_char_with_conversion(s) <= '9'))
@@ -383,26 +328,26 @@ Token lex(Stream s)
       }
       // Parse a number
       CharBuffer sb = charBuffer();
-      pushChar(sb, c);
+      push_char(sb, c);
       if (c == '0')
       {
          char b = peek_raw_char_with_conversion(s);
          if (b == 'x')
          {
             base = 16;
-            pushChar(sb, b);
+            push_char(sb, b);
             get_raw_char_with_conversion(s);
          }
          else if (b == 'b')
          {
             base = 2;
-            pushChar(sb, b);
+            push_char(sb, b);
             get_raw_char_with_conversion(s);
          }
          if (b == 'o')
          {
             base = 8;
-            pushChar(sb, b);
+            push_char(sb, b);
             get_raw_char_with_conversion(s);
          }
       }
@@ -413,17 +358,17 @@ Token lex(Stream s)
          c = peek_raw_char_with_conversion(s);
          if (c >= '0' && ((base == 10 && c <= '9') || (base == 8 && c <= '8') || (base == 2 && c <= '1') || (base == 16 && c <= '9')))
          {
-               pushChar(sb, c);
+               push_char(sb, c);
                get_raw_char_with_conversion(s);
          }
          else if (base == 16 && ((c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')))
          {
-            pushChar(sb, c);
+            push_char(sb, c);
             get_raw_char_with_conversion(s);
          }
          else if (c == '.' && !seen_decimal && base == 10)
          {
-            pushChar(sb, '.');
+            push_char(sb, '.');
             get_raw_char_with_conversion(s);
             int p = peek_raw_char_with_conversion(s);
             if (p >= '0' && p <= '9')
@@ -438,12 +383,12 @@ Token lex(Stream s)
          else if ((c == 'E' || c == 'e') && !seen_exp  && base == 10)
          {
             seen_exp = 1;
-            pushChar(sb, c);
+            push_char(sb, c);
             get_raw_char_with_conversion(s);
          }
          else if ((c == '+' || c == '-') && seen_exp && base == 10)
          {
-            pushChar(sb, c);
+            push_char(sb, c);
             get_raw_char_with_conversion(s);
          }
          else if (is_char(c))
@@ -456,7 +401,7 @@ Token lex(Stream s)
       }
       if (!seen_decimal && !seen_exp)
       {
-         char* str = finalize(sb);
+         char* str = finalize_char_buffer(sb);
          char* sp;
          long l = strtol(str, &sp, base);
          if (errno == ERANGE)
@@ -472,7 +417,7 @@ Token lex(Stream s)
       else if (seen_decimal)
       {
          // Must be a float
-         char* s = finalize(sb);
+         char* s = finalize_char_buffer(sb);
          char* sp;
          double d = strtod(s, &sp);
          free(s);
@@ -491,13 +436,13 @@ Token lex(Stream s)
             c = get_raw_char_with_conversion(s);
             if (c == -1)
             {
-               free_buffer(sb);
+               free_char_buffer(sb);
                return SyntaxErrorToken("end of file in atom");
             }
             if (c == '\\')
             {
                if (is_escape)
-                  pushChar(sb, '\\');
+                  push_char(sb, '\\');
                is_escape = ~is_escape;
                continue;
             }
@@ -510,16 +455,16 @@ Token lex(Stream s)
                   hex[0] = get_raw_char_with_conversion(s);
                   hex[1] = get_raw_char_with_conversion(s);
                   hex[2] = '\0';
-                  pushChar(sb, strtol(hex, NULL, 16));
+                  push_char(sb, strtol(hex, NULL, 16));
                   if (peek_raw_char_with_conversion(s) == '\\')
                      get_raw_char_with_conversion(s);
                }
                else if (c == 'n')
-                  pushChar(sb, '\n');
+                  push_char(sb, '\n');
                else if (c == 't')
-                  pushChar(sb, '\t');
+                  push_char(sb, '\t');
                else if (c == '\'')
-                  pushChar(sb, '\'');
+                  push_char(sb, '\'');
                else if (c == 'u')
                {
                   char hex[5];
@@ -528,7 +473,7 @@ Token lex(Stream s)
                   hex[2] = get_raw_char_with_conversion(s);
                   hex[3] = get_raw_char_with_conversion(s);
                   hex[4] = '\0';
-                  pushChar(sb, strtol(hex, NULL, 16));
+                  push_char(sb, strtol(hex, NULL, 16));
                   if (peek_raw_char_with_conversion(s) == '\\')
                      get_raw_char_with_conversion(s);
                }
@@ -545,10 +490,10 @@ Token lex(Stream s)
                else
                   break;
             }
-            pushChar(sb, c);
+            push_char(sb, c);
          }
-         int length = bufferLength(sb);
-         char *data = finalize(sb);
+         int length = char_buffer_length(sb);
+         char *data = finalize_char_buffer(sb);
          if (matcher == '"')
             return StringToken(data, length);
          else
@@ -557,7 +502,7 @@ Token lex(Stream s)
       else
       {
          CharBuffer sb = charBuffer();
-         pushChar(sb, c);
+         push_char(sb, c);
          int char_atom = is_char(c);
          int punctuation_atom = is_graphic_char(c);
          while (1)
@@ -567,17 +512,17 @@ Token lex(Stream s)
                break;
             if (char_atom && is_char(c))
             {
-               pushChar(sb, get_raw_char_with_conversion(s));
+               push_char(sb, get_raw_char_with_conversion(s));
             }
             else if (punctuation_atom && is_graphic_char(c))
             {
-               pushChar(sb, get_raw_char_with_conversion(s));
+               push_char(sb, get_raw_char_with_conversion(s));
             }
             else
                break;
          }
-         int length = bufferLength(sb);
-         char* data = finalize(sb);
+         int length = char_buffer_length(sb);
+         char* data = finalize_char_buffer(sb);
          return AtomToken(data, length);
       }
    }
