@@ -37,19 +37,19 @@ PREDICATE(var, 1, (word a)
 // 8.3.2
 PREDICATE(atom, 1, (word a)
 {
-   return TAGOF(a) == CONSTANT_TAG && getConstant(a).type == ATOM_TYPE;
+   return TAGOF(a) == CONSTANT_TAG && getConstantType(a) == ATOM_TYPE;
 })
 
 // 8.3.3
 PREDICATE(integer, 1, (word a)
 {
-   return TAGOF(a) == CONSTANT_TAG && getConstant(a).type == INTEGER_TYPE;
+   return TAGOF(a) == CONSTANT_TAG && getConstantType(a) == INTEGER_TYPE;
 })
 
 // 8.3.4
 PREDICATE(float, 1, (word a)
 {
-   return TAGOF(a) == CONSTANT_TAG && getConstant(a).type == FLOAT_TYPE;
+   return TAGOF(a) == CONSTANT_TAG && getConstantType(a) == FLOAT_TYPE;
 })
 
 // 8.3.5
@@ -73,11 +73,11 @@ PREDICATE(nonvar, 1, (word a)
 // 8.3.8
 PREDICATE(number, 1, (word a)
 {
-   constant c;
+   int c;
    if (TAGOF(a) == CONSTANT_TAG)
    {
-      c = getConstant(a);
-      return (c.type == INTEGER_TYPE || c.type == FLOAT_TYPE || c.type == BIGINTEGER_TYPE || c.type == RATIONAL_TYPE);
+      c = getConstantType(a);
+      return (c == INTEGER_TYPE || c == FLOAT_TYPE || c == BIGINTEGER_TYPE || c == RATIONAL_TYPE);
    }
    return 0;
 })
@@ -124,7 +124,7 @@ PREDICATE(functor, 3, (word term, word name, word arity)
       {
          return ERROR;
       }
-      long a = getConstant(arity).data.integer_data->data;
+      long a = getConstant(arity, NULL).integer_data;
       if (a == 0)
          return unify(term, name);
       if (a > 0 && !must_be_atom(name))
@@ -140,7 +140,7 @@ PREDICATE(functor, 3, (word term, word name, word arity)
       return unify(name, term) && unify(arity, MAKE_INTEGER(0));
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       return unify(name, f->name) && unify(arity, MAKE_INTEGER(f->arity));
    }
    return type_error(compoundAtom, term);
@@ -156,8 +156,8 @@ NONDET_PREDICATE(arg, 3, (word n, word term, word arg, word backtrack)
    if (TAGOF(n) == VARIABLE_TAG)
    {
       // -,+,? mode
-      Functor functor = getConstant(FUNCTOROF(term)).data.functor_data;
-      long index = backtrack == 0?0:getConstant(backtrack).data.integer_data->data;
+      Functor functor = getConstant(FUNCTOROF(term), NULL).functor_data;
+      long index = backtrack == 0?0:getConstant(backtrack, NULL).integer_data;
       if (index + 1 < functor->arity)
          make_foreign_choicepoint(MAKE_INTEGER(index+1));
       if (index >= functor->arity)
@@ -167,8 +167,8 @@ NONDET_PREDICATE(arg, 3, (word n, word term, word arg, word backtrack)
    }
    if (!must_be_positive_integer(n))
       return 0;
-   long _n = getConstant(n).data.integer_data->data;
-   Functor functor = getConstant(FUNCTOROF(term)).data.functor_data;
+   long _n = getConstant(n, NULL).integer_data;
+   Functor functor = getConstant(FUNCTOROF(term), NULL).functor_data;
    if (_n > functor->arity)
       return FAIL; // N is too big
    else if (_n < 1)
@@ -195,7 +195,7 @@ PREDICATE(=.., 2, (word term, word univ)
       List list;
       word w;
       init_list(&list);
-      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       list_append(&list, f->name);
       for (int i = 0; i < f->arity; i++)
          list_append(&list, ARGOF(term, i));
@@ -281,8 +281,8 @@ NONDET_PREDICATE(clause, 2, (word head, word body, word backtrack)
 {
    if (TAGOF(body) == CONSTANT_TAG)
    {
-      constant c = getConstant(body);
-      if (c.type == INTEGER_TYPE || c.type == FLOAT_TYPE)
+      int c = getConstantType(body);
+      if (c == INTEGER_TYPE || c == FLOAT_TYPE)
          return type_error(callableAtom, body);
    }
    Module module;
@@ -325,9 +325,9 @@ NONDET_PREDICATE(current_predicate, 1, (word indicator, word backtrack)
    {
       if ((!(TAGOF(indicator) == COMPOUND_TAG && FUNCTOROF(indicator) == predicateIndicatorFunctor)))
          return type_error(predicateIndicatorAtom, indicator);
-      if ((TAGOF(ARGOF(indicator, 0)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 0)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 0)).type == ATOM_TYPE))
+      if ((TAGOF(ARGOF(indicator, 0)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 0)) == CONSTANT_TAG && getConstantType(ARGOF(indicator, 0)) == ATOM_TYPE))
          return type_error(predicateIndicatorAtom, indicator);
-      if ((TAGOF(ARGOF(indicator, 1)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 1)) == CONSTANT_TAG && getConstant(ARGOF(indicator, 1)).type == INTEGER_TYPE))
+      if ((TAGOF(ARGOF(indicator, 1)) != VARIABLE_TAG) && !(TAGOF(ARGOF(indicator, 1)) == CONSTANT_TAG && getConstantType(ARGOF(indicator, 1)) == INTEGER_TYPE))
          return type_error(predicateIndicatorAtom, indicator);
    }
    // Now indicator is either unbound or bound to /(A,B)
@@ -480,7 +480,7 @@ PREDICATE(open, 3, (word source_sink, word io_mode, word stream)
       return ERROR;
    Options options;
    init_options(&options);
-   Stream s = fileStream(getConstant(source_sink).data.atom_data->data, io_mode, &options);
+   Stream s = fileStream(getConstant(source_sink, NULL).atom_data->data, io_mode, &options);
    free_options(&options);
    if (s == NULL)
       return ERROR;
@@ -493,7 +493,7 @@ PREDICATE(open, 4, (word source_sink, word io_mode, word stream, word options)
    Options _options;
    init_options(&_options);
    options_from_term(&_options, options);
-   Stream s = fileStream(getConstant(source_sink).data.atom_data->data, io_mode, &_options);
+   Stream s = fileStream(getConstant(source_sink, NULL).atom_data->data, io_mode, &_options);
    free_options(&_options);
    if (s == NULL)
       return ERROR;
@@ -551,7 +551,7 @@ NONDET_PREDICATE(stream_property, 2, (word stream, word property, word backtrack
    Stream s = get_stream(stream);
    if (s == NULL)
       return ERROR;
-   long index = backtrack==0?0:getConstant(backtrack).data.integer_data->data;
+   long index = backtrack==0?0:getConstant(backtrack, NULL).integer_data;
    if (stream_properties[index] == NULL)
       return FAIL;
    if (stream_properties[index + 1] != NULL)
@@ -582,7 +582,7 @@ PREDICATE(set_stream_position, 2, (word stream, word position)
       return ERROR;
    if (s->seek == NULL)
       return FAIL;
-   return s->seek(s, (int)getConstant(position).data.integer_data, SEEK_SET) >= 0;
+   return s->seek(s, (int)getConstant(position, NULL).integer_data, SEEK_SET) >= 0;
 })
 
 // 8.12.1 get_char/1,2 get_code/1,2
@@ -641,7 +641,7 @@ PREDICATE(peek_code, 2, (word stream, word code)
 PREDICATE(put_char, 1, (word c)
 {
    if (!must_be_character(c)) return ERROR;
-   putch(current_output, getConstant(c).data.atom_data->data[0]);
+   putch(current_output, getConstant(c, NULL).atom_data->data[0]);
    return SUCCESS;
 })
 PREDICATE(put_char, 2, (word stream, word c)
@@ -650,13 +650,13 @@ PREDICATE(put_char, 2, (word stream, word c)
    if (s == NULL)
       return ERROR;
    if (!must_be_character(c)) return ERROR;
-   putch(s, getConstant(c).data.atom_data->data[0]);
+   putch(s, getConstant(c, NULL).atom_data->data[0]);
    return SUCCESS;
 })
 PREDICATE(put_code, 1, (word code)
 {
    if (!must_be_positive_integer(code)) return ERROR;
-   putch(current_output, (int)getConstant(code).data.integer_data->data);
+   putch(current_output, (int)getConstant(code, NULL).integer_data);
    return SUCCESS;
 })
 PREDICATE(put_code, 2, (word stream, word code)
@@ -665,7 +665,7 @@ PREDICATE(put_code, 2, (word stream, word code)
    if (s == NULL)
       return ERROR;
    if (!must_be_positive_integer(code)) return ERROR;
-   putch(s, getConstant(code).data.integer_data->data);
+   putch(s, getConstant(code, NULL).integer_data);
    return SUCCESS;
 })
 
@@ -702,7 +702,7 @@ PREDICATE(peek_byte, 2, (word stream, word c)
 PREDICATE(put_byte, 1, (word c)
 {
    if (!must_be_positive_integer(c)) return ERROR;
-   putb(current_output, (int)getConstant(c).data.integer_data->data);
+   putb(current_output, (int)getConstant(c, NULL).integer_data);
    return SUCCESS;
 })
 PREDICATE(put_byte, 2, (word stream, word c)
@@ -711,7 +711,7 @@ PREDICATE(put_byte, 2, (word stream, word c)
    if (s == NULL)
       return ERROR;
    if (!must_be_positive_integer(c)) return ERROR;
-   putb(s, getConstant(c).data.integer_data->data);
+   putb(s, getConstant(c, NULL).integer_data);
    return SUCCESS;
 })
 
@@ -867,8 +867,8 @@ PREDICATE(op, 3, (word priority, word fixity, word op)
    if (!must_be_atom(fixity)) return ERROR;
    if (!must_be_atom(op)) return ERROR;
    if (!must_be_integer(priority)) return ERROR;
-   Atom op_c = getConstant(op).data.atom_data;
-   int pri = (int)getConstant(priority).data.integer_data->data;
+   Atom op_c = getConstant(op, NULL).atom_data;
+   int pri = (int)getConstant(priority, NULL).integer_data;
    if (fixity == FXAtom)
    {
       add_operator(op_c->data, pri, FX);
@@ -925,7 +925,7 @@ PREDICATE(char_conversion, 2, (word in_char, word out_char)
 {
    if (!must_be_character(in_char)) return ERROR;
    if (!must_be_character(out_char)) return ERROR;
-   CharConversionTable[getConstant(in_char).data.atom_data->data[0]] = getConstant(out_char).data.atom_data->data[0];
+   CharConversionTable[getConstant(in_char, NULL).atom_data->data[0]] = getConstant(out_char, NULL).atom_data->data[0];
    return SUCCESS;
 })
 // 8.14.6 current_char_conversion/2
@@ -933,23 +933,25 @@ NONDET_PREDICATE(current_char_conversion, 2, (word in_char, word out_char, word 
 {
    if (TAGOF(in_char) == CONSTANT_TAG)
    {
-      constant ci = getConstant(in_char);
-      if (ci.type == ATOM_TYPE)
-         return unify(out_char, MAKE_NATOM(&ci.data.atom_data->data[0], 1));
+      int ti;
+      cdata ci = getConstant(in_char, &ti);
+      if (ti == ATOM_TYPE)
+         return unify(out_char, MAKE_NATOM(&ci.atom_data->data[0], 1));
       return type_error(characterAtom, in_char);
    }
    else if (TAGOF(in_char) == VARIABLE_TAG)
    {
       if (TAGOF(out_char) == CONSTANT_TAG)
       {
-         constant co = getConstant(in_char);
-         if (co.type == ATOM_TYPE)
+         int to;
+         cdata co = getConstant(in_char, &to);
+         if (to == ATOM_TYPE)
          {
-            char needle = co.data.atom_data->data[0];
+            char needle = co.atom_data->data[0];
             // We have to search the table to see if something matches
             int startindex = 0;
             if (backtrack != 0)
-               startindex = (int)getConstant(backtrack).data.integer_data->data;
+               startindex = (int)getConstant(backtrack, NULL).integer_data;
             for (int i = startindex; i < 256; i++)
             {
                if (CharConversionTable[i] == needle)
@@ -969,7 +971,7 @@ NONDET_PREDICATE(current_char_conversion, 2, (word in_char, word out_char, word 
          // We must enumerate the entire table
          int index = 0;
          if (backtrack != 0)
-            index = (int)getConstant(backtrack).data.integer_data->data;
+            index = (int)getConstant(backtrack, NULL).integer_data;
          if (index < 256)
             make_foreign_choicepoint(MAKE_INTEGER(index+1));
          char i = (char)index;
@@ -997,14 +999,15 @@ PREDICATE(atom_length, 2, (word atom, word length)
       return instantiation_error();
    if (TAGOF(atom) != CONSTANT_TAG)
       return type_error(atomAtom, atom);
-   constant c = getConstant(atom);
-   if (c.type != ATOM_TYPE)
+   int type;
+   cdata c = getConstant(atom, &type);
+   if (type != ATOM_TYPE)
       return type_error(atomAtom, atom);
    if (TAGOF(length) != VARIABLE_TAG && !(must_be_integer(length)))
       return ERROR;
    if (TAGOF(length) == CONSTANT_TAG && !(must_be_positive_integer(length)))
       return ERROR;
-   return unify(length, MAKE_INTEGER(c.data.atom_data->length));
+   return unify(length, MAKE_INTEGER(c.atom_data->length));
 })
 
 // 8.1.6.2
@@ -1029,8 +1032,8 @@ NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word back
       if (TAGOF(atom1) == CONSTANT_TAG  && TAGOF(atom2) == CONSTANT_TAG)
       {
          // Deterministic case
-         Atom a1 = getConstant(atom1).data.atom_data;
-         Atom a2 = getConstant(atom2).data.atom_data;
+         Atom a1 = getConstant(atom1, NULL).atom_data;
+         Atom a2 = getConstant(atom2, NULL).atom_data;
          char* new_atom = malloc(a1->length + a2->length);
          memcpy(new_atom, a1->data, a1->length);
          memcpy(new_atom+a1->length, a2->data, a2->length);
@@ -1043,9 +1046,9 @@ NONDET_PREDICATE(atom_concat, 3, (word atom1, word atom2, word atom12, word back
    }
    else
    {
-      index = getConstant(backtrack).data.integer_data->data;
+      index = getConstant(backtrack, NULL).integer_data;
    }
-   Atom a12 = getConstant(atom12).data.atom_data;
+   Atom a12 = getConstant(atom12, NULL).atom_data;
    if (index == a12->length+1)
       return FAIL;
    make_foreign_choicepoint(MAKE_INTEGER(index+1));
@@ -1065,7 +1068,7 @@ NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, 
       return ERROR;
    if (TAGOF(subatom) != VARIABLE_TAG && !must_be_atom(subatom))
       return ERROR;
-   Atom input = getConstant(atom).data.atom_data;
+   Atom input = getConstant(atom, NULL).atom_data;
    long _start = 0;
    long fixed_start = 0;
    long _length = 0;
@@ -1078,17 +1081,17 @@ NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, 
       if (TAGOF(before) == CONSTANT_TAG)
       {
          fixed_start = 1;
-         _start = getConstant(before).data.integer_data->data;
+         _start = getConstant(before, NULL).integer_data;
       }
       if (TAGOF(length) == CONSTANT_TAG)
       {
          fixed_length = 1;
-         _length = getConstant(length).data.integer_data->data;
+         _length = getConstant(length, NULL).integer_data;
       }
       if (TAGOF(after) == CONSTANT_TAG)
       {
          fixed_remaining = 1;
-         _remaining = getConstant(after).data.integer_data->data;
+         _remaining = getConstant(after, NULL).integer_data;
       }
       if (fixed_start && fixed_remaining && !fixed_length)
       {
@@ -1114,12 +1117,12 @@ NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, 
    else
    {
       // Redo
-      _start = getConstant(ARGOF(backtrack, 0)).data.integer_data->data;
-      fixed_start = getConstant(ARGOF(backtrack, 1)).data.integer_data->data;
-      _length = getConstant(ARGOF(backtrack, 2)).data.integer_data->data;
-      fixed_length = getConstant(ARGOF(backtrack, 3)).data.integer_data->data;
-      _remaining = getConstant(ARGOF(backtrack, 4)).data.integer_data->data;
-      fixed_remaining = getConstant(ARGOF(backtrack, 5)).data.integer_data->data;
+      _start = getConstant(ARGOF(backtrack, 0), NULL).integer_data;
+      fixed_start = getConstant(ARGOF(backtrack, 1), NULL).integer_data;
+      _length = getConstant(ARGOF(backtrack, 2), NULL).integer_data;
+      fixed_length = getConstant(ARGOF(backtrack, 3), NULL).integer_data;
+      _remaining = getConstant(ARGOF(backtrack, 4), NULL).integer_data;
+      fixed_remaining = getConstant(ARGOF(backtrack, 5), NULL).integer_data;
       if (!fixed_length)
       {
          _length++;
@@ -1188,7 +1191,7 @@ PREDICATE(atom_chars, 2, (word atom, word chars)
       w = chars;
       while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
       {
-         buffer[i++] = getConstant(ARGOF(w,0)).data.atom_data->data[0];
+         buffer[i++] = getConstant(ARGOF(w,0), NULL).atom_data->data[0];
          w = ARGOF(w, 1);
       }
       w = MAKE_NATOM(buffer, i);
@@ -1197,10 +1200,11 @@ PREDICATE(atom_chars, 2, (word atom, word chars)
    }
    else if (TAGOF(atom) == CONSTANT_TAG)
    {
-      constant c = getConstant(atom);
-      if (c.type != ATOM_TYPE)
+      int type;
+      cdata c = getConstant(atom, &type);
+      if (type != ATOM_TYPE)
          return type_error(atomAtom, atom);
-      Atom a = c.data.atom_data;
+      Atom a = c.atom_data;
       List list;
       word w;
       init_list(&list);
@@ -1239,7 +1243,7 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
       w = codes;
       while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
       {
-         buffer[i++] = (char)getConstant(ARGOF(w,0)).data.integer_data->data;
+         buffer[i++] = (char)getConstant(ARGOF(w,0), NULL).integer_data;
          w = ARGOF(w, 1);
       }
       w = MAKE_NATOM(buffer, i);
@@ -1248,10 +1252,11 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
    }
    else if (TAGOF(atom) == CONSTANT_TAG)
    {
-      constant c = getConstant(atom);
-      if (c.type != ATOM_TYPE)
+      int type;
+      cdata c = getConstant(atom, &type);
+      if (type != ATOM_TYPE)
          return type_error(atomAtom, atom);
-      Atom a = c.data.atom_data;
+      Atom a = c.atom_data;
       List list;
       word w;
       init_list(&list);
@@ -1275,20 +1280,20 @@ PREDICATE(char_code, 2, (word ch, word code)
    {
       if (!must_be_character(ch))
          return ERROR;
-      Atom a = getConstant(ch).data.atom_data;
+      Atom a = getConstant(ch, NULL).atom_data;
       if (TAGOF(code) != VARIABLE_TAG)
          if (!must_be_positive_integer(code))
             return ERROR;
-      if ((TAGOF(code) == VARIABLE_TAG) || (TAGOF(code) == CONSTANT_TAG && getConstant(code).type == INTEGER_TYPE))
+      if ((TAGOF(code) == VARIABLE_TAG) || (TAGOF(code) == CONSTANT_TAG && getConstantType(code) == INTEGER_TYPE))
          return unify(MAKE_INTEGER(a->data[0]), code);
       return representation_error(characterCodeAtom, code);
    }
    if (!must_be_integer(code))
       return ERROR;
-   Integer code_obj = getConstant(code).data.integer_data;
-   if (code_obj->data < 0)
+   long code_int = getConstant(code, NULL).integer_data;
+   if (code_int < 0)
       return representation_error(characterCodeAtom, code);
-   char a = (char)code_obj->data;
+   char a = (char)code_int;
    return unify(MAKE_NATOM(&a, 1), ch);
 })
 
@@ -1319,7 +1324,7 @@ PREDICATE(number_chars, 2, (word number, word chars)
       w = chars;
       while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
       {
-         buffer[i++] = getConstant(ARGOF(w,0)).data.atom_data->data[0];
+         buffer[i++] = getConstant(ARGOF(w,0), NULL).atom_data->data[0];
          w = ARGOF(w, 1);
       }
       buffer[i] = '\0';
@@ -1363,14 +1368,15 @@ PREDICATE(number_chars, 2, (word number, word chars)
    }
    else if (TAGOF(number) == CONSTANT_TAG)
    {
-      constant c = getConstant(number);
+      int type;
+      cdata c = getConstant(number, &type);
       char buffer[32];
       int rc = 0;
-      if (c.type == INTEGER_TYPE)
-         rc = snprintf(buffer, 32, "%ld", c.data.integer_data->data);
-      else if (c.type == FLOAT_TYPE)
+      if (type == INTEGER_TYPE)
+         rc = snprintf(buffer, 32, "%ld", c.integer_data);
+      else if (type == FLOAT_TYPE)
       {
-         rc = snprintf(buffer, 32, "%f", c.data.float_data->data);
+         rc = snprintf(buffer, 32, "%f", c.float_data->data);
          assert(rc >= 0 && rc < 31);
          // Trim off any trailing zeroes
          for (; rc >= 2; rc--)
@@ -1420,7 +1426,7 @@ PREDICATE(number_codes, 2, (word number, word codes)
       w = codes;
       while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
       {
-         buffer[i++] = (char)getConstant(ARGOF(w,0)).data.integer_data->data;
+         buffer[i++] = (char)getConstant(ARGOF(w,0), NULL).integer_data;
          w = ARGOF(w, 1);
       }
       buffer[i] = '\0';
@@ -1464,14 +1470,15 @@ PREDICATE(number_codes, 2, (word number, word codes)
    }
    else if (TAGOF(number) == CONSTANT_TAG)
    {
-      constant c = getConstant(number);
+      int type;
+      cdata c = getConstant(number, &type);
       char buffer[32];
       int rc = 0;
-      if (c.type == INTEGER_TYPE)
-         rc = snprintf(buffer, 32, "%ld", c.data.integer_data->data);
-      else if (c.type == FLOAT_TYPE)
+      if (type == INTEGER_TYPE)
+         rc = snprintf(buffer, 32, "%ld", c.integer_data);
+      else if (type == FLOAT_TYPE)
       {
-         rc = snprintf(buffer, 32, "%f", c.data.float_data->data);
+         rc = snprintf(buffer, 32, "%f", c.float_data->data);
          assert(rc >= 0 && rc < 31);
          // Trim off any trailing zeroes
          for (; rc >= 2; rc--)
@@ -1509,10 +1516,11 @@ NONDET_PREDICATE(current_prolog_flag, 2, (word flag, word value, word backtrack)
    {
       if (TAGOF(flag) == CONSTANT_TAG)
       {
-         constant c = getConstant(flag);
-         if (c.type == ATOM_TYPE)
+         int type;
+         cdata c = getConstant(flag, &type);
+         if (type == ATOM_TYPE)
          {
-            word v = get_prolog_flag(c.data.atom_data->data);
+            word v = get_prolog_flag(c.atom_data->data);
             if (v == 0)
                return domain_error(prologFlagAtom, flag);
             return unify(value, v);
@@ -1525,7 +1533,7 @@ NONDET_PREDICATE(current_prolog_flag, 2, (word flag, word value, word backtrack)
       make_foreign_choicepoint(ARGOF(list, 1));
    if (!unify(flag, ARGOF(list,0)))
       return FAIL;
-   word v = get_prolog_flag(getConstant(ARGOF(list, 0)).data.atom_data->data);
+   word v = get_prolog_flag(getConstant(ARGOF(list, 0), NULL).atom_data->data);
    if (v == 0) // This really shouldnt happen since we were the ones who made the key!
       return existence_error(prologFlagAtom, flag);
    return unify(value, v);
@@ -1541,7 +1549,7 @@ PREDICATE(halt, 1, (word a)
 {
    if (!must_be_integer(a))
       return ERROR;
-   halt((int)getConstant(a).data.integer_data->data);
+   halt((int)getConstant(a, NULL).integer_data);
    return SUCCESS;
 })
 
@@ -1622,8 +1630,8 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
 {
    if (!(must_be_integer(low) && must_be_integer(high)))
       return FAIL;
-   long _low = getConstant(low).data.integer_data->data;
-   long _high = getConstant(high).data.integer_data->data;
+   long _low = getConstant(low, NULL).integer_data;
+   long _high = getConstant(high, NULL).integer_data;
    if ((TAGOF(value) == VARIABLE_TAG) && _high > _low)
    {
       // Nondet case
@@ -1631,7 +1639,7 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
       if (backtrack == 0)
          current = 0;
       else
-         current = getConstant(backtrack).data.integer_data->data;
+         current = getConstant(backtrack, NULL).integer_data;
       //printf("Current: %d (out of %d)\n", current, _high);
       if (current+1 <= _high)
          make_foreign_choicepoint(MAKE_INTEGER(current+1));
@@ -1645,10 +1653,11 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
    else if (TAGOF(value) == CONSTANT_TAG)
    {
       // Det case
-      constant c = getConstant(value);
-      if (c.type == INTEGER_TYPE)
+      int type;
+      cdata c = getConstant(value, &type);
+      if (type == INTEGER_TYPE)
       {
-         return c.data.integer_data->data >= _high && c.data.integer_data->data <= _low;
+         return c.integer_data >= _high && c.integer_data <= _low;
       }
       return type_error(integerAtom, value);
    }
@@ -1743,7 +1752,7 @@ PREDICATE(format, 3, (word sink, word format, word args)
    if (!must_be_atom(format))
       return ERROR;
    int a = 0;
-   Atom input = getConstant(format).data.atom_data;
+   Atom input = getConstant(format, NULL).atom_data;
    StringBuilder output = stringBuilder();
    word arg;
 
@@ -1770,7 +1779,7 @@ PREDICATE(format, 3, (word sink, word format, word args)
                   {
                      NEXT_FORMAT_ARG;
                      if (!must_be_atom(arg)) BAD_FORMAT;
-                     append_atom(output, getConstant(arg).data.atom_data);
+                     append_atom(output, getConstant(arg, NULL).atom_data);
                      break;
                   }
                   case 'c': // character code
@@ -1778,7 +1787,7 @@ PREDICATE(format, 3, (word sink, word format, word args)
                      NEXT_FORMAT_ARG;
                      if (!must_be_character_code(arg)) BAD_FORMAT;
                      char* c = malloc(1);
-                     c[0] = (char)getConstant(arg).data.integer_data->data;
+                     c[0] = (char)getConstant(arg, NULL).integer_data;
                      append_string(output, c, 1);
                      break;
                   }
@@ -1787,17 +1796,18 @@ PREDICATE(format, 3, (word sink, word format, word args)
                      NEXT_FORMAT_ARG;
                      if (TAGOF(arg) == CONSTANT_TAG)
                      {
-                        constant c = getConstant(arg);
-                        if (c.type == INTEGER_TYPE)
+                        int type;
+                        cdata c = getConstant(arg, &type);
+                        if (type == INTEGER_TYPE)
                         {
                            char str[64];
-                           sprintf(str, "%ld\n", c.data.integer_data->data);
+                           sprintf(str, "%ld\n", c.integer_data);
                            append_string(output, strdup(str), strlen(str));
                            break;
                         }
-                        else if (c.type == BIGINTEGER_TYPE)
+                        else if (type == BIGINTEGER_TYPE)
                         {
-                           char* str = mpz_get_str(NULL, 10, c.data.biginteger_data->data);
+                           char* str = mpz_get_str(NULL, 10, c.biginteger_data->data);
                            append_string(output, str, strlen(str));
                         }
                      }
@@ -1809,16 +1819,17 @@ PREDICATE(format, 3, (word sink, word format, word args)
                      NEXT_FORMAT_ARG;
                      if (TAGOF(arg) == CONSTANT_TAG)
                      {
-                        constant c = getConstant(arg);
+                        int type;
+                        cdata c = getConstant(arg, &type);
                         char* str;
-                        if (c.type == INTEGER_TYPE)
+                        if (type == INTEGER_TYPE)
                         {
                            str = malloc(64);
-                           sprintf(str, "%ld", c.data.integer_data->data);
+                           sprintf(str, "%ld", c.integer_data);
                         }
-                        else if (c.type == BIGINTEGER_TYPE)
+                        else if (type == BIGINTEGER_TYPE)
                         {
-                           str = mpz_get_str(NULL, 10, c.data.biginteger_data->data);
+                           str = mpz_get_str(NULL, 10, c.biginteger_data->data);
                         }
                         else
                         {
@@ -1869,16 +1880,17 @@ PREDICATE(format, 3, (word sink, word format, word args)
                      NEXT_FORMAT_ARG;
                      if (TAGOF(arg) == CONSTANT_TAG)
                      {
-                        constant c = getConstant(arg);
+                        int type;
+                        cdata c = getConstant(arg, &type);
                         char* str;
-                        if (c.type == INTEGER_TYPE)
+                        if (type == INTEGER_TYPE)
                         {
                            str = malloc(64);
-                           sprintf(str, "%ld", c.data.integer_data->data);
+                           sprintf(str, "%ld", c.integer_data);
                         }
-                        else if (c.type == BIGINTEGER_TYPE)
+                        else if (type == BIGINTEGER_TYPE)
                         {
-                           str = mpz_get_str(NULL, 10, c.data.biginteger_data->data);
+                           str = mpz_get_str(NULL, 10, c.biginteger_data->data);
                         }
                         else
                         {
@@ -1940,13 +1952,14 @@ PREDICATE(format, 3, (word sink, word format, word args)
                      NEXT_FORMAT_ARG;
                      if (TAGOF(arg) == CONSTANT_TAG)
                      {
-                        constant c = getConstant(arg);
-                        if (c.type == INTEGER_TYPE)
+                        int type;
+                        cdata c = getConstant(arg, &type);
+                        if (type == INTEGER_TYPE)
                         {
                            char str[128];
                            str[127] = 0;
                            int k = 126;
-                           long source = c.data.integer_data->data;
+                           long source = c.integer_data;
                            while (k > 0 && source != 0)
                            {
                               int j = source % radix;
@@ -1962,9 +1975,9 @@ PREDICATE(format, 3, (word sink, word format, word args)
                            append_string(output, strdup(&str[k]), strlen(&str[k]));
                            break;
                         }
-                        else if (c.type == BIGINTEGER_TYPE)
+                        else if (type == BIGINTEGER_TYPE)
                         {
-                           char* str = mpz_get_str(NULL, radix, c.data.biginteger_data->data);
+                           char* str = mpz_get_str(NULL, radix, c.biginteger_data->data);
                            append_string(output, str, strlen(str));
                            break;
                         }
@@ -1994,7 +2007,7 @@ PREDICATE(format, 3, (word sink, word format, word args)
                   {
                      NEXT_FORMAT_ARG;
                      if (!must_be_integer(arg)) BAD_FORMAT;
-                     radix = getConstant(arg).data.integer_data->data;
+                     radix = getConstant(arg, NULL).integer_data;
                      continue;
                   }
                   case '0':
@@ -2056,7 +2069,7 @@ PREDICATE(upcase_atom, 2, (word in, word out)
 {
    if (!must_be_atom(in))
       return ERROR;
-   Atom a = getConstant(in).data.atom_data;
+   Atom a = getConstant(in, NULL).atom_data;
    char* buffer = malloc(a->length);
    for (int i = 0; i < a->length; i++)
       buffer[i] = toupper(a->data[i]);
@@ -2069,7 +2082,7 @@ PREDICATE(downcase_atom, 2, (word in, word out)
 {
    if (!must_be_atom(in))
       return ERROR;
-   Atom a = getConstant(in).data.atom_data;
+   Atom a = getConstant(in, NULL).atom_data;
    char* buffer = malloc(a->length);
    for (int i = 0; i < a->length; i++)
       buffer[i] = tolower(a->data[i]);

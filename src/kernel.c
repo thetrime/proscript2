@@ -113,7 +113,7 @@ word MAKE_COMPOUND(word functor)
    *H = functor;
    H++;
    // Make all the args vars
-   int arity = getConstant(functor).data.functor_data->arity;
+   int arity = getConstant(functor, NULL).functor_data->arity;
    assert(H + arity < HTOP);
    for (int i = 0; i < arity; i++)
    {
@@ -124,7 +124,7 @@ word MAKE_COMPOUND(word functor)
 
 word MAKE_VCOMPOUND(word functor, ...)
 {
-   Functor f = getConstant(functor).data.functor_data;
+   Functor f = getConstant(functor, NULL).functor_data;
    va_list argp;
    va_start(argp, functor);
    word addr = (word)H;
@@ -143,9 +143,10 @@ word MAKE_VCOMPOUND(word functor, ...)
 EMSCRIPTEN_KEEPALIVE
 word MAKE_ACOMPOUND(word functor, word* values)
 {
-   constant c = getConstant(functor);
-   assert(c.type == FUNCTOR_TYPE);
-   Functor f = c.data.functor_data;
+   int type;
+   cdata c = getConstant(functor, &type);
+   assert(type == FUNCTOR_TYPE);
+   Functor f = c.functor_data;
    word addr = (word)H;
    *H = functor;
    H++;
@@ -165,10 +166,11 @@ void _lcompoundarg(word w, void* ignored)
 // If you call it with an atom, it will make a functor with arity list->size for you
 word MAKE_LCOMPOUND(word functor, List* list)
 {
-   constant c = getConstant(functor);
-   if (c.type == ATOM_TYPE)
+   int type;
+   cdata c = getConstant(functor, &type);
+   if (type == ATOM_TYPE)
       functor = MAKE_FUNCTOR(functor, list_length(list));
-   Functor f = getConstant(functor).data.functor_data;
+   Functor f = getConstant(functor, NULL).functor_data;
    word addr = (word)H;
    *(H++) = functor;
    assert(H + list_length(list) < HTOP);
@@ -200,9 +202,10 @@ void* allocAtom(void* data, int length)
 
 void* allocInteger(void* data, int len)
 {
-   Integer a = malloc(sizeof(integer));
-   a->data = *((long*)data);
-   return a;
+   return (void*)*((long*)data);
+   //Integer a = malloc(sizeof(integer));
+   //a->data = *((long*)data);
+   //return a;
 }
 
 void* allocBigInteger(void* data, int len)
@@ -355,7 +358,7 @@ void* GET_POINTER(word data)
 EMSCRIPTEN_KEEPALIVE
 word MAKE_FUNCTOR(word name, int arity)
 {
-   Atom n = getConstant(name).data.atom_data;
+   Atom n = getConstant(name, NULL).atom_data;
    word w =  intern(FUNCTOR_TYPE, uint32_hash((unsigned char*)n->data, n->length) + arity, &name, arity, allocFunctor, NULL);
    return w;
 }
@@ -389,26 +392,27 @@ void PORTRAY(word w)
       printf("_G%" PRIuPTR, (w - (word)HEAP));
    else if (TAGOF(w) == CONSTANT_TAG)
    {
-      constant c = getConstant(w);
-      switch(c.type)
+      int type;
+      cdata c = getConstant(w, &type);
+      switch(type)
       {
          case ATOM_TYPE:
-            printf("%.*s", c.data.atom_data->length, c.data.atom_data->data);
+            printf("%.*s", c.atom_data->length, c.atom_data->data);
             break;
          case INTEGER_TYPE:
-            printf("%ld", c.data.integer_data->data);
+            printf("%ld", c.integer_data);
             break;
          case FUNCTOR_TYPE:
-            PORTRAY(c.data.functor_data->name); printf("/%d", c.data.functor_data->arity);
+            PORTRAY(c.functor_data->name); printf("/%d", c.functor_data->arity);
             break;
          case FLOAT_TYPE:
-            printf("%f", c.data.float_data->data);
+            printf("%f", c.float_data->data);
             break;
          case BLOB_TYPE:
-            printf("<%s>(%p)", c.data.blob_data->type, c.data.blob_data->ptr);
+            printf("<%s>(%p)", c.blob_data->type, c.blob_data->ptr);
             break;
          default:
-            printf("Unknown type: %d\n", c.type);
+            printf("Unknown type: %d\n", type);
             assert(0);
 
       }
@@ -416,7 +420,7 @@ void PORTRAY(word w)
    else if (TAGOF(w) == COMPOUND_TAG)
    {
       //printf("Pointer to a compound %08lx. This points to a functor at %08lx\n", w, w&~3);
-      Functor functor = getConstant(FUNCTOROF(w)).data.functor_data;
+      Functor functor = getConstant(FUNCTOROF(w), NULL).functor_data;
       PORTRAY(functor->name);
       printf("(");
       for (int i = 0; i < functor->arity; i++)
@@ -471,7 +475,7 @@ int unify(word a, word b)
    }
    if ((TAGOF(a) == COMPOUND_TAG) && (TAGOF(b) == COMPOUND_TAG) && (FUNCTOROF(a) == FUNCTOROF(b)))
    {
-      int arity = getConstant(FUNCTOROF(a)).data.functor_data->arity;
+      int arity = getConstant(FUNCTOROF(a), NULL).functor_data->arity;
       for (int i = 0; i < arity; i++)
          if (!unify(ARGOF(a, i), ARGOF(b, i)))
             return 0;
@@ -633,7 +637,7 @@ word _copy_term(word t, List* variables, word* new_vars)
    }
    else if (TAGOF(t) == COMPOUND_TAG)
    {
-      Functor functor = getConstant(FUNCTOROF(t)).data.functor_data;
+      Functor functor = getConstant(FUNCTOROF(t), NULL).functor_data;
       word new_args[functor->arity];
       for (int i = 0; i < functor->arity; i++)
          new_args[i] = _copy_term(ARGOF(t, i), variables, new_vars);
@@ -665,7 +669,7 @@ int count_compounds(word t)
    if (TAGOF(t) == COMPOUND_TAG)
    {
       int i = 1;
-      Functor f = getConstant(FUNCTOROF(t)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(t), NULL).functor_data;
       for (int j = 0; j < f->arity; j++)
          i+=count_compounds(ARGOF(t, j));
       return i + f->arity;
@@ -688,7 +692,7 @@ word make_local_(word t, List* variables, word* heap, int* ptr, int size)
          heap[*ptr] = FUNCTOROF(t);
          (*ptr)++;
          int argp = *ptr;
-         Functor f = getConstant(FUNCTOROF(t)).data.functor_data;
+         Functor f = getConstant(FUNCTOROF(t), NULL).functor_data;
          (*ptr) += f->arity;
          for (int i = 0; i < f->arity; i++)
          {
@@ -834,7 +838,7 @@ int prepare_frame(word functor, Module optionalContext, Frame frame)
 
    if (p == NULL)
    {
-      Functor f = getConstant(functor).data.functor_data;
+      Functor f = getConstant(functor, NULL).functor_data;
       if (get_prolog_flag("unknown") == errorAtom)
       {
          //SET_EXCEPTION(procedureAtom);
@@ -950,7 +954,7 @@ RC execute(int resume)
          {
             RC rc = FAIL;
             ExecutionCallback yp = current_yield_ptr; // We must save this in case the foreign predicate trashes it
-            Functor f = getConstant(FR->functor).data.functor_data;
+            Functor f = getConstant(FR->functor, NULL).functor_data;
             //printf("argP is at %p\n", ARGP);
             //PORTRAY(*ARGP); printf("\n");
             //printf("Calling %p with %p (%p)\n", (int (*)())((word)(CODEPTR(PC+1))), ARGP, FR->slots);
@@ -1003,7 +1007,7 @@ RC execute(int resume)
          case I_FOREIGN_RETRY:
          {
             RC rc = FAIL;
-            Functor f = getConstant(FR->functor).data.functor_data;
+            Functor f = getConstant(FR->functor, NULL).functor_data;
             ExecutionCallback yp = current_yield_ptr; // We must save this in case the foreign predicate trashes it
             if (*PC == I_FOREIGN_RETRY || *PC == I_FOREIGN_NONDET)
             {
@@ -1732,8 +1736,9 @@ int clause_functor(word t, word* functor)
 {
    if (TAGOF(t) == CONSTANT_TAG)
    {
-      constant c = getConstant(t);
-      if (c.type == ATOM_TYPE)
+      int type;
+      cdata c = getConstant(t, &type);
+      if (type == ATOM_TYPE)
       {
          *functor = MAKE_FUNCTOR(t, 0);
          return 1;
@@ -1784,7 +1789,7 @@ void consult_stream(Stream s)
                   break;
                }
                // For an export of foo/3, add a clause foo(A,B,C):- Module:foo(A,B,C).  to user
-               long arity = getConstant(ARGOF(export, 1)).data.integer_data->data;
+               long arity = getConstant(ARGOF(export, 1), NULL).integer_data;
                word functor = MAKE_FUNCTOR(ARGOF(export, 0), arity);
                word head = MAKE_COMPOUND(functor);
                word shim = MAKE_VCOMPOUND(clauseFunctor, head, MAKE_VCOMPOUND(crossModuleCallFunctor, ARGOF(directive, 0), head));
@@ -1805,17 +1810,18 @@ void consult_stream(Stream s)
                break;
             }
             word functor = FUNCTOROF(ARGOF(directive, 0));
-            Functor f = getConstant(functor).data.functor_data;
+            Functor f = getConstant(functor, NULL).functor_data;
             char* meta = malloc(f->arity + 1);
             meta[f->arity] = 0;
             for (int i = 0; i < f->arity; i++)
             {
                word arg = ARGOF(ARGOF(directive, 0),i);
-               constant c = getConstant(arg);
-               if (c.type == ATOM_TYPE)
-                  meta[i] = c.data.atom_data->data[0];
-               else if (c.type == INTEGER_TYPE)
-                  meta[i] = c.data.integer_data->data + '0';
+               int type;
+               cdata c = getConstant(arg, &type);
+               if (type == ATOM_TYPE)
+                  meta[i] = c.atom_data->data[0];
+               else if (type == INTEGER_TYPE)
+                  meta[i] = c.integer_data + '0';
                else
                {
                   free(meta);
@@ -1832,7 +1838,7 @@ void consult_stream(Stream s)
                printf("Illegal dynamic decalaration\n");
                break;
             }
-            word functor = MAKE_FUNCTOR(ARGOF(ARGOF(directive,0),0), getConstant(ARGOF(ARGOF(directive,0),1)).data.integer_data->data);
+            word functor = MAKE_FUNCTOR(ARGOF(ARGOF(directive,0),0), getConstant(ARGOF(ARGOF(directive,0),1), NULL).integer_data);
             set_dynamic(currentModule, functor);
          }
          else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == multiFileFunctor)
@@ -1968,7 +1974,9 @@ int head_functor(word head, Module* module, word* functor)
 {
    if (TAGOF(head) == CONSTANT_TAG)
    {
-      if (getConstant(head).type == ATOM_TYPE)
+      int type;
+      getConstant(head, &type);
+      if (type == ATOM_TYPE)
       {
          *module = FR->contextModule;
          *functor = MAKE_FUNCTOR(head, 0); // atom
@@ -2001,9 +2009,10 @@ word predicate_indicator(word term)
 {
    if (TAGOF(term) == CONSTANT_TAG)
    {
-      constant c = getConstant(term);
-      if (c.type == FUNCTOR_TYPE)
-         return MAKE_VCOMPOUND(predicateIndicatorFunctor, c.data.functor_data->name, MAKE_INTEGER(c.data.functor_data->arity));
+      int type;
+      cdata c = getConstant(term, &type);
+      if (type == FUNCTOR_TYPE)
+         return MAKE_VCOMPOUND(predicateIndicatorFunctor, c.functor_data->name, MAKE_INTEGER(c.functor_data->arity));
       else
          return MAKE_VCOMPOUND(predicateIndicatorFunctor, term, MAKE_INTEGER(0));
    }
@@ -2011,10 +2020,10 @@ word predicate_indicator(word term)
    {
       if (FUNCTOROF(term) == crossModuleCallFunctor)
       {
-         Functor f = getConstant(FUNCTOROF(ARGOF(term, 1))).data.functor_data;
+         Functor f = getConstant(FUNCTOROF(ARGOF(term, 1)), NULL).functor_data;
          return MAKE_VCOMPOUND(predicateIndicatorFunctor, MAKE_VCOMPOUND(crossModuleCallFunctor, ARGOF(term, 0), f->name), MAKE_INTEGER(f->arity));
       }
-      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       return MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity));
    }
    return term;

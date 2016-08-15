@@ -58,7 +58,7 @@ int define_foreign_predicate_c(Module module, word functor, int(*func)(), int fl
    p = malloc(sizeof(predicate));
    p->meta = NULL;
    p->flags = PREDICATE_FOREIGN;
-   p->firstClause = foreign_predicate_c(func, getConstant(functor).data.functor_data->arity, flags);
+   p->firstClause = foreign_predicate_c(func, getConstant(functor, NULL).functor_data->arity, flags);
    whashmap_put(module->predicates, functor, p);
    return 1;
 }
@@ -73,7 +73,7 @@ int define_foreign_predicate_js(Module module, word functor, word func)
    p = malloc(sizeof(predicate));
    p->meta = NULL;
    p->flags = PREDICATE_FOREIGN;
-   Functor f = getConstant(functor).data.functor_data;
+   Functor f = getConstant(functor, NULL).functor_data;
    p->firstClause = foreign_predicate_js(func, f->arity, NON_DETERMINISTIC);
    whashmap_put(module->predicates, functor, p);
    return 1;
@@ -276,7 +276,7 @@ int abolish(Module module, word indicator)
    {
       return ERROR;
    }
-   word functor = MAKE_FUNCTOR(ARGOF(indicator, 0), getConstant(ARGOF(indicator, 1)).data.integer_data->data);
+   word functor = MAKE_FUNCTOR(ARGOF(indicator, 0), getConstant(ARGOF(indicator, 1), NULL).integer_data);
    Predicate p = lookup_predicate(module, functor);
    if ((p->flags & PREDICATE_DYNAMIC) == 0)
       return permission_error(modifyAtom, staticProcedureAtom, indicator);

@@ -156,31 +156,32 @@ int evaluate(word a, number* n)
       return instantiation_error();
    else if (TAGOF(a) == CONSTANT_TAG)
    {
-      constant ao = getConstant(a);
-      if (ao.type == INTEGER_TYPE)
+      int type;
+      cdata ao = getConstant(a, &type);
+      if (type == INTEGER_TYPE)
       {
          n->type = IntegerType;
-         n->i = ao.data.integer_data->data;
+         n->i = ao.integer_data;
          return 1;
       }
-      else if (ao.type == FLOAT_TYPE)
+      else if (type == FLOAT_TYPE)
       {
          n->type = FloatType;
-         n->f = ao.data.float_data->data;
+         n->f = ao.float_data->data;
          return 1;
       }
-      else if (ao.type == BIGINTEGER_TYPE)
+      else if (type == BIGINTEGER_TYPE)
       {
          n->type = BigIntegerType;
          mpz_init(n->ii);
-         mpz_set(n->ii, ao.data.biginteger_data->data);
+         mpz_set(n->ii, ao.biginteger_data->data);
          return 1;
       }
-      else if (ao.type == RATIONAL_TYPE)
+      else if (type == RATIONAL_TYPE)
       {
          n->type = RationalType;
          mpq_init(n->r);
-         mpq_set(n->r, ao.data.rational_data->data);
+         mpq_set(n->r, ao.rational_data->data);
          return 1;
       }
       return type_error(evaluableAtom, predicate_indicator(a));

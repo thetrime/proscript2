@@ -103,7 +103,7 @@ word get_prolog_flag(char* name)
 int set_prolog_flag(word flag, word value)
 {
    prolog_flag_t* _flag;
-   if (hashmap_get(flags, getConstant(flag).data.atom_data->data, (any_t*)&_flag) == MAP_OK)
+   if (hashmap_get(flags, getConstant(flag, NULL).atom_data->data, (any_t*)&_flag) == MAP_OK)
       return _flag->set(flag, value);
    return domain_error(prologFlagAtom, flag);
 }

@@ -1,4 +1,5 @@
 run_all_tests:-
-        badger(7, cat, dog(a,4.5, [_, x])),
-        sleep(5),
-        writeln(yawn).
+        X is 238723947298475983475983745987349857 + 1,
+        writeln(X),
+        format(atom(A),'Price (last close: ~2f)',[X]),
+        writeln(A).

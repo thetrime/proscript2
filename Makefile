@@ -1,5 +1,5 @@
-#ARCH=c
-ARCH=js
+ARCH=c
+#ARCH=js
 
 FILESYSTEM=--embed-file test.pl --embed-file src/builtin.pl --embed-file tests
 

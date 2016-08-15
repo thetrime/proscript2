@@ -26,7 +26,7 @@ int options_from_term(Options* o, word t)
       word head = ARGOF(t, 0);
       if (TAGOF(head) != COMPOUND_TAG)
          return type_error(optionAtom, head);
-      Functor f = getConstant(FUNCTOROF(head)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(head), NULL).functor_data;
       if (f->arity > 2)
          return type_error(optionAtom, head);
       if (f->arity == 1)

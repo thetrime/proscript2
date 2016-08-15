@@ -257,7 +257,7 @@ int compile_argument(word arg, wmap_t variables, instruction_list_t* instruction
    else if (TAGOF(arg) == COMPOUND_TAG)
    {
       push_instruction(instructions, INSTRUCTION_CONST(H_FUNCTOR, FUNCTOROF(arg)));
-      Functor f = getConstant(FUNCTOROF(arg)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(arg), NULL).functor_data;
       for (int i = 0; i < f->arity; i++)
          compile_argument(ARGOF(arg, i), variables, instructions, 1);
       push_instruction(instructions, INSTRUCTION(H_POP));
@@ -271,7 +271,7 @@ void compile_head(word term, wmap_t variables, instruction_list_t* instructions)
    int optimize_ref = instruction_count(instructions);
    if (TAGOF(term) == COMPOUND_TAG)
    {
-      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       for (int i = 0; i < f->arity; i++)
       {
          if (!compile_argument(ARGOF(term, i), variables, instructions, 0))
@@ -313,7 +313,7 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
    else if (TAGOF(term) == COMPOUND_TAG)
    {
       size += push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
-      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       for (int i = 0; i < f->arity; i++)
          size += compile_term_creation(ARGOF(term, i), variables, instructions, depth+1);
       size += push_instruction(instructions, INSTRUCTION(B_POP));
@@ -368,9 +368,9 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
    }
    else if (TAGOF(term) == CONSTANT_TAG)
    {
-
-      constant c = getConstant(term);
-      if (c.type == ATOM_TYPE)
+      int type;
+      cdata c = getConstant(term, &type);
+      if (type == ATOM_TYPE)
       {
          size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, MAKE_FUNCTOR(term, 0)));
       }
@@ -558,7 +558,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else
       {
-         Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+         Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
          for (int i = 0; i < f->arity; i++)
             size += compile_term_creation(ARGOF(term, i), variables, instructions, 0);
          size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, FUNCTOROF(term)));
@@ -582,7 +582,7 @@ void find_variables(word term, List* list)
       list_append(list, term);
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       for (int i = 0; i < f->arity; i++)
          find_variables(ARGOF(term, i), list);
    }
@@ -605,7 +605,7 @@ int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_s
    }
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      Functor f = getConstant(FUNCTOROF(term)).data.functor_data;
+      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       if (is_head && depth == 0)
       {
          for (int i = 0; i < f->arity; i++)
@@ -760,7 +760,7 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
       word head = ARGOF(term, 0);
       word body = ARGOF(term, 1);
       if (TAGOF(head) == COMPOUND_TAG)
-         arg_slots = getConstant(FUNCTOROF(head)).data.functor_data->arity;
+         arg_slots = getConstant(FUNCTOROF(head), NULL).functor_data->arity;
       else
          arg_slots = 0;
       int local_cut_slots = get_reserved_slots(body);
@@ -790,7 +790,7 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
    {
       // Fact
       if (TAGOF(term) == COMPOUND_TAG)
-         arg_slots = getConstant(FUNCTOROF(term)).data.functor_data->arity;
+         arg_slots = getConstant(FUNCTOROF(term), NULL).functor_data->arity;
       else
          arg_slots = 0;
       analyze_variables(term, 1, 0, variables, &arg_slots);

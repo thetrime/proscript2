@@ -94,21 +94,21 @@ typedef struct
 
 typedef _float* Float;
 
+typedef union
+{
+   Atom atom_data;
+   long integer_data;
+   Functor functor_data;
+   Float float_data;
+   Blob blob_data;
+   Rational rational_data;
+   BigInteger biginteger_data;
+} cdata;
 
 struct constant
 {
    int type;
-   union
-   {
-      Atom atom_data;
-      Integer integer_data;
-      Functor functor_data;
-      Float float_data;
-      Blob blob_data;
-      Rational rational_data;
-      BigInteger biginteger_data;
-      // ...
-   } data;
+   cdata data;
 };
 typedef struct constant constant;
 typedef constant* Constant;

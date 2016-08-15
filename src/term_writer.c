@@ -97,7 +97,7 @@ int needs_quote(Atom a)
 
 int format_atom(StringBuilder sb, Options* options, word term)
 {
-   Atom a = getConstant(term).data.atom_data;
+   Atom a = getConstant(term, NULL).atom_data;
    if (get_option(options, quotedAtom, falseAtom) == trueAtom)
    {
       if (term == emptyListAtom)
@@ -118,13 +118,13 @@ int format_atom(StringBuilder sb, Options* options, word term)
 Operator get_op(word functor, Options* options)
 {
 //   if (get_option(options, operatorsAtom, hmm
-   Functor f = getConstant(functor).data.functor_data;
+   Functor f = getConstant(functor, NULL).functor_data;
    if (f->arity < 1 || f->arity > 2)
       return NULL;
    Operator op;
-   if (f->arity == 1 && find_operator(getConstant(f->name).data.atom_data->data, &op, Prefix))
+   if (f->arity == 1 && find_operator(getConstant(f->name, NULL).atom_data->data, &op, Prefix))
       return op;
-   else if (f->arity == 2 && find_operator(getConstant(f->name).data.atom_data->data, &op, Infix))
+   else if (f->arity == 2 && find_operator(getConstant(f->name, NULL).atom_data->data, &op, Infix))
       return op;
    else
       return NULL;
@@ -174,18 +174,19 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
    }
    else if (TAGOF(term) == CONSTANT_TAG)
    {
-      constant c = getConstant(term);
+      int type;
+      cdata c = getConstant(term, &type);
       // FIXME: terms specifying their own formatter
-      if (c.type == INTEGER_TYPE)
+      if (type == INTEGER_TYPE)
       {
          char buffer[64];
-         sprintf((char*)buffer, "%ld", c.data.integer_data->data);
+         sprintf((char*)buffer, "%ld", c.integer_data);
          append_string(sb, strdup(buffer), strlen(buffer));
          return 1;
       }
-      if (c.type == BLOB_TYPE)
+      if (type == BLOB_TYPE)
       {
-         Blob b = c.data.blob_data;
+         Blob b = c.blob_data;
          if (b->portray != NULL)
          {
             int len;
@@ -205,32 +206,32 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          append_string(sb, strdup(buffer), strlen(buffer));
          return 1;
       }
-      if (c.type == FLOAT_TYPE)
+      if (type == FLOAT_TYPE)
       {
          char buffer[64];
-         sprintf((char*)buffer, "%f", c.data.float_data->data);
+         sprintf((char*)buffer, "%f", c.float_data->data);
          append_string(sb, strdup(buffer), strlen(buffer));
          return 1;
       }
-      if (c.type == ATOM_TYPE)
+      if (type == ATOM_TYPE)
       {
          return format_atom(sb, options, term);
       }
-      if (c.type == BIGINTEGER_TYPE)
+      if (type == BIGINTEGER_TYPE)
       {
-         char* str = mpz_get_str(NULL, 10, c.data.biginteger_data->data);
+         char* str = mpz_get_str(NULL, 10, c.biginteger_data->data);
          // str will be freed later by finalize_buffer()
          append_string(sb, str, strlen(str));
          return 1;
       }
-      if (c.type == RATIONAL_TYPE)
+      if (type == RATIONAL_TYPE)
       {
          mpz_t num;
          mpz_t den;
          mpz_init(num);
          mpz_init(den);
-         mpq_get_num(num, c.data.rational_data->data);
-         mpq_get_den(den, c.data.rational_data->data);
+         mpq_get_num(num, c.rational_data->data);
+         mpq_get_den(den, c.rational_data->data);
          char* str;
          if (mpz_cmp_ui(den, 1) == 0)
          {
@@ -249,14 +250,14 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          mpz_clear(num);
          return 1;
       }
-      printf("Type: %d from %08" PRIXPTR "\n", c.type, term);
+      printf("Type: %d from %08" PRIXPTR "\n", type, term);
       assert(0 && "Unhandled constant type");
    }
-   else if (get_option(options, numbervarsAtom, falseAtom) == trueAtom && TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == numberedVarFunctor && TAGOF(ARGOF(term,0)) == CONSTANT_TAG && getConstant(ARGOF(term,0)).type == INTEGER_TYPE)
+   else if (get_option(options, numbervarsAtom, falseAtom) == trueAtom && TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == numberedVarFunctor && TAGOF(ARGOF(term,0)) == CONSTANT_TAG && getConstantType(ARGOF(term,0)) == INTEGER_TYPE)
    {
-      constant c = getConstant(ARGOF(term, 0));
-      int i = c.data.integer_data->data % 26;
-      int j = c.data.integer_data->data / 26;
+      long c = getConstant(ARGOF(term, 0), NULL).integer_data;
+      int i = c % 26;
+      int j = c / 26;
       char buffer[64];
       if (j == 0)
       {
@@ -320,7 +321,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       }
       else if (op == NULL || get_option(options, ignoreOpsAtom, falseAtom) == trueAtom)
       {
-         Functor f = getConstant(functor).data.functor_data;
+         Functor f = getConstant(functor, NULL).functor_data;
          format_atom(sb, options, f->name);
          append_string_no_copy(sb, "(", 1);
          for (int i = 0; i < f->arity; i++)
@@ -334,7 +335,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       }
       else if (op != NULL && get_option(options, ignoreOpsAtom, falseAtom) == falseAtom)
       {
-         Functor f = getConstant(functor).data.functor_data;
+         Functor f = getConstant(functor, NULL).functor_data;
          StringBuilder sb1 = stringBuilder();
          if (op->precedence > precedence)
             append_string_no_copy(sb1, "(", 1);

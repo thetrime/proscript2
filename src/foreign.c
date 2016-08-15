@@ -39,44 +39,48 @@ int term_difference(word a, word b)
    }
    if (TAGOF(a) == CONSTANT_TAG)
    {
-      constant ca = getConstant(a);
-      if (ca.type == FLOAT_TYPE)
+      int ta;
+      cdata ca = getConstant(a, &ta);
+      if (ta == FLOAT_TYPE)
       {
          if (TAGOF(b) == VARIABLE_TAG)
             return 1;
          else if (TAGOF(b) == CONSTANT_TAG)
          {
-            constant cb = getConstant(b);
-            if (cb.type == FLOAT_TYPE)
-               return ca.data.float_data->data - cb.data.float_data->data;
+            int tb;
+            cdata cb = getConstant(b, &tb);
+            if (tb == FLOAT_TYPE)
+               return ca.float_data->data - cb.float_data->data;
          }
          return -1;
       }
-      if (ca.type == INTEGER_TYPE)
+      if (ta == INTEGER_TYPE)
       {
          if (TAGOF(b) == VARIABLE_TAG)
             return 1;
          else if (TAGOF(b) == CONSTANT_TAG)
          {
-            constant cb = getConstant(b);
-            if (cb.type == FLOAT_TYPE)
+            int tb;
+            cdata cb = getConstant(b, &tb);
+            if (tb == FLOAT_TYPE)
                return 1;
-            else if (cb.type == INTEGER_TYPE)
-               return ca.data.integer_data->data - cb.data.integer_data->data;
+            else if (tb == INTEGER_TYPE)
+               return ca.integer_data - cb.integer_data;
          }
          return -1;
       }
-      if (ca.type == ATOM_TYPE)
+      if (ta == ATOM_TYPE)
       {
          if (TAGOF(b) == VARIABLE_TAG)
             return 1;
          else if (TAGOF(b) == CONSTANT_TAG)
          {
-            constant cb = getConstant(b);
-            if (cb.type == FLOAT_TYPE || cb.type == INTEGER_TYPE)
+            int tb;
+            cdata cb = getConstant(b, &tb);
+            if (tb == FLOAT_TYPE || tb == INTEGER_TYPE)
                return 1;
-            else if (cb.type == ATOM_TYPE)
-               return atom_difference(ca.data.atom_data, cb.data.atom_data);
+            else if (tb == ATOM_TYPE)
+               return atom_difference(ca.atom_data, cb.atom_data);
          }
          return -1;
       }
@@ -90,12 +94,12 @@ int term_difference(word a, word b)
    {
       if (TAGOF(b) != COMPOUND_TAG)
          return 1;
-      Functor fa = getConstant(FUNCTOROF(a)).data.functor_data;
-      Functor fb = getConstant(FUNCTOROF(b)).data.functor_data;
+      Functor fa = getConstant(FUNCTOROF(a), NULL).functor_data;
+      Functor fb = getConstant(FUNCTOROF(b), NULL).functor_data;
       if (fa->arity != fb->arity)
          return fa->arity - fb->arity;
       if (fa->name != fb->name)
-         return atom_difference(getConstant(fa->name).data.atom_data, getConstant(fb->name).data.atom_data);
+         return atom_difference(getConstant(fa->name, NULL).atom_data, getConstant(fb->name, NULL).atom_data);
       for (int i = 0; i < fa->arity; i++)
       {
          int d = term_difference(ARGOF(a, i), ARGOF(b, i));
@@ -136,7 +140,7 @@ int acyclic_term(word t)
       else if (TAGOF(arg) == COMPOUND_TAG)
       {
          list_append(&visited, arg);
-         Functor f = getConstant(FUNCTOROF(arg)).data.functor_data;
+         Functor f = getConstant(FUNCTOROF(arg), NULL).functor_data;
          for (int i = 0; i < f->arity; i++)
             list_append(&stack, ARGOF(arg, i));
       }
@@ -152,12 +156,13 @@ Stream get_stream(word w)
       return NULL;
    if (TAGOF(w) == CONSTANT_TAG)
    {
-      constant c = getConstant(w);
-      if (c.type == BLOB_TYPE && strcmp(c.data.blob_data->type, "stream") == 0)
+      int type;
+      cdata c = getConstant(w, &type);
+      if (type == BLOB_TYPE && strcmp(c.blob_data->type, "stream") == 0)
       {
-         return c.data.blob_data->ptr;
+         return c.blob_data->ptr;
       }
-      else if (c.type == ATOM_TYPE)
+      else if (type == ATOM_TYPE)
       {
          // Aliases not implemented yet
          SET_EXCEPTION(domain_error(streamOrAliasAtom, w));
