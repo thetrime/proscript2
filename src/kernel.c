@@ -573,6 +573,7 @@ int apply_choicepoint(Choicepoint c)
    PC = c->PC;
    H = c->H;
    Frame f = FR;
+   printf("Applying choicepoint at %p\n", c);
    while (f > c->FR)
    {
       assert(f != f->parent);
@@ -602,6 +603,8 @@ int apply_choicepoint(Choicepoint c)
          printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
       }
       ARGP = ARGS;
+      // Also we must ensure that there is sufficient space for the variables in this clause
+      SP = AFTER_FRAME(FR);
    }
    else
    {
@@ -783,10 +786,9 @@ void create_choicepoint(unsigned char* address, Clause clause, int type)
    c->CP = CP;
    c->H = H;
    CP = c;
-   SP += sizeof(choicepoint)/sizeof(word);
-   //printf("Choicepoint extends from %p until %p\n", c, SP);
    c->type = type;
    c->FR = FR;
+   printf("Saved frame %p to CP %p\n", c->FR, c);
    c->clause = clause;
    c->module = currentModule;
    c->cleanup = NULL;
@@ -802,11 +804,13 @@ void create_choicepoint(unsigned char* address, Clause clause, int type)
       for (int i = 0; i < c->argc; i++)
       {
          printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
-         *(SP++) = ARGS[i];
+         c->args[i] = ARGS[i];
       }
    }
    else
       c->argc = 0;
+   SP = AFTER_CHOICE(c);
+   printf("%p vs %p\n", SP, &c->args[2]);
 }
 
 Choicepoint push_state()
@@ -1249,6 +1253,7 @@ RC execute(int resume)
             SP = AFTER_FRAME(FR);
             FR->choicepoint = CP;
             PC = FR->clause->code;
+            printf("FR: %p\n", FR);
             for (int i = 0; i < getConstant(FR->functor, NULL).functor_data->arity; i++)
             {
                printf("Arg %d: ", i); PORTRAY(ARGS[i]); printf("\n");
@@ -1511,6 +1516,7 @@ RC execute(int resume)
                if (TAGOF(*ARGP) == VARIABLE_TAG)
                {
                   word w = *(ARGP++);
+                  printf("   Value is %08lx\n", w);
                   FR->slots[CODE16(PC+1)] = w;
                   assert(w < (word)FR);
                }
@@ -1547,8 +1553,12 @@ RC execute(int resume)
                ARGP = ARGPOF(t);
                mode = WRITE;
                continue;
-            } else if (backtrack()) // Failed to match
+            }
+            if (backtrack()) // Failed to match
+            {
+               printf("here\n");
                continue;
+            }
             return FAIL;
          }
          case H_POP:
@@ -1615,9 +1625,6 @@ RC execute(int resume)
          {
             // TRY_ME_OR_NEXT_CLAUSE creates a 'Head' choicepoint.
             create_choicepoint(FR->clause->next->code, FR->clause->next, Head);
-            // Then we need to ensure FR is after that
-            FR = (Frame)SP;
-            SP = AFTER_FRAME(FR);
             PC++;
             continue;
          }
@@ -1971,7 +1978,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p (parent %p), CP=%p, SP=%p, ARGP=%p, H=%p, TR=%p, ARGS=%p) %s ", FR, FR->parent, CP, SP, ARGP, H, TR, ARGS, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p (parent %p), CP=%p, SP=%p(%d), ARGP=%p, H=%p(%d), TR=%p(%d), ARGS=%p) %s ", FR, FR->parent, CP, SP, (SP-STACK)/sizeof(word), ARGP, H, (H-HEAP)/sizeof(word), TR, (TR-TRAIL)/sizeof(word), ARGS, instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
