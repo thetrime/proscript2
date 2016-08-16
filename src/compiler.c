@@ -16,6 +16,7 @@ typedef struct
    word variable;
    int fresh;
    int slot;
+   word last_term;
 } var_info_t;
 
 struct instruction_t
@@ -183,12 +184,13 @@ int instruction_count(instruction_list_t* list)
    return list->count;
 }
 
-var_info_t* VarInfo(word variable, int fresh, int slot)
+var_info_t* VarInfo(word variable, int fresh, int slot, int last_term)
 {
    var_info_t* v = malloc(sizeof(var_info_t));
    v->variable = variable;
    v->fresh = fresh;
    v->slot = slot;
+   v->last_term = last_term;
    return v;
 }
 
@@ -202,7 +204,7 @@ int free_varinfo(any_t ignored, word key, any_t value)
 any_t _copy_varinfo(any_t varinfo)
 {
    var_info_t* v = (var_info_t*)varinfo;
-   return VarInfo(v->variable, v->fresh, v->slot);
+   return VarInfo(v->variable, v->fresh, v->slot, v->last_term);
 }
 
 int _make_cvars(any_t cx, word variable, any_t vi)
@@ -232,19 +234,13 @@ int compile_argument(word arg, wmap_t variables, instruction_list_t* instruction
       if (varinfo->fresh)
       {
          varinfo->fresh = 0;
-         if (embedded)
-         {
-            push_instruction(instructions, INSTRUCTION_SLOT(H_FIRSTVAR, varinfo->slot));
-            return 0;
-         }
-         else
-         {
-            push_instruction(instructions, INSTRUCTION(H_VOID));
-            return 1;
-         }
+         varinfo->last_term = 0; // Var is now safe
+         push_instruction(instructions, INSTRUCTION_SLOT(H_FIRSTVAR, varinfo->slot));
+         return 0;
       }
       else
       {
+         varinfo->last_term = 0; // Var is now safe
          push_instruction(instructions, INSTRUCTION_SLOT(H_VAR, varinfo->slot));
          return 0;
       }
@@ -286,7 +282,7 @@ void compile_head(word term, wmap_t variables, instruction_list_t* instructions)
    }
 }
 
-int compile_term_creation(word term, wmap_t variables, instruction_list_t* instructions, int depth)
+int compile_term_creation(word term, wmap_t variables, instruction_list_t* instructions, int depth, word parent)
 {
    int size = 0;
    if (TAGOF(term) == VARIABLE_TAG)
@@ -307,7 +303,13 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
       }
       else
       {
-         size += push_instruction(instructions, INSTRUCTION_SLOT(B_VAR, varinfo->slot));
+         if (parent == varinfo->last_term && parent != 0)
+         {
+            size += push_instruction(instructions, INSTRUCTION_SLOT(B_UNSAFEVAR, varinfo->slot));
+            varinfo->last_term = 0; // Var is now safe
+         }
+         else
+            size += push_instruction(instructions, INSTRUCTION_SLOT(B_VAR, varinfo->slot));
       }
    }
    else if (TAGOF(term) == COMPOUND_TAG)
@@ -315,7 +317,7 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
       size += push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
       Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       for (int i = 0; i < f->arity; i++)
-         size += compile_term_creation(ARGOF(term, i), variables, instructions, depth+1);
+         size += compile_term_creation(ARGOF(term, i), variables, instructions, depth+1, term);
       size += push_instruction(instructions, INSTRUCTION(B_POP));
    }
    else if (TAGOF(term) == CONSTANT_TAG)
@@ -337,7 +339,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
    int size = 0;
    if (TAGOF(term) == VARIABLE_TAG)
    {
-      size += compile_term_creation(term, variables, instructions, 0);
+      size += compile_term_creation(term, variables, instructions, 0, 0); // FIXME: Is the parent of a usercall really 0?
       size += push_instruction(instructions, INSTRUCTION(I_USERCALL));
       if (is_tail)
          size += push_instruction(instructions, INSTRUCTION(I_EXIT));
@@ -517,7 +519,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else if (FUNCTOROF(term) == throwFunctor)
       {
-         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0);
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0);
          size += push_instruction(instructions, INSTRUCTION(B_THROW));
       }
       else if (FUNCTOROF(term) == crossModuleCallFunctor)
@@ -530,8 +532,8 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else if (FUNCTOROF(term) == cleanupChoicepointFunctor)
       {
-         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0);
-         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0);
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0);
+         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0, 0);
          size += push_instruction(instructions, INSTRUCTION(B_CLEANUP_CHOICEPOINT));
       }
       else if (FUNCTOROF(term) == localCutFunctor)
@@ -550,8 +552,8 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else if (FUNCTOROF(term) == unifyFunctor)
       {
-         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0);
-         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0);
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0);
+         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0, 0);
          size += push_instruction(instructions, INSTRUCTION(I_UNIFY));
          if (is_tail)
             size += push_instruction(instructions, INSTRUCTION(I_EXIT));
@@ -560,7 +562,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       {
          Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
          for (int i = 0; i < f->arity; i++)
-            size += compile_term_creation(ARGOF(term, i), variables, instructions, 0);
+            size += compile_term_creation(ARGOF(term, i), variables, instructions, 0, term);
          size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, FUNCTOROF(term)));
       }
    }
@@ -589,7 +591,7 @@ void find_variables(word term, List* list)
 }
 
 
-int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_slot)
+int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_slot, word parent)
 {
    int rc = 0;
    if (TAGOF(term) == VARIABLE_TAG)
@@ -597,37 +599,22 @@ int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_s
       var_info_t* varinfo;
       if (whashmap_get(map, term, (any_t)&varinfo) == MAP_MISSING)
       {
-         //printf("Allocating slot %d to variable\n", *next_slot);
-         varinfo = VarInfo(term, 1, (*next_slot)++);
+         //printf("Allocating slot %d to variable ", *next_slot); PORTRAY(term); printf(" last_term is %08lx): \n", is_head?0:term); PORTRAY(parent); printf("\n");
+         varinfo = VarInfo(term, 1, (*next_slot)++, is_head?0:parent);
          whashmap_put(map, term, varinfo);
          rc++;
+      }
+      else if (!is_head && varinfo->last_term != 0)
+      {
+         //printf("Updated slot %d to have last_term of %08lx: ", varinfo->slot, term); PORTRAY(parent); printf("\n");
+         varinfo->last_term = parent;
       }
    }
    else if (TAGOF(term) == COMPOUND_TAG)
    {
       Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
-      if (is_head && depth == 0)
-      {
-         for (int i = 0; i < f->arity; i++)
-         {
-            if (TAGOF(ARGOF(term, i)) == VARIABLE_TAG)
-            {
-               var_info_t* varinfo;
-               if (whashmap_get(map, ARGOF(term, i), (any_t)&varinfo) == MAP_MISSING)
-               {
-                  varinfo = VarInfo(ARGOF(term, i), 1, i);
-                  whashmap_put(map, ARGOF(term,i), varinfo);
-               }
-            }
-            else
-               rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot);
-         }
-      }
-      else
-      {
-         for (int i = 0; i < f->arity; i++)
-               rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot);
-      }
+      for (int i = 0; i < f->arity; i++)
+         rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot, term);
    }
    return rc;
 }
@@ -760,14 +747,14 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
       word head = ARGOF(term, 0);
       word body = ARGOF(term, 1);
       if (TAGOF(head) == COMPOUND_TAG)
-         arg_slots = getConstant(FUNCTOROF(head), NULL).functor_data->arity;
+         arg_slots = 0; // getConstant(FUNCTOROF(head), NULL).functor_data->arity;
       else
          arg_slots = 0;
       int local_cut_slots = get_reserved_slots(body);
       int next_slot = arg_slots;
-      analyze_variables(head, 1, 0, variables, &next_slot);
-      analyze_variables(body, 0, 1, variables, &next_slot);
-      *slot_count = next_slot + local_cut_slots;
+      analyze_variables(head, 1, 0, variables, &next_slot, 0);
+      analyze_variables(body, 0, 1, variables, &next_slot, 0);
+      *slot_count = whashmap_length(variables) + local_cut_slots;
       compile_head(head, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_ENTER));
       int next_reserved = next_slot;
@@ -790,10 +777,10 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
    {
       // Fact
       if (TAGOF(term) == COMPOUND_TAG)
-         arg_slots = getConstant(FUNCTOROF(term), NULL).functor_data->arity;
+         arg_slots = 0; //getConstant(FUNCTOROF(term), NULL).functor_data->arity;
       else
          arg_slots = 0;
-      analyze_variables(term, 1, 0, variables, &arg_slots);
+      analyze_variables(term, 1, 0, variables, &arg_slots, 0);
       *slot_count = arg_slots;
       compile_head(term, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_EXIT_FACT));
@@ -865,7 +852,7 @@ Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
    Clause clause = assemble(&instructions);
    clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
-   //PORTRAY(term); printf(" compiles to this:\n"); print_clause(clause);
+   //PORTRAY(term); printf(" compiles to this:\n"); print_clause(clause); printf("--- end of compiled code\n");
    return clause;
 }
 

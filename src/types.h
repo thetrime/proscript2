@@ -134,6 +134,8 @@ struct choicepoint
    Clause clause;
    Module module;
    struct frame* cleanup;
+   int argc;
+   word args[0];
 };
 typedef struct choicepoint choicepoint;
 typedef choicepoint* Choicepoint;

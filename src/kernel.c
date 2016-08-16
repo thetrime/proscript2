@@ -48,9 +48,9 @@ uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
 
-#define HEAP_SIZE 655350
-#define TRAIL_SIZE 655350
-#define STACK_SIZE 655350
+#define HEAP_SIZE 65535
+#define TRAIL_SIZE 65535
+#define STACK_SIZE 65535
 #define ARG_STACK_SIZE 256
 
 word TRAIL[TRAIL_SIZE];
@@ -65,6 +65,8 @@ word* SP = &STACK[0];
 uintptr_t argStack[ARG_STACK_SIZE];
 uintptr_t* argStackP = &argStack[0];
 uintptr_t* argStackTop = &argStack[ARG_STACK_SIZE];
+word ARGS[512];
+word* ATOP = &ARGS[512];
 
 ExecutionCallback current_yield_ptr = NULL;
 Frame FR, NFR;
@@ -389,7 +391,12 @@ void PORTRAY(word w)
 {
    w = DEREF(w);
    if (TAGOF(w) == VARIABLE_TAG)
-      printf("_G%" PRIuPTR, (w - (word)HEAP));
+   {
+      if (w > (word)STACK)
+         printf("_L%" PRIuPTR, (w - (word)STACK));
+      else
+         printf("_G%" PRIuPTR, (w - (word)HEAP));
+   }
    else if (TAGOF(w) == CONSTANT_TAG)
    {
       int type;
@@ -513,6 +520,7 @@ int cut_to(Choicepoint point)
          {
             if (f->is_local)
             {
+               printf("Freeing clause from %p\n", f);
                free_clause(f->clause);
             }
             f = f->parent;
@@ -536,7 +544,7 @@ int cut_to(Choicepoint point)
       }
    }
 
-   word* CPS = (word*)CP + sizeof(choicepoint)/sizeof(word);
+   word* CPS = (word*)CP + sizeof(choicepoint)/sizeof(word) + (CP != NULL?CP->argc : 0);
    word* FRS = (word*)FR + FR->clause->slot_count + sizeof(frame) / sizeof(word);
    if (CPS > FRS)
    {
@@ -548,7 +556,7 @@ int cut_to(Choicepoint point)
       //printf("Moving SP from %p down to the top of the current frame: %p\n", SP, FRS);
       SP = FRS;
       NFR = (Frame)SP;
-      ARGP = NFR->slots;
+      ARGP = ARGS;
    }
    // We can now set SP to the maximum of:
    //    CP + sizeof(choicepoint)
@@ -567,8 +575,11 @@ int apply_choicepoint(Choicepoint c)
    Frame f = FR;
    while (f > c->FR)
    {
+      assert(f != f->parent);
+      //printf("Freeing clause\n");
       if (f->is_local)
       {
+         printf("Freeing clause from %p\n", f);
          free_clause(f->clause);
          f->is_local = 0;
       }
@@ -577,19 +588,26 @@ int apply_choicepoint(Choicepoint c)
    FR = c->FR;
    NFR = c->NFR;
    SP = c->SP;
+   //printf("Restored SP to %p\n", SP);
    CP = c->CP;
    TR = c->TR;
    FR->clause = c->clause;
    currentModule = c->module;
    if (c->type == Head)
    {
-      //printf("Applying head choice. ARGP is set to %p\n", FR->slots);
       mode = READ;
-      ARGP = FR->slots;
+      // And we must now copy all the args back off the choicepoint
+      printf("Restoring %d args\n", c->argc);
+      for (int i = 0; i < c->argc; i++)
+      {
+         ARGS[i] = c->args[i];
+         printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
+      }
+      ARGP = ARGS;
    }
    else
    {
-      ARGP = NFR->slots;
+      ARGP = ARGS;
    }
    // We can start the arg stack again if we are trying again
    argStackP = &argStack[0];
@@ -599,16 +617,18 @@ int apply_choicepoint(Choicepoint c)
 
 int backtrack()
 {
-   //printf("Backtracking: %p\n", CP);
+   //printf("Backtracking...\n");
    word* oldTR = TR;
    while(1)
    {
+      //printf("Backtracking %p\n", CP);
       if (CP == NULL)
       {
          return 0;
       }
       if (!apply_choicepoint(CP))
          continue;
+      //printf("unwinding %p\n", oldTR);
       unwind_trail(oldTR);
       return 1;
    }
@@ -757,7 +777,7 @@ word copy_local(word t, word** local)
    return copy_local_with_extra_space(t, local, 0);
 }
 
-void CreateChoicepoint(unsigned char* address, Clause clause, int type)
+void create_choicepoint(unsigned char* address, Clause clause, int type)
 {
    //printf("Creating a choicepoint at %p with frame %p and continuation address %p\n", SP, FR, address);
    Choicepoint c = (Choicepoint)SP;
@@ -776,12 +796,25 @@ void CreateChoicepoint(unsigned char* address, Clause clause, int type)
    c->functor = FR->functor;
    c->TR = TR;
    c->PC = address;
+   if (type == Head)
+   {
+      // We must also copy all the arguments into the choicepoint here
+      c->argc = getConstant(FR->functor, NULL).functor_data->arity;
+      printf("Saving %d args on the choicepoint\n", c->argc);
+      for (int i = 0; i < c->argc; i++)
+      {
+         printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
+         *(SP++) = ARGS[i];
+      }
+   }
+   else
+      c->argc = 0;
 }
 
 Choicepoint push_state()
 {
    //printf("Pushing state. CP is %p, PC is %p, FR is %p, and frame locality is %d, ", CP, PC, FR, FR->is_local);
-   CreateChoicepoint(PC, FR->clause, Body);
+   create_choicepoint(PC, FR->clause, Body);
    assert(FR->is_local >= 0 && FR->is_local <= 1);
    Choicepoint state = CP;
    //printf("you can get back here by restoring %p\n", state);
@@ -816,7 +849,7 @@ Clause get_predicate_code(Predicate p)
 
 // prepare_frame fills in all the fields of the frame that make sense.
 // You must still fill in returnPC, and in the case of I_DEPART, parent
-int prepare_frame(word functor, Module optionalContext, Frame frame)
+int prepare_frame(word functor, Module optionalContext, Frame frame, Frame parent)
 {
    Module module = (optionalContext != NULL)?optionalContext:currentModule;
    Predicate p = lookup_predicate(module, functor);
@@ -868,7 +901,9 @@ int prepare_frame(word functor, Module optionalContext, Frame frame)
       }
    }
    frame->is_local = 0;
-   frame->parent = FR;
+   assert(frame != parent);
+   frame->parent = parent;
+   printf("    parent of frame is %p\n", parent);
    if (FR != NULL)
       frame->depth = FR->depth+1;
    else
@@ -883,6 +918,7 @@ Frame allocFrame()
    Frame f = (Frame)SP;
    SP += sizeof(frame)/sizeof(word);
    //printf("frame extends until %p\n", SP);
+   assert(f != FR);
    f->parent = FR;
    if (FR != NULL)
       f->depth = FR->depth+1;
@@ -919,27 +955,34 @@ RC execute(int resume)
    while (!halted)
    {
       //print_choices();
-      if (debugging)
+//      if (debugging)
          print_instruction();
+         if (qqqx != NULL)
+         {
+            printf("qqqx: %p: ", qqqx); PORTRAY(*qqqx); printf("\n");
+         }
+
       switch(*PC)
       {
          case I_FAIL:
+            // Simple enough - fail
             if (backtrack())
                continue;
             return FAIL;
          case I_ENTER:
-            // Note that at I_ENTER, ARGP is already pointing the last argument we matched in the head. We must check there is enough space for the variables in the frame
-            // There are two cases: The stack contains a choicepoint above ARGP, or it doesnt. If it does, then SP will have been adjusted already and we must leave it alone
+            // I_ENTER happens after we have finished matching the head. At this point, we must push SP up to fence in the variables in the frame so that any new
+            // frames or choicepoints will not scribble on the variables.
             if ((uintptr_t)CP < (uintptr_t)FR)
             {
                // The top of the stack needs to be protected before we can allocate the frame
-               //printf("Protecting frame by moving SP from %p to %p (%d slots)\n", SP, ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word), FR->clause->slot_count);
+               printf("Protecting frame by moving SP from %p to %p (%d slots)\n", SP, ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word), FR->clause->slot_count);
                SP = ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word);
             }
-            NFR = (Frame)SP;
-            //printf("Allocated a frame for the body to populate: %p (with parent %p). However, SP is being left at %p\n", NFR, FR, SP);
-            ARGP = NFR->slots;
-            //printf("FR->returnPC = %p\n", FR->returnPC);
+            ARGP = ARGS;
+            if (FR->functor == MAKE_FUNCTOR(MAKE_ATOM("list_instances"), 2))
+            {
+               printf("Slot 1 holds %08lx\n", FR->slots[1]);
+            }
             PC++;
             continue;
          case I_EXIT_QUERY:
@@ -962,8 +1005,8 @@ RC execute(int resume)
             {
                case 0: rc = ((int (*)())((word)(CODEPTR(PC+1))))(); break;
                case 1: rc = ((int (*)(word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP)); break;
-               case 2: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(DEREF(DEREF(*ARGP)), DEREF(*(ARGP+1))); break;
-               case 3: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(DEREF(DEREF(*ARGP)), DEREF(*(ARGP+1)), DEREF(*(ARGP+2))); break;
+               case 2: rc = ((int (*)(word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1))); break;
+               case 3: rc = ((int (*)(word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2))); break;
                case 4: rc = ((int (*)(word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3))); break;
                case 5: rc = ((int (*)(word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4))); break;
                case 6: rc = ((int (*)(word,word,word,word,word,word))((word)(CODEPTR(PC+1))))(DEREF(*ARGP), DEREF(*(ARGP+1)), DEREF(*(ARGP+2)), DEREF(*(ARGP+3)), DEREF(*(ARGP+4)), DEREF(*(ARGP+5))); break;
@@ -979,14 +1022,14 @@ RC execute(int resume)
                goto b_throw_foreign;
             if (rc == FAIL)
             {
-               //printf("Foreign Fail\n");
+               printf("Foreign Fail\n");
                if (backtrack())
                   continue;
                return FAIL;
             }
             else if (rc == SUCCESS)
             {
-               //printf("Foreign Success!\n");
+               printf("Foreign Success!\n");
                goto i_exit;
             }
             else if (rc == YIELD)
@@ -998,7 +1041,7 @@ RC execute(int resume)
          }
          case I_FOREIGN_NONDET:
          case I_FOREIGN_JS:
-            //printf("Setting slot %d to NULL\n", CODE16(PC+1+sizeof(word)));
+            printf("Setting slot at %p to NULL\n", &FR->slots[CODE16(PC+1+sizeof(word))]);
             FR->slots[CODE16(PC+1+sizeof(word))] = (word)0;
             // We have to move PC forward since the retry step will rewind it
             PC += (3+sizeof(word));
@@ -1006,6 +1049,16 @@ RC execute(int resume)
          case I_FOREIGN_JS_RETRY:
          case I_FOREIGN_RETRY:
          {
+            if (qqqx != NULL)
+            {
+               printf("Before foreign qqqx: %p: ", qqqx); PORTRAY(*qqqx); printf("\n");
+               printf("%p -> %p\n", *qqqx, *((word*)*qqqx));
+               printf("ARGP: %p (args=%p)\n", ARGP, ARGS);
+               printf("*(ARGP+0): "); PORTRAY(*ARGP); printf("\n");
+               printf("*(ARGP+1): "); PORTRAY(*(ARGP+1)); printf("\n");
+               printf("*(ARGP+2): "); PORTRAY(*(ARGP+2)); printf("\n");
+            }
+
             RC rc = FAIL;
             Functor f = getConstant(FR->functor, NULL).functor_data;
             ExecutionCallback yp = current_yield_ptr; // We must save this in case the foreign predicate trashes it
@@ -1043,6 +1096,11 @@ RC execute(int resume)
 #else
                rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
 #endif
+            }
+            if (qqqx != NULL)
+            {
+               printf("After foreign qqqx: %p: ", qqqx); PORTRAY(*qqqx); printf("\n");
+               printf("%p -> %p\n", *qqqx, *((word*)*qqqx));
             }
             current_yield_ptr = yp;
             if (current_exception != 0)
@@ -1085,13 +1143,14 @@ RC execute(int resume)
             {
                //printf("Choicepoint at %p\n", CP);
                // There is a choicepoint newer than this frame. This limits how far we can wind SP back
-               SP = (word*)CP + sizeof(choicepoint)/sizeof(word);
+               SP = (word*)CP + sizeof(choicepoint)/sizeof(word) + CP->argc;
             }
             //printf("   Wound SP back to %p\n", SP);
             PC = FR->returnPC;
             if (FR->is_local && (word)FR > (word)CP)
             {
                // Free the clause if it was generated specifically for this frame and we cannot possibly backtrack into it
+               printf("Freeing clause from %p\n", FR);
                free_clause(FR->clause);
             }
             FR = FR->parent;
@@ -1099,40 +1158,44 @@ RC execute(int resume)
             //printf("FR is now %p\n", FR);
             //NFR = SP;
             //printf("Set NFR to %p, but leaving SP at %p\n", NFR, SP);
-            ARGP = NFR->slots;
+            ARGP = ARGS;
             continue;
          }
          case I_DEPART:
          {
             word functor = FR->clause->constants[CODE16(PC+1)];
-            if (!prepare_frame(functor, FR->contextModule, NFR))
-               goto b_throw_foreign;
-            NFR->returnPC = FR->returnPC;
-            //printf("Setting parent of frame %p to be %p\n", NFR, FR->parent);
-            NFR->parent = FR->parent;
-            ARGP = NFR->slots;
+            // We need to save some things which are about to be clobbered
+            unsigned char* returnPC = FR->returnPC;
+            Frame parent = FR->parent;
+            assert(parent != FR);
+            Module contextModule = FR->contextModule;
             if (FR->is_local && (word)FR > (word)CP)
             {
                // Free the clause if it was generated specifically for this frame and we cannot possibly backtrack into it
+               printf("Freeing clause from %p\n", FR);
                free_clause(FR->clause);
             }
+
+            // From this point on, the old frame is going to be scribbled all over. Do not try to use it!
+            NFR = (Frame)FR;
+            if (!prepare_frame(functor, contextModule, NFR, parent))
+               goto b_throw_foreign;
+            NFR->returnPC = returnPC;
+            ARGP = ARGS;
             FR = NFR;
-            if ((uintptr_t)CP < (uintptr_t)FR)
-            {
-               SP = ARGP + FR->clause->slot_count;
-               //printf("Fencing in arguments by moving SP to %p (%d slots)\n", SP, FR->clause->slot_count);
-            }
+            // FR is now the new frame. Set up the variables as needed
             FR->choicepoint = CP;
-            // Deallocate the frame entirely by moving SP back down, provided there are no choicepoints in the way
-            //if (CP < FR)
-            //   SP = FR;
             PC = FR->clause->code;
+            for (int i = 0; i < getConstant(FR->functor, NULL).functor_data->arity; i++)
+            {
+               printf("Arg %d: %08lx = ", i, ARGS[i]); PORTRAY(ARGS[i]); printf("\n");
+            }
             continue;
          }
          case B_CLEANUP_CHOICEPOINT:
          {
             // This just leaves a fake choicepoint (one you cannot backtrack onto) with a .cleanup value set to the cleanup handler
-            CreateChoicepoint(NULL, FR->clause, Body);
+            create_choicepoint(NULL, FR->clause, Body);
             CP->cleanup = FR;
             //CP->cleanup->cleanup = *(ARGP-1);
             //CP->cleanup->catcher = *(ARGP-2);
@@ -1140,6 +1203,7 @@ RC execute(int resume)
             continue;
          }
          case B_THROW:
+            printf("Setting exception from: "); PORTRAY(*(ARGP-1)); printf("\n");
             SET_EXCEPTION(*(ARGP-1));
             // fall-through
          case B_THROW_FOREIGN:
@@ -1214,29 +1278,44 @@ RC execute(int resume)
             continue;
          case I_CALL:
          {
+            NFR = (Frame)SP;
             word functor = FR->clause->constants[CODE16(PC+1)];
             //printf("Frame at %p has functor ", NFR); PORTRAY(functor); printf("\n");
             assert((word*)NFR < STOP);
-            if (!prepare_frame(functor, FR->contextModule, NFR))
+            if (!prepare_frame(functor, FR->contextModule, NFR, FR))
             {
                goto b_throw_foreign;
             }
+
+            if (FR->functor == MAKE_FUNCTOR(MAKE_ATOM("list_instances"), 2))
+            {
+               //printf("Slot 1 (at %p) holds %08lx: ", &FR->slots[1], FR->slots[1]);
+               //qqqx = &FR->slots[1];
+               //PORTRAY(*qqqx); printf("\n");
+            }
+
             NFR->returnPC = PC+3;
-            ARGP = NFR->slots;
+            ARGP = ARGS;
             FR = NFR;
             if ((uintptr_t)CP < (uintptr_t)FR)
             {
-               SP = ARGP + FR->clause->slot_count;
+               SP = (word)(FR + 1) + FR->clause->slot_count * sizeof(word);
                //printf("Fencing in arguments by moving SP to %p (%d slots)\n", SP, FR->clause->slot_count);
             }
             //printf("Parent is %p\n", FR->parent);
             FR->choicepoint = CP;
             PC = FR->clause->code;
+            for (int i = 0; i < getConstant(FR->functor, NULL).functor_data->arity; i++)
+            {
+               printf("Arg %d: ", i); PORTRAY(ARGS[i]); printf("\n");
+            }
+
+
             continue;
          }
          case I_CATCH:
          {
-            CreateChoicepoint(0, FR->clause, Head);
+            create_choicepoint(0, FR->clause, Head);
             FR->choicepoint = CP;
             //printf("FR is %p, parent is %p\n", FR, FR->parent);
             FR->slots[CODE16(PC+1)] = (word)CP;
@@ -1261,18 +1340,21 @@ RC execute(int resume)
                goto b_throw_foreign;
             //PORTRAY(goal); printf(" compiles to\n");
             //print_clause(query->clause);
+            NFR = (Frame)SP;
+            assert(NFR != FR);
             NFR->parent = FR;
+            printf("    parent of usercall frame is %p\n", FR);
             //printf("Functor of usercall frame %p is set to <meta-call>/1\n", NFR);
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
             NFR->clause = query->clause;
             NFR->is_local = 1;
             NFR->returnPC = PC+1;
             NFR->choicepoint = CP;
-            ARGP = NFR->slots;
+            ARGP = ARGS;
             for (int i = 0; i < query->variable_count; i++)
             {
                //printf("Populating meta-call arg %d at location %p\n", i, &NFR->slots[i]);
-               NFR->slots[i] = query->variables[i];
+               ARGS[i] = query->variables[i];
             }
             FR = NFR;
             if ((uintptr_t)CP < (uintptr_t)FR)
@@ -1296,6 +1378,11 @@ RC execute(int resume)
             //printf("Done\n");
             FR->choicepoint = CP;
             PC++;
+            if (FR->functor == MAKE_FUNCTOR(MAKE_ATOM("list_instances"), 2))
+            {
+               printf("Slot 1 holds %08lx: ", FR->slots[1]);
+               PORTRAY(FR->slots[1]); printf("\n");
+            }
             continue;
          }
          case C_CUT:
@@ -1350,9 +1437,9 @@ RC execute(int resume)
             //printf("Creating a choicepoint at %p with a continuation of %p \n", SP, address);
             //printf("Opcode at %p -> %d\n", address, *address);
             //printf("FR->clause; %p\n",FR->clause);
-            CreateChoicepoint(address, FR->clause, Body);
+            create_choicepoint(address, FR->clause, Body);
             NFR = (Frame)(SP + sizeof(frame)/sizeof(word));
-            ARGP = NFR->slots;
+            ARGP = ARGS;
             PC+=3 + sizeof(word);
             continue;
          }
@@ -1367,7 +1454,7 @@ RC execute(int resume)
                //printf("Unified\n");
                continue;
             }
-            //printf("Failed to unify\n");
+            printf("Failed to unify "); PORTRAY(t1); printf(" and "); PORTRAY(t2); printf("\n");
             if (backtrack())
             {
                continue;
@@ -1375,11 +1462,12 @@ RC execute(int resume)
             return FAIL;
          }
          case B_FIRSTVAR:
-            //printf("Making var in slot %d: At %p\n", CODE16(PC+1), &FR->slots[CODE16(PC+1)]);
-            FR->slots[CODE16(PC+1)] = MAKE_VAR();
-            //printf("Writing var %8lx to %p (heap is %p to %p, stack is %p to %p)\n", FR->slots[CODE16(PC+1)], ARGP, HEAP, HTOP, STACK, STOP);
-            assert(ARGP > STACK && ARGP < STOP);
-            *(ARGP++) = (word)(&FR->slots[CODE16(PC+1)]);
+            // This is a variable which we have not seen before (ie was not present in the head) and is being used now for the first time
+            // We can make a local variable on the frame, since if this were unsafe we would have instead gotten B_UNSAFEVAR
+            FR->slots[CODE16(PC+1)] = (word)&FR->slots[CODE16(PC+1)];
+            printf("Made a local variable in slot %d at %p\n", CODE16(PC+1), &FR->slots[CODE16(PC+1)]);
+            printf("Writing this to ARGP: %p\n", ARGP);
+            *(ARGP++) = FR->slots[CODE16(PC+1)];
             PC+=3;
             continue;
          case B_ARGFIRSTVAR:
@@ -1393,11 +1481,11 @@ RC execute(int resume)
          {
             unsigned int slot = CODE16(PC+1);
             word arg = DEREF(FR->slots[slot]);
+            //printf("   value is %08lx = ",FR->slots[slot]); PORTRAY(arg); printf("\n");
             if (TAGOF(arg) == VARIABLE_TAG)
             {
                *ARGP = MAKE_VAR();
-               // FIXME: Maybe this should be the other way around?
-               _bind(*(ARGP++), arg);
+               _bind(arg, *(ARGP++));
             }
             else
                *(ARGP++) = arg;
@@ -1407,38 +1495,47 @@ RC execute(int resume)
          case B_VAR:
          {
             unsigned int slot = CODE16(PC+1);
-            //printf("Copying var from slot %d at %p\n", slot, &FR->slots[slot]);
-            //printf("Writing this at %p\n", ARGP);
             if (FR->slots[slot] == 0)
+               assert(0 && "... suspicious! There is nothing in the arg slot");
+            word w = DEREF(FR->slots[slot]);
+            printf("Writing %08lx = ", w); PORTRAY(w); printf(" to %p\n", ARGP);
+            if (TAGOF(w) == VARIABLE_TAG)
+               *(ARGP++) = w; //(word)&FR->slots[slot];
+            else
+               *(ARGP++) = w;
+            PC+=3;
+            continue;
+         }
+         case B_UNSAFEVAR:
+         {
+            unsigned int slot = CODE16(PC+1);
+            word w = DEREF(FR->slots[slot]);
+            if (TAGOF(w) == VARIABLE_TAG)
             {
-               printf("... suspicious! There is nothing in the arg slot at %p\n", &FR->slots[slot]);
-               printf("Writing to %p\n", &FR->slots[slot]);
-               assert(0);
+               // If the variable is not bound yet, and is on the stack, then we have run out of time and must instead allocate a variable
+               // on the heap. The reason for this is that the frame is about to be discarded, and if we put instead a reference to the frame slot
+               // then the next instruction that tries to read it will get an undefined value
                FR->slots[slot] = MAKE_VAR();
+               w = FR->slots[slot];
             }
-            //printf("Writing linked variable to %p\n", ARGP);
-            //printf("NFR is %p\n", NFR);
-            //printf("Variable should deref to %08lx (%08lx)\n which is:", FR->slots[slot], XDEREF(FR->slots[slot]));
-            //PORTRAY(FR->slots[slot]); printf("\n");
-            word w = (word)(&FR->slots[slot]);
-            //printf("But actual value is %08lx\n", w);
+            if (FR->functor == MAKE_FUNCTOR(MAKE_ATOM("list_instances"), 2))
+            {
+               printf("After that, Slot 1 (%p) holds %08lx: ", &FR->slots[1], FR->slots[1]);
+               PORTRAY(FR->slots[1]); printf("\n");
+            }
 
-            // We had better be writing on the stack here or else we will be leaving a pointer to the (transient) stack on the (permanent) heap!
-            assert(ARGP > STACK && ARGP < STOP);
-            //PORTRAY(w);
-            //printf("\n");
-            //XDEREF(w);
+
             *(ARGP++) = w;
             PC+=3;
             continue;
          }
+
          case B_POP:
             ARGP = (word*)*(--argStackP);
             //printf("ARGP is now to %p\n", ARGP);
             PC++;
             continue;
          case B_ATOM:
-            //printf("Writing atom to %p\n", ARGP);
             *(ARGP++) = FR->clause->constants[CODE16(PC+1)];
             PC+=3;
             continue;
@@ -1449,7 +1546,6 @@ RC execute(int resume)
          case B_FUNCTOR:
          {
             word t = MAKE_COMPOUND(FR->clause->constants[CODE16(PC+1)]);
-            //printf("NFR->parent: %p\n", NFR->parent);
             *(ARGP++) = t;
             assert(argStackP < argStackTop);
             *(argStackP++) = (uintptr_t)ARGP;
@@ -1466,6 +1562,7 @@ RC execute(int resume)
             // For example the first X in foo(a(X),X)
             if (mode == WRITE)
             {
+               //printf("Write mode. Created a new var\n");
                // We are writing, so first make ARGP (which will be one of the args of the term we are constructing on the heap) into a fresh var
                *ARGP = MAKE_VAR();
                // Then make a our frame variable a pointer to that var so we link them together
@@ -1477,9 +1574,18 @@ RC execute(int resume)
                // We are reading (ie matching), so ARGP may point to either a variable, in which case we just make a pointer to it in our frame
                // or else something non-var, in which case we can just copy it into the frame
                if (TAGOF(*ARGP) == VARIABLE_TAG)
-                  FR->slots[CODE16(PC+1)] = (word)ARGP++;
+               {
+                  printf("Read mode. Populating slot %d (%p) with the variable %08lx (", CODE16(PC+1), &FR->slots[CODE16(PC+1)], *ARGP); PORTRAY(*ARGP); printf(")\n");
+                  word w = *(ARGP++);
+                  FR->slots[CODE16(PC+1)] = w;
+                  assert(w < (word)FR);
+                  printf("Slot %d is %08lx and is at %p\n", CODE16(PC+1), FR->slots[CODE16(PC+1)], &FR->slots[CODE16(PC+1)]);
+               }
                else
+               {
+                  printf("Read mode. Populating slot %d with the value %08lx = ", CODE16(PC+1), *ARGP); PORTRAY(*ARGP); printf("\n");
                   FR->slots[CODE16(PC+1)] = *(ARGP++);
+               }
             }
             PC+=3;
             continue;
@@ -1535,13 +1641,16 @@ RC execute(int resume)
                _bind(arg, atom);
                continue;
             }
-            else if (backtrack())
+            else
+            {
+               if (backtrack())
                continue;
+            }
             return FAIL;
          }
          case H_VOID:
-            //printf("Frame is %p, parent is %p, SP is %p ignoring arg at %p, with value %08lx\n which is ", FR, FR->parent, SP, ARGP, *ARGP);
-            //PORTRAY(*ARGP); printf("\n");
+            assert(0 && "This should never be executed since the LCO change");
+            FR->slots[CODE16(PC+1)] = (word)ARGP;
             ARGP++;
             PC++;
             continue;
@@ -1558,25 +1667,25 @@ RC execute(int resume)
             PC += CODEPTR(PC+1);
             continue;
          case C_OR:
-            CreateChoicepoint(PC+CODEPTR(PC+1), FR->clause, Body);
+            create_choicepoint(PC+CODEPTR(PC+1), FR->clause, Body);
             NFR = (Frame)(SP + sizeof(frame)/sizeof(word));
-            ARGP = NFR->slots;
+            ARGP = ARGS;
             PC += 1 + sizeof(word);
             continue;
          case TRY_ME_OR_NEXT_CLAUSE:
          {
-//            SP += FR->clause->slot_count;
-            //printf("Creating a choicepoint at %p\n", SP);
-            //printf("ReturnPC was %p\n", FR->returnPC);
+            word* oldSP = SP;
             // We must ensure that this clause has enough space
             if (SP < ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word))
             {
                // FIXME: We could also shrink the space here if needed. In fact, is there any reason we cannot just ALWAYS set SP to this?
                //printf("Not enough space for this clause: We have %p but require %p bytes. Enlarging....\n", (char*)SP - (char*)FR, sizeof(word)*FR->clause->slot_count + sizeof(frame));
                SP = ((word*)FR) + FR->clause->slot_count + sizeof(frame) / sizeof(word);
+               //printf("This frame needs %d slots\n", FR->clause->slot_count);
                //printf("Bumping up SP to ensure this frame has enough space: Moving to %p\n", SP);
             }
-            CreateChoicepoint(FR->clause->next->code, FR->clause->next, Head);
+            create_choicepoint(FR->clause->next->code, FR->clause->next, Head);
+            CP->SP = oldSP;
             //printf("ReturnPC is now %p\n", FR->returnPC);
             //printf("Done\n");
             PC++;
@@ -1588,9 +1697,10 @@ RC execute(int resume)
          case S_QUALIFY:
          {
             unsigned int slot = CODE16(PC+1);
-            word value = DEREF(FR->slots[slot]);
+            word value = DEREF(ARGS[slot]);
             if (!(TAGOF(value) == COMPOUND_TAG && FUNCTOROF(value) == crossModuleCallFunctor))
-               FR->slots[slot] = MAKE_VCOMPOUND(crossModuleCallFunctor, FR->parent->contextModule->name, value);
+               ARGS[slot] = MAKE_VCOMPOUND(crossModuleCallFunctor, FR->parent->contextModule->name, value);
+            printf("Arg %d is now ", slot); PORTRAY(ARGS[slot]); printf("\n");
             PC+=3;
             continue;
          }
@@ -1683,7 +1793,7 @@ RC prepare_query(word goal)
    NFR->choicepoint = CP;
 
    FR = NFR;
-   ARGP = FR->slots;
+   ARGP = ARGS;
    //printf("ARGP starts at %p\n", ARGP);
    for (int i = 0; i < query->variable_count; i++)
       FR->slots[i] = query->variables[i];
@@ -1924,7 +2034,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p, CP=%p, SP=%p, ARGP=%p, H=%p, TR=%p) %s ", FR, CP, SP, ARGP, H, TR, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p (parent %p), CP=%p, SP=%p, ARGP=%p, H=%p, TR=%p, ARGS=%p) %s ", FR, FR->parent, CP, SP, ARGP, H, TR, ARGS, instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
