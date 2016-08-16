@@ -213,10 +213,16 @@ ensure_loaded(_).  % FIXME: implement
 
 % These are not ISO, but everyone seems to expect them
 
-append([], []).
-append([A|C], B) :-
+append(Prefix, Suffix):-
+        ( is_list(Prefix)->
+            append_(Prefix, Suffix)
+        ; throw(error(type_error(list, Prefix), _))
+        ).
+
+append_([], []).
+append_([A|C], B) :-
 	append(A, D, B),
-        append(C, D).
+        append_(C, D).
 
 append([], A, A).
 append([A|B], C, [A|D]) :-
@@ -248,5 +254,6 @@ member_([C|A], B, _) :-
 
 memberchk(A, B):- member(A, B), !.
 
+is_list(Var):- var(Var), !, fail.
 is_list([]):- !.
 is_list([_|B]):- is_list(B).
