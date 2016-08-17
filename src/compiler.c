@@ -417,15 +417,16 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
             // (Cut)
             s1 += push_instruction(instructions, INSTRUCTION_SLOT(C_CUT, cut_point));
             // Then
-            rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, 0, next_reserved, local_cut, &s1);
-            // (and now jump out before the Else)
+            rc &= compile_body(ARGOF(ARGOF(term,0),1), variables, instructions, is_tail, next_reserved, local_cut, &s1);
+            // (and now jump out before the Else. Note that this may not be used if is_tail is true, since the Then may be an I_DEPART.
+            //  however, the Then may be something like true/0, in which case we must still provide a way out)
             instruction_t* jump = INSTRUCTION_ADDRESS(C_JUMP, -1);
             if_then_else->address = s1; // s1 is the size of C_IF_THEN_ELSE, if, C_CUT, then
             size += s1;
             s1 = 0;
             instruction_list_t else_instructions;
             init_instruction_list(&else_instructions);
-            rc &= compile_body(ARGOF(term, 1), varcopy, &else_instructions, 0, next_reserved, local_cut, &s1);
+            rc &= compile_body(ARGOF(term, 1), varcopy, &else_instructions, is_tail, next_reserved, local_cut, &s1);
             size += s1;
             // Compute C_VAR instructions
             cvar_context_t context;
