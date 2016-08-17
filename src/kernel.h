@@ -18,10 +18,19 @@
 
 #if UINTPTR_MAX == 0xffffffffffffffff
 #define CODEPTR(t) CODE64(t)
+#define PRIwx "lx"
+#define PRIwd "ld"
+#define PRIpd "lu"
 #elif UINTPTR_MAX == 0xffffffff
 #define CODEPTR(t) CODE32(t)
+#define PRIwx "x"
+#define PRIwd "d"
+#define PRIpd "u"
 #elif UINTPTR_MAX == 0xffff
 #define CODEPTR(t) CODE16(t)
+#define PRIwx "x"
+#define PRIwd "d"
+#define PRIpd "u"
 #endif
 
 #define FUNCTOR_VALUE(t) ((Functor)CTable[t])
