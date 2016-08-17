@@ -510,7 +510,10 @@ int unify(word a, word b)
       return SUCCESS;
    if (TAGOF(a) == VARIABLE_TAG)
    {
-      _bind(a, b);
+      if (TAGOF(b) == VARIABLE_TAG && b > a)
+         _bind(b, a);
+      else
+         _bind(a, b);
       return SUCCESS;
    }
    if (TAGOF(b) == VARIABLE_TAG)
@@ -1303,6 +1306,7 @@ RC execute(int resume)
             FR->slots[CODE16(PC+1)] = (word)CP;
             // ARGP is set to slot 1 so that we try and execute the first arg as a goal. (I_USERCALL subtracts a word from ARGP, so we actually execute slot[0])
             ARGP = &FR->slots[1];
+            // printf("Slots[0] is %08lx\n", FR->slots[0]); PORTRAY(FR->slots[0]); printf("\n");
             PC+=2; // i_usercall returns to PC+1, and we want to return to PC+3, so add 2 here
             goto i_usercall;
          }
@@ -1349,6 +1353,7 @@ RC execute(int resume)
                goto i_usercall;
             // Update the choicepoint in the frame (FIXME: Isn't this a NOP?)
             assert(CP == FR->choicepoint);
+            ARGP = ARGS;
             PC++;
             continue;
          }
@@ -1424,6 +1429,7 @@ RC execute(int resume)
             // We can make a local variable on the frame, since if this were unsafe we would have instead gotten B_UNSAFEVAR
             FR->slots[CODE16(PC+1)] = (word)&FR->slots[CODE16(PC+1)];
             *(ARGP++) = FR->slots[CODE16(PC+1)];
+            //printf("Slot %d now holds %08lx, a local variable\n", CODE16(PC+1), FR->slots[CODE16(PC+1)]);
             PC+=3;
             continue;
          case B_ARGFIRSTVAR:
@@ -1467,6 +1473,7 @@ RC execute(int resume)
             // then instead we would get B_UNSAFEVAR
             unsigned int slot = CODE16(PC+1);
             assert (FR->slots[slot] != 0 && "Suspicious lack of variable initialization!");
+            //printf("Value: %08lx\n   ", FR->slots[slot]); PORTRAY(FR->slots[slot]);printf(" written to %p\n", ARGP);
             *(ARGP++) = FR->slots[slot];
             PC+=3;
             continue;
@@ -1553,12 +1560,14 @@ RC execute(int resume)
                // or else something non-var, in which case we can just copy it into the frame
                if (TAGOF(*ARGP) == VARIABLE_TAG)
                {
+                  //printf("Value: %08lx from %p\n   ", *ARGP, ARGP); PORTRAY(*ARGP);printf("\n");
                   word w = *(ARGP++);
                   FR->slots[CODE16(PC+1)] = w;
                   assert(w < (word)FR);
                }
                else
                {
+                  //printf("Bound value: %08lx from %p\n    ", *ARGP, ARGP); PORTRAY(*ARGP); printf("\n");
                   FR->slots[CODE16(PC+1)] = *(ARGP++);
                }
             }

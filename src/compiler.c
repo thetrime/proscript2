@@ -605,7 +605,7 @@ void find_variables(word term, List* list)
 }
 
 
-int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_slot, word parent)
+int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_slot, word parent, int is_tail)
 {
    int rc = 0;
    if (TAGOF(term) == VARIABLE_TAG)
@@ -614,38 +614,67 @@ int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_s
       if (whashmap_get(map, term, (any_t)&varinfo) == MAP_MISSING)
       {
          //printf("Allocating slot %d to variable ", *next_slot); PORTRAY(term); printf(" last_term is %08lx): \n", is_head?0:term); PORTRAY(parent); printf("\n");
-         varinfo = VarInfo(term, 1, (*next_slot)++, is_head?0:parent);
+         word p;
+         if (is_head)
+            p = 0; // Guaranteed safe
+         else if (!is_tail)
+            p = 1; // Not unsafe since this is not a tail goal and the frame will persist
+         else
+            p = parent; // Unsafe
+         varinfo = VarInfo(term, 1, (*next_slot)++, p);
          whashmap_put(map, term, varinfo);
          rc++;
       }
-      else if (!is_head && varinfo->last_term != 0 && depth == 0)
+      else if (!is_head && varinfo->last_term != 0 && depth == 1 && is_tail == 1)
       {
          //printf("Updated slot %d to have last_term of %08lx: ", varinfo->slot, term); PORTRAY(parent); printf("\n");
          varinfo->last_term = parent;
       }
+      else
+      {
+         //printf("Not updating slot %d because depth is %d and is_head is %d and last_term is %d\n", varinfo->slot, depth, is_head, varinfo->last_term);
+      }
    }
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      int new_depth;
       // Really this is: If the position is a meta-arg then do not increase the depth
       word functor = FUNCTOROF(term);
       if (functor == conjunctionFunctor)
-         new_depth = depth;
+      {
+         rc += analyze_variables(ARGOF(term, 0), is_head, depth, map, next_slot, term, 0);
+         rc += analyze_variables(ARGOF(term, 1), is_head, depth, map, next_slot, term, is_tail);
+      }
       else if (functor == disjunctionFunctor)
-         new_depth = depth;
+      {
+         rc += analyze_variables(ARGOF(term, 0), is_head, depth, map, next_slot, term, is_tail);
+         rc += analyze_variables(ARGOF(term, 1), is_head, depth, map, next_slot, term, is_tail);
+      }
       else if (functor == localCutFunctor)
-         new_depth = depth;
+      {
+         rc += analyze_variables(ARGOF(term, 0), is_head, depth, map, next_slot, term, 0);
+         rc += analyze_variables(ARGOF(term, 1), is_head, depth, map, next_slot, term, is_tail);
+      }
       else if (functor == notFunctor)
-         new_depth = depth;
+      {
+         rc += analyze_variables(ARGOF(term, 0), is_head, depth, map, next_slot, term, is_tail);
+      }
       else if (functor == notUnifiableFunctor)
-         new_depth = depth;
+      {
+         rc += analyze_variables(ARGOF(term, 0), is_head, depth, map, next_slot, term, is_tail);
+         rc += analyze_variables(ARGOF(term, 1), is_head, depth, map, next_slot, term, is_tail);
+      }
       else if (functor == crossModuleCallFunctor)
-         new_depth = depth;
+      {
+         rc += analyze_variables(ARGOF(term, 0), is_head, depth, map, next_slot, term, 0);
+         rc += analyze_variables(ARGOF(term, 1), is_head, depth, map, next_slot, term, is_tail);
+      }
       else
-         new_depth = depth + 1;
-      Functor f = getConstant(functor, NULL).functor_data;
-      for (int i = 0; i < f->arity; i++)
-         rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot, term);
+      {
+         //printf("New depth is %d for the args of ", new_depth); PORTRAY(term); printf("\n");
+         Functor f = getConstant(functor, NULL).functor_data;
+         for (int i = 0; i < f->arity; i++)
+            rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot, term, is_tail);
+      }
    }
    return rc;
 }
@@ -783,8 +812,8 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
          arg_slots = 0;
       int local_cut_slots = get_reserved_slots(body);
       int next_slot = arg_slots;
-      analyze_variables(head, 1, 0, variables, &next_slot, 0);
-      analyze_variables(body, 0, 0, variables, &next_slot, 0);
+      analyze_variables(head, 1, 0, variables, &next_slot, 0, 0);
+      analyze_variables(body, 0, 0, variables, &next_slot, 0, 1);
       *slot_count = whashmap_length(variables) + local_cut_slots;
       compile_head(head, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_ENTER));
@@ -811,7 +840,7 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
          arg_slots = 0; //getConstant(FUNCTOROF(term), NULL).functor_data->arity;
       else
          arg_slots = 0;
-      analyze_variables(term, 1, 0, variables, &arg_slots, 0);
+      analyze_variables(term, 1, 0, variables, &arg_slots, 0, 0);
       *slot_count = arg_slots;
       compile_head(term, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_EXIT_FACT));
