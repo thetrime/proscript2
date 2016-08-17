@@ -16,43 +16,51 @@ EMSCRIPTEN_KEEPALIVE
 int atom_length(word a)
 {
    assert(TAGOF(a) == CONSTANT_TAG);
-   constant c = getConstant(a);
-   assert(c.type == ATOM_TYPE);
-   return c.data.atom_data->length;
+   int type;
+   cdata c = getConstant(a, &type);
+   assert(type == ATOM_TYPE);
+   return c.atom_data->length;
 }
 
 EMSCRIPTEN_KEEPALIVE
 char* atom_data(word a)
 {
    assert(TAGOF(a) == CONSTANT_TAG);
-   constant c = getConstant(a);
-   assert(c.type == ATOM_TYPE);
-   return c.data.atom_data->data;
+   int type;
+   cdata c = getConstant(a, &type);
+   assert(type == ATOM_TYPE);
+   return c.atom_data->data;
 }
 
 EMSCRIPTEN_KEEPALIVE
 long integer_data(word a)
 {
    assert(TAGOF(a) == CONSTANT_TAG);
-   constant c = getConstant(a);
-   assert(c.type == INTEGER_TYPE);
-   return c.data.integer_data->data;
+   int type;
+   cdata c = getConstant(a, &type);
+   assert(type == INTEGER_TYPE);
+   return c.integer_data;
 }
 
 EMSCRIPTEN_KEEPALIVE
 double float_data(word a)
 {
    assert(TAGOF(a) == CONSTANT_TAG);
-   constant c = getConstant(a);
-   assert(c.type == FLOAT_TYPE);
-   return c.data.float_data->data;
+   int type;
+   cdata c = getConstant(a, &type);
+   assert(type == FLOAT_TYPE);
+   return c.float_data->data;
 }
 
 EMSCRIPTEN_KEEPALIVE
 int term_type(word a)
 {
+   int type;
    if (TAGOF(a) == CONSTANT_TAG)
-      return getConstant(a).type;
+   {
+      getConstant(a, &type);
+      return type;
+   }
    else if (TAGOF(a) == VARIABLE_TAG)
       return 127;
    else if (TAGOF(a) == COMPOUND_TAG)
@@ -65,8 +73,9 @@ int term_type(word a)
 EMSCRIPTEN_KEEPALIVE
 int _is_blob(word a, char* type)
 {
-   constant c = getConstant(a);
-   return (c.type == BLOB_TYPE && strcmp(type, c.data.blob_data->type) == 0);
+   int t;
+   cdata c = getConstant(a, &t);
+   return (t == BLOB_TYPE && strcmp(type, c.blob_data->type) == 0);
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -80,14 +89,14 @@ EMSCRIPTEN_KEEPALIVE
 word _term_functor_name(word a)
 {
    assert(TAGOF(a) == COMPOUND_TAG);
-   return getConstant(FUNCTOROF(a)).data.functor_data->name;
+   return getConstant(FUNCTOROF(a), NULL).functor_data->name;
 }
 
 EMSCRIPTEN_KEEPALIVE
 int _term_functor_arity(word a)
 {
    assert(TAGOF(a) == COMPOUND_TAG);
-   return getConstant(FUNCTOROF(a)).data.functor_data->arity;
+   return getConstant(FUNCTOROF(a), NULL).functor_data->arity;
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -160,7 +169,7 @@ word _make_blob(char* type, int key)
 EMSCRIPTEN_KEEPALIVE
 int _get_blob(char* type, word w)
 {
-   Blob b = getConstant(w).data.blob_data;
+   Blob b = getConstant(w, NULL).blob_data;
    if (strcmp(type, b->type) != 0)
    {
       printf("Blob mismatch: Expecting %s but blob passed in is of type %s\n", type, b->type);
@@ -192,7 +201,6 @@ void jscall(RC result)
 EMSCRIPTEN_KEEPALIVE
 void executejs(word goal, int callback_ref)
 {
-   //printf("Executing: "); PORTRAY(goal); printf("\n");
    execute_query(goal, jscall);
 }
 
