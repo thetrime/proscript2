@@ -7,6 +7,9 @@
 
  */
 
+//#define RECORD_HEAP_USAGE  (void)0
+#define RECORD_HEAP_USAGE  do {if (H > HMAX) {HMAX = H;}} while(0)
+
 
 #ifdef EMSCRIPTEN
 #include <emscripten/emscripten.h>
@@ -60,8 +63,7 @@ word* qqqx = NULL;
 uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
-
-#define HEAP_SIZE 655350
+#define HEAP_SIZE 126182
 #define TRAIL_SIZE 65535
 #define STACK_SIZE 65535
 #define ARG_STACK_SIZE 256
@@ -72,6 +74,7 @@ word* TR = &TRAIL[0];
 word HEAP[HEAP_SIZE];
 word* HTOP = &HEAP[HEAP_SIZE];
 word* H = &HEAP[0];
+word* HMAX = &HEAP[0];
 word STACK[STACK_SIZE];
 word* STOP = &STACK[STACK_SIZE];
 word* SP = &STACK[0];
@@ -119,6 +122,7 @@ word MAKE_VAR()
    *H = newVar;
    assert(H < HTOP);
    H++;
+   RECORD_HEAP_USAGE;
    return newVar;
 }
 
@@ -134,6 +138,7 @@ word MAKE_COMPOUND(word functor)
    {
       MAKE_VAR();
    }
+   RECORD_HEAP_USAGE;
    return addr | COMPOUND_TAG;
 }
 
@@ -151,6 +156,7 @@ word MAKE_VCOMPOUND(word functor, ...)
       word w = va_arg(argp, word);
       *(H++) = w;
    }
+   RECORD_HEAP_USAGE;
    return addr | COMPOUND_TAG;
 }
 
@@ -169,6 +175,7 @@ word MAKE_ACOMPOUND(word functor, word* values)
    for (int i = 0; i < f->arity; i++)
       *(H++) = values[i];
    assert(H < HTOP);
+   RECORD_HEAP_USAGE;
    return addr | COMPOUND_TAG;
 }
 
@@ -190,6 +197,7 @@ word MAKE_LCOMPOUND(word functor, List* list)
    *(H++) = functor;
    assert(H + list_length(list) < HTOP);
    list_apply(list, NULL, _lcompoundarg);
+   RECORD_HEAP_USAGE;
    return addr | COMPOUND_TAG;
 }
 
@@ -1516,14 +1524,6 @@ RC execute(int resume)
             PC+=3;
             continue;
          }
-         case B_VOID:
-         {
-            // Put an anonymous variable.
-            assert(0 && "Never used");
-            *(ARGP++) = MAKE_VAR();
-            PC++;
-            continue;
-         }
          case B_FUNCTOR:
          {
             // Put a reference to a compound. Move ARGP to the first arg of that term
@@ -2147,4 +2147,5 @@ EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
    debugging = 1;
+   printf("Heap max %p (%ld cells)\n", HMAX, (HMAX-HEAP));
 }
