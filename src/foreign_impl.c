@@ -416,8 +416,10 @@ NONDET_PREDICATE(retract, 1, (word term, word backtrack)
       list = backtrack;
    if (list == emptyListAtom)
       return FAIL;
-   if (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+   if (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor && ARGOF(list, 1) != emptyListAtom)
+   {
       make_foreign_choicepoint(ARGOF(list, 1));
+   }
    if (unify(ARGOF(list, 0), term))
    {
       retract(m, term);
