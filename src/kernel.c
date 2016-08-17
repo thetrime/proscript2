@@ -1,3 +1,13 @@
+/* Some important points
+
+   Generally speaking, a choicepoint accessible to a frame appears higher in the stack than the frame
+   However, there is one important exception: the 'Head' choicepoint created by a TRY_ME_OR_NEXT_CLAUSE instruction
+   Because we already created the frame, it is too late to put the choicepoint before it (unless we move the frame up)
+   In the interest of efficiency, this choicepoint is created AFTER the frame it relates to
+
+ */
+
+
 #ifdef EMSCRIPTEN
 #include <emscripten/emscripten.h>
 #else
@@ -977,7 +987,7 @@ RC execute(int resume)
    while (!halted)
    {
       //print_choices();
-      //if (debugging)
+      if (debugging)
          print_instruction();
       switch(*PC)
       {
@@ -2005,7 +2015,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p (parent %p), CP=%p, SP=%p(%d), ARGP=%p, H=%p(%d), TR=%p(%d), ARGS=%p) %s ", FR, FR->parent, CP, SP, (SP-STACK)/sizeof(word), ARGP, H, (H-HEAP)/sizeof(word), TR, (TR-TRAIL)/sizeof(word), ARGS, instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p CP=%p, SP=%p(%d), ARGP=%p, H=%p(%d), TR=%p(%d)) %s ", FR, CP, SP, (SP-STACK)/sizeof(word), ARGP, H, (H-HEAP)/sizeof(word), TR, (TR-TRAIL)/sizeof(word), instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
