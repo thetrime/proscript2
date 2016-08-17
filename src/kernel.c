@@ -7,8 +7,8 @@
 
  */
 
-//#define RECORD_HEAP_USAGE  (void)0
-#define RECORD_HEAP_USAGE  do {if (H > HMAX) {HMAX = H;}} while(0)
+#define RECORD_HEAP_USAGE  (void)0
+//#define RECORD_HEAP_USAGE  do {if (H > HMAX) {HMAX = H;}} while(0)
 
 
 #ifdef EMSCRIPTEN
@@ -63,7 +63,7 @@ word* qqqx = NULL;
 uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
-#define HEAP_SIZE 126182
+#define HEAP_SIZE 655350
 #define TRAIL_SIZE 65535
 #define STACK_SIZE 65535
 #define ARG_STACK_SIZE 256
@@ -410,12 +410,12 @@ word DEREF(word t)
 
 void print_chain(word t)
 {
-   printf(" %08lx", t);
+   printf(" %08" PRIwx, t);
    word t1;
    while (TAGOF(t) == VARIABLE_TAG)
    {
       t1 = *((Word)t);
-      printf(" -> %08lx", t1);
+      printf(" -> %08" PRIwx, t1);
       if (t1 == t)
       {
          printf("(self)\n");
@@ -465,7 +465,6 @@ void PORTRAY(word w)
    }
    else if (TAGOF(w) == COMPOUND_TAG)
    {
-      //printf("Pointer to a compound %08lx. This points to a functor at %08lx\n", w, w&~3);
       Functor functor = getConstant(FUNCTOROF(w), NULL).functor_data;
       PORTRAY(functor->name);
       printf("(");
@@ -952,14 +951,14 @@ int prepare_frame(word functor, Module optionalContext, Frame frame, Frame paren
    return 1;
 }
 
-Frame allocFrame()
+Frame allocFrame(Frame parent)
 {
    //printf("Making a frame at %p\n", SP);
    Frame f = (Frame)SP;
    SP += sizeof(frame)/sizeof(word);
    //printf("frame extends until %p\n", SP);
-   assert(f != FR);
-   f->parent = FR;
+   assert(f != parent);
+   f->parent = parent;
    if (FR != NULL)
       f->depth = FR->depth+1;
    else
@@ -1688,7 +1687,7 @@ RC execute(int resume)
             // C_VAR is a variable that we would have initialized if we had taken another branch in an if-then-else, but since we took the branch we did, it is not initialized
             // We can initialize it now to a local var
             unsigned int slot = CODE16(PC+1);
-            FR->slots[slot] = &FR->slots[slot];
+            FR->slots[slot] = (word)&FR->slots[slot];
             PC+=3;
             continue;
          }
@@ -1761,13 +1760,13 @@ RC prepare_query(word goal)
       return ERROR;
    }
 
-   FR = allocFrame();
+   FR = allocFrame(NULL);
    FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
    FR->returnPC = PC;
    FR->clause = &exitQueryClause;
    FR->choicepoint = CP;
 
-   NFR = allocFrame();
+   NFR = allocFrame(FR);
    NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<query>"), 1);
    NFR->returnPC = FR->clause->code;
    NFR->clause = query->clause;
@@ -1777,12 +1776,11 @@ RC prepare_query(word goal)
    ARGP = ARGS;
    //printf("ARGP starts at %p\n", ARGP);
    for (int i = 0; i < query->variable_count; i++)
-      FR->slots[i] = query->variables[i];
+      ARGS[i] = query->variables[i];
 
    // Protect the variables of this frame
    SP += query->variable_count;
 
-//   NFR = allocFrame();
    PC = FR->clause->code;
    free_query(query);
    return SUCCESS;
@@ -1844,6 +1842,9 @@ int clause_functor(word t, word* functor)
 
 void consult_stream(Stream s)
 {
+   // FIXME: WE cannot recover this heap unless we actually compile all the clauses. Even then we need the terms for clause/2 etc
+   //word* savedH = H;
+   //word* savedSP = SP;
    word clause;
    while (1)
    {
@@ -1967,6 +1968,9 @@ void consult_stream(Stream s)
    }
    // In case this has changed, set it back after consulting any file
    currentModule = userModule;
+   // Restore H and SP
+   //H = savedH;
+   //SP = savedSP;
 
 }
 
@@ -2015,7 +2019,7 @@ void print_clause(Clause clause)
 
 void print_instruction()
 {
-   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p CP=%p, SP=%p(%d), ARGP=%p, H=%p(%d), TR=%p(%d)) %s ", FR, CP, SP, (SP-STACK)/sizeof(word), ARGP, H, (H-HEAP)/sizeof(word), TR, (TR-TRAIL)/sizeof(word), instruction_info[*PC].name);
+   printf("@%p: ", PC); PORTRAY(FR->functor); printf(" (FR=%p CP=%p, SP=%p(%"PRIpd"), ARGP=%p, H=%p(%"PRIpd"), TR=%p(%"PRIpd")) %s ", FR, CP, SP, (SP-STACK), ARGP, H, (H-HEAP), TR, (TR-TRAIL), instruction_info[*PC].name);
    unsigned char* ptr = PC+1;
    if (instruction_info[*PC].flags & HAS_CONST)
    {
@@ -2147,5 +2151,5 @@ EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
    debugging = 1;
-   printf("Heap max %p (%ld cells)\n", HMAX, (HMAX-HEAP));
+   printf("Heap max %p (%"PRIwd" cells)\n", HMAX, (HMAX-HEAP));
 }
