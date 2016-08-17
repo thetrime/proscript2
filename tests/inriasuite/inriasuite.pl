@@ -113,6 +113,7 @@ write_results :-
 
 result(G, Res) :-
       get_all_subs(G, Subs),
+      !,
       special_ans_forms(Subs,Res).
 
 
@@ -616,7 +617,7 @@ test(F, error(R, _)) :- !,
         write('Error in Input: '), write(R), nl,nl,
         update_score(F, non_null, non_null).
 
-test(F,[G,Expected]) :-	
+test(F,[G,Expected]) :-	!,
         result(G,R),
         compare_subst_lists(R, Expected, Extra, Missing),
         write_if_wrong(F, G, Expected, Extra, Missing),
