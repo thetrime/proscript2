@@ -184,7 +184,7 @@ int instruction_count(instruction_list_t* list)
    return list->count;
 }
 
-var_info_t* VarInfo(word variable, int fresh, int slot, int last_term)
+var_info_t* VarInfo(word variable, int fresh, int slot, word last_term)
 {
    var_info_t* v = malloc(sizeof(var_info_t));
    v->variable = variable;
@@ -291,11 +291,24 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
       assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
       if (varinfo->fresh)
       {
-         if (depth > 0)
-            size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot));
+         //printf("Fresh var encountered. Last term is %08lx and parent is %08lx\n",  varinfo->last_term, parent);
+         if (parent == varinfo->last_term && parent != 0)
+         {
+            //assert(0);
+            if (depth > 0)
+               size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot)); // I think this is the same as what would otherwise be ARGFIRSTUNSAFEVAR
+            else
+               size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTUNSAFEVAR, varinfo->slot));
+            varinfo->last_term = 0; // Var is now safe
+         }
          else
-            size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
-         varinfo->fresh = 0;
+         {
+            if (depth > 0)
+               size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot));
+            else
+               size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
+         }
+            varinfo->fresh = 0;
       }
       else if (depth > 0)
       {
@@ -604,7 +617,7 @@ int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_s
          whashmap_put(map, term, varinfo);
          rc++;
       }
-      else if (!is_head && varinfo->last_term != 0)
+      else if (!is_head && varinfo->last_term != 0 && depth == 0)
       {
          //printf("Updated slot %d to have last_term of %08lx: ", varinfo->slot, term); PORTRAY(parent); printf("\n");
          varinfo->last_term = parent;
@@ -612,7 +625,24 @@ int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_s
    }
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
+      int new_depth;
+      // Really this is: If the position is a meta-arg then do not increase the depth
+      word functor = FUNCTOROF(term);
+      if (functor == conjunctionFunctor)
+         new_depth = depth;
+      else if (functor == disjunctionFunctor)
+         new_depth = depth;
+      else if (functor == localCutFunctor)
+         new_depth = depth;
+      else if (functor == notFunctor)
+         new_depth = depth;
+      else if (functor == notUnifiableFunctor)
+         new_depth = depth;
+      else if (functor == crossModuleCallFunctor)
+         new_depth = depth;
+      else
+         new_depth = depth + 1;
+      Functor f = getConstant(functor, NULL).functor_data;
       for (int i = 0; i < f->arity; i++)
          rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot, term);
    }
@@ -753,7 +783,7 @@ int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
       int local_cut_slots = get_reserved_slots(body);
       int next_slot = arg_slots;
       analyze_variables(head, 1, 0, variables, &next_slot, 0);
-      analyze_variables(body, 0, 1, variables, &next_slot, 0);
+      analyze_variables(body, 0, 0, variables, &next_slot, 0);
       *slot_count = whashmap_length(variables) + local_cut_slots;
       compile_head(head, variables, instructions);
       push_instruction(instructions, INSTRUCTION(I_ENTER));

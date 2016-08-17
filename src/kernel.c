@@ -51,7 +51,7 @@ uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
 
-#define HEAP_SIZE 65535
+#define HEAP_SIZE 655350
 #define TRAIL_SIZE 65535
 #define STACK_SIZE 65535
 #define ARG_STACK_SIZE 256
@@ -390,6 +390,24 @@ word DEREF(word t)
    return t;
 }
 
+void print_chain(word t)
+{
+   printf(" %08lx", t);
+   word t1;
+   while (TAGOF(t) == VARIABLE_TAG)
+   {
+      t1 = *((Word)t);
+      printf(" -> %08lx", t1);
+      if (t1 == t)
+      {
+         printf("(self)\n");
+         return;
+      }
+      t = t1;
+   }
+   PORTRAY(t); printf("\n");
+}
+
 void PORTRAY(word w)
 {
    w = DEREF(w);
@@ -529,6 +547,9 @@ int cut_to(Choicepoint point)
             f = f->parent;
          }
       }
+      if (c->FR > FR)
+         SP = AFTER_FRAME(c->FR);
+
       CP = CP->CP;
       if (c->cleanup != NULL)
       {
@@ -547,6 +568,7 @@ int cut_to(Choicepoint point)
       }
    }
 
+   /*
    word* CPS = (word*)CP + sizeof(choicepoint)/sizeof(word) + (CP != NULL?CP->argc : 0);
    word* FRS = (word*)FR + FR->clause->slot_count + sizeof(frame) / sizeof(word);
    if (CPS > FRS)
@@ -564,7 +586,7 @@ int cut_to(Choicepoint point)
    // We can now set SP to the maximum of:
    //    CP + sizeof(choicepoint)
    //    FR + fence
-
+   */
    return 1;
 }
 
@@ -573,7 +595,7 @@ int apply_choicepoint(Choicepoint c)
    PC = c->PC;
    H = c->H;
    Frame f = FR;
-   printf("Applying choicepoint at %p\n", c);
+   //printf("Applying choicepoint at %p\n", c);
    while (f > c->FR)
    {
       assert(f != f->parent);
@@ -596,11 +618,11 @@ int apply_choicepoint(Choicepoint c)
    {
       mode = READ;
       // And we must now copy all the args back off the choicepoint
-      printf("Restoring %d args\n", c->argc);
+      //printf("Restoring %d args\n", c->argc);
       for (int i = 0; i < c->argc; i++)
       {
          ARGS[i] = c->args[i];
-         printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
+         //printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
       }
       ARGP = ARGS;
       // Also we must ensure that there is sufficient space for the variables in this clause
@@ -788,7 +810,6 @@ void create_choicepoint(unsigned char* address, Clause clause, int type)
    CP = c;
    c->type = type;
    c->FR = FR;
-   printf("Saved frame %p to CP %p\n", c->FR, c);
    c->clause = clause;
    c->module = currentModule;
    c->cleanup = NULL;
@@ -800,17 +821,16 @@ void create_choicepoint(unsigned char* address, Clause clause, int type)
    {
       // We must also copy all the arguments into the choicepoint here
       c->argc = getConstant(FR->functor, NULL).functor_data->arity;
-      printf("Saving %d args on the choicepoint\n", c->argc);
+//      printf("Saving %d args on the choicepoint\n", c->argc);
       for (int i = 0; i < c->argc; i++)
       {
-         printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
+//         printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
          c->args[i] = ARGS[i];
       }
    }
    else
       c->argc = 0;
    SP = AFTER_CHOICE(c);
-   printf("%p vs %p\n", SP, &c->args[2]);
 }
 
 Choicepoint push_state()
@@ -905,7 +925,7 @@ int prepare_frame(word functor, Module optionalContext, Frame frame, Frame paren
    frame->is_local = 0;
    assert(frame != parent);
    frame->parent = parent;
-   printf("    parent of frame is %p\n", parent);
+   //printf("    parent of frame is %p\n", parent);
    if (FR != NULL)
       frame->depth = FR->depth+1;
    else
@@ -957,13 +977,8 @@ RC execute(int resume)
    while (!halted)
    {
       //print_choices();
-//      if (debugging)
+      //if (debugging)
          print_instruction();
-         if (qqqx != NULL)
-         {
-            printf("qqqx: %p: ", qqqx); PORTRAY(*qqqx); printf("\n");
-         }
-
       switch(*PC)
       {
          case I_FAIL:
@@ -1155,10 +1170,12 @@ RC execute(int resume)
             // FR is now the new frame. Set up the variables as needed
             FR->choicepoint = CP;
             PC = FR->clause->code;
+            /*
             for (int i = 0; i < getConstant(FR->functor, NULL).functor_data->arity; i++)
             {
                printf("Arg %d: %08lx = ", i, ARGS[i]); PORTRAY(ARGS[i]); printf("\n");
             }
+            */
             continue;
          }
          case B_CLEANUP_CHOICEPOINT:
@@ -1253,11 +1270,12 @@ RC execute(int resume)
             SP = AFTER_FRAME(FR);
             FR->choicepoint = CP;
             PC = FR->clause->code;
-            printf("FR: %p\n", FR);
+            /*
             for (int i = 0; i < getConstant(FR->functor, NULL).functor_data->arity; i++)
             {
                printf("Arg %d: ", i); PORTRAY(ARGS[i]); printf("\n");
             }
+            */
             continue;
          }
          case I_CATCH:
@@ -1287,7 +1305,6 @@ RC execute(int resume)
             NFR = (Frame)SP;
             assert(NFR != FR);
             NFR->parent = FR;
-            printf("    parent of usercall frame is %p\n", FR);
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
             NFR->clause = query->clause;
             NFR->is_local = 1;
@@ -1437,6 +1454,18 @@ RC execute(int resume)
             PC+=3;
             continue;
          }
+         case B_FIRSTUNSAFEVAR:
+         {
+            // B_FIRSTUNSAFEVAR is a variable that we are seeing for the first time but is unsafe (ie this is also the last time we are
+            // going to see it). For example, foo(X, a(X))
+            // We know it is still a variable because it is fresh, but we also know we must allocate it on the heap since the frame is
+            // about to be destroyed
+            unsigned int slot = CODE16(PC+1);
+            FR->slots[slot] = MAKE_VAR();
+            *(ARGP++) = FR->slots[slot];
+            PC+=3;
+            continue;
+         }
          case B_UNSAFEVAR:
          {
             // B_UNSAFEVAR is a variable that we have already initialized but is about to be trimmed from the environment
@@ -1516,7 +1545,6 @@ RC execute(int resume)
                if (TAGOF(*ARGP) == VARIABLE_TAG)
                {
                   word w = *(ARGP++);
-                  printf("   Value is %08lx\n", w);
                   FR->slots[CODE16(PC+1)] = w;
                   assert(w < (word)FR);
                }
@@ -1556,7 +1584,6 @@ RC execute(int resume)
             }
             if (backtrack()) // Failed to match
             {
-               printf("here\n");
                continue;
             }
             return FAIL;
@@ -1642,7 +1669,7 @@ RC execute(int resume)
             word value = DEREF(ARGS[slot]);
             if (!(TAGOF(value) == COMPOUND_TAG && FUNCTOROF(value) == crossModuleCallFunctor))
                ARGS[slot] = MAKE_VCOMPOUND(crossModuleCallFunctor, FR->parent->contextModule->name, value);
-            printf("Arg %d is now ", slot); PORTRAY(ARGS[slot]); printf("\n");
+            //printf("Arg %d is now ", slot); PORTRAY(ARGS[slot]); printf("\n");
             PC+=3;
             continue;
          }
@@ -2009,8 +2036,15 @@ void make_foreign_choicepoint(word w)
    Choicepoint c = (Choicepoint)SP;
    c->SP = SP;
    c->CP = CP;
+   c->argc = getConstant(FR->functor, NULL).functor_data->arity;
+   //printf("Saving %d args on the choicepoint\n", c->argc);
+   for (int i = 0; i < c->argc; i++)
+   {
+//      printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
+      c->args[i] = ARGS[i];
+   }
    c->H = H;
-   c->type = Body;
+   c->type = Head;
    c->cleanup = NULL;
    CP = c;
    SP += sizeof(choicepoint)/sizeof(word);
