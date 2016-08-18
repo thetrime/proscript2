@@ -16,7 +16,9 @@
 EMSCRIPTEN_KEEPALIVE
 void init_prolog()
 {
+#ifdef MEMTRACE
    mp_set_memory_functions(trace_malloc_gmp, trace_realloc_gmp, trace_free_gmp);
+#endif
    initialize_constants();
    initialize_prolog_flags();
    initialize_database();
