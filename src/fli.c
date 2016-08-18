@@ -1,3 +1,4 @@
+#include "global.h"
 #ifdef EMSCRIPTEN
 #include <emscripten/emscripten.h>
 #include <assert.h>

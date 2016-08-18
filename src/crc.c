@@ -1,3 +1,4 @@
+#include "global.h"
 #include "crc.h"
 
 /* The implementation here was originally done by Gary S. Brown.  I have

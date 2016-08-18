@@ -1,3 +1,4 @@
+#include "global.h"
 /*
  * Generic map implementation.
  */
@@ -97,7 +98,7 @@ int hashmap_rehash(map_t in){
 	/* Setup the new elements */
 	hashmap_map *m = (hashmap_map *) in;
 	hashmap_element* temp = (hashmap_element *)
-		calloc(2 * m->table_size, sizeof(hashmap_element));
+        calloc(2 * m->table_size, sizeof(hashmap_element));
 	if(!temp) return MAP_OMEM;
 
 	/* Update the array */
@@ -146,7 +147,7 @@ int hashmap_put(map_t in, char* key, any_t value){
 	}
 
 	/* Set the data */
-	m->data[index].data = value;
+        m->data[index].data = value;
 	m->data[index].key = key;
 	m->data[index].in_use = 1;
 	m->size++; 

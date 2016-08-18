@@ -1,3 +1,4 @@
+#include "global.h"
 /*
  * Generic map implementation.
  */

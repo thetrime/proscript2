@@ -1,3 +1,4 @@
+#include "global.h"
 #include "stream.h"
 #include "kernel.h"
 #include "errors.h"
@@ -189,7 +190,7 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
                    int(*close)(struct stream*),
                    int(*flush)(struct stream*),
                    size_t (*tell)(struct stream*),
-                   void(*free)(void*),
+                   void(*free_stream)(void*),
                    void* data)
 {
    Stream s = malloc(sizeof(struct stream));
@@ -199,7 +200,7 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
    s->close = close;
    s->flush = flush;
    s->tell = tell;
-   s->free = free;
+   s->free_stream = free_stream;
    s->data = data;
    s->buffer_ptr = 0;
    s->filled_buffer_size = 0;
@@ -211,8 +212,8 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
 
 void freeStream(Stream s)
 {
-   if (s->free != NULL)
-      s->free(s->data);
+   if (s->free_stream != NULL)
+      s->free_stream(s->data);
    free(s);
 }
 

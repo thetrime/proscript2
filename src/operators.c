@@ -1,3 +1,4 @@
+#include "global.h"
 #include "operators.h"
 #include <string.h>
 #include "kernel.h"

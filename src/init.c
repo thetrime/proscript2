@@ -1,3 +1,5 @@
+#include "global.h"
+#include <gmp.h>
 #ifdef EMSCRIPTEN
 #include <emscripten/emscripten.h>
 #else
@@ -14,6 +16,7 @@
 EMSCRIPTEN_KEEPALIVE
 void init_prolog()
 {
+   mp_set_memory_functions(trace_malloc_gmp, trace_realloc_gmp, trace_free_gmp);
    initialize_constants();
    initialize_prolog_flags();
    initialize_database();

@@ -1,3 +1,4 @@
+#include "global.h"
 #include "string_builder.h"
 #include <stdlib.h>
 #include <string.h>

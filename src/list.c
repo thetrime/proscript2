@@ -1,3 +1,4 @@
+#include "global.h"
 #include "list.h"
 #include "kernel.h"
 #include "errors.h"

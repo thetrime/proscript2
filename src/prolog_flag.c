@@ -1,3 +1,4 @@
+#include "global.h"
 #include "hashmap.h"
 #include "constants.h"
 #include "kernel.h"

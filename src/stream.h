@@ -16,7 +16,7 @@ struct stream
    int(*close)(struct stream*);
    size_t (*tell)(struct stream*);
    int (*flush)(struct stream*);
-   void(*free)(void*);
+   void(*free_stream)(void*);
    void* data;
    int flags;
    int filled_buffer_size;

@@ -1,3 +1,4 @@
+#include "global.h"
 /*
  * This hashmap is based on the hashmap in hashmap.c
  * It differs in several key aspects:

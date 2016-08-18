@@ -1,3 +1,4 @@
+#include "global.h"
 char CharConversionTable[256];
 
 void initialize_char_conversion()

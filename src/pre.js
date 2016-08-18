@@ -183,10 +183,10 @@ function _is_blob(a, type)
     a = _DEREF(a);
     if ((a & TAG_MASK) == CONSTANT_TAG)
     {
-        var ptr = _malloc(type.length+1);
+        var ptr = _cmalloc(type.length+1);
         writeStringToMemory(type, ptr);
         var result = __is_blob(a, ptr);
-        _free(ptr);
+        _cfree(ptr);
         return result;
     }
     return false;
@@ -208,7 +208,7 @@ function portray_js_blob(typeptr, typelen, index, options, precedence, lenptr)
         return 0;
     var data = b.portray(options, precedence)
     setValue(lenptr, data.length, '*');
-    var ptr = _malloc(data.length+1);
+    var ptr = _cmalloc(data.length+1);
     writeStringToMemory(data, ptr);
     return ptr;
 }
@@ -227,10 +227,10 @@ function _make_blob(type, object)
         key = blobs[type].length-1;
     }
     //console.log("Created blob " + key + " of type " + type + ": " + blobs[type][key]);
-    var ptr = _malloc(type.length+1);
+    var ptr = _cmalloc(type.length+1);
     writeStringToMemory(type, ptr);
     var result = __make_blob(ptr, key);
-    _free(ptr);
+    _cfree(ptr);
     return result;
 }
 
@@ -243,11 +243,11 @@ function _make_compound(functor, args)
 {
     if (!_is_functor(functor))
         functor = _make_functor(functor, args.length);
-    var ptr = _malloc(args.length * SIZE_OF_WORD);
+    var ptr = _cmalloc(args.length * SIZE_OF_WORD);
     for (var i = 0; i < args.length; i++)
         setValue(ptr + (SIZE_OF_WORD*i), args[i], '*');
     var w = __make_compound(functor, ptr);
-    _free(ptr);
+    _cfree(ptr);
     return w;
 }
 
@@ -264,20 +264,20 @@ function _restore_state(a)
 function _get_blob(type, w)
 {
     w = _DEREF(w);
-    var ptr = _malloc(type.length+1);
+    var ptr = _cmalloc(type.length+1);
     writeStringToMemory(type, ptr);
     var key = __get_blob(ptr, w);
-    _free(ptr);
+    _cfree(ptr);
     //console.log("Looking up blob " + key + " of type " + type + ": " + blobs[type][key]);
     return blobs[type][key];
 }
 
 function _make_atom(a)
 {
-    var ptr = _malloc(a.length+1);
+    var ptr = _cmalloc(a.length+1);
     writeStringToMemory(a, ptr);
     var atom = __make_atom(ptr, a.length);
-    _free(ptr);
+    _cfree(ptr);
     return atom;
 }
 
@@ -300,10 +300,10 @@ function _make_variable(a)
 
 function _consult_string(a)
 {
-    var ptr = _malloc(a.length+1);
+    var ptr = _cmalloc(a.length+1);
     writeStringToMemory(a, ptr);
     __consult_string(ptr);
-    _free(ptr);
+    _cfree(ptr);
 }
 
 
@@ -398,8 +398,8 @@ var portray_options = null;
 
 function _format_term(options, priority, term)
 {
-    var lenptr = _malloc(SIZE_OF_WORD);
-    var strptr = _malloc(SIZE_OF_WORD);
+    var lenptr = _cmalloc(SIZE_OF_WORD);
+    var strptr = _cmalloc(SIZE_OF_WORD);
     if (options == null)
     {
         if (default_options == null)
@@ -409,9 +409,9 @@ function _format_term(options, priority, term)
     __format_term(options, priority, term, strptr, lenptr);
     var ptr = getValue(strptr, '*');
     var result = Pointer_stringify(ptr, getValue(lenptr, '*'));
-    _free(ptr);
-    _free(lenptr);
-    _free(strptr);
+    _cfree(ptr);
+    _cfree(lenptr);
+    _cfree(strptr);
     return result;
 }
 
@@ -434,10 +434,10 @@ function _free_options(options)
 function make_local(t)
 {
     t = _DEREF(t);
-    var ptr = _malloc(SIZE_OF_WORD);
+    var ptr = _cmalloc(SIZE_OF_WORD);
     _copy_local(t, ptr);
     var value = getValue(ptr, '*');
-    _free(ptr);
+    _cfree(ptr);
     return value;
 }
 
@@ -448,7 +448,7 @@ function free_local(t)
     // not work and we will try to free the middle of a block!
     if ((_DEREF(t) & TAG_MASK) == CONSTANT_TAG)
         return; // The copy was never a copy to begin with
-    return _free(t);
+    return _cfree(t);
 }
 
 function qqq()
@@ -464,10 +464,10 @@ function portray(t)
 // WARNING: This may return 0 in the event of a parse error!
 function string_to_local_term(str)
 {
-    var ptr = _malloc(str.length+1);
+    var ptr = _cmalloc(str.length+1);
     writeStringToMemory(str, ptr);
     var result = _string_to_local_term(ptr, str.length);
-    _free(ptr);
+    _cfree(ptr);
     return result;
 }
 

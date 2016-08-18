@@ -1,3 +1,4 @@
+#include "global.h"
 #include "options.h"
 #include "constants.h"
 #include "errors.h"

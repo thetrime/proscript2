@@ -1,3 +1,4 @@
+#include "global.h"
 #include <stdlib.h>
 #include "char_buffer.h"
 

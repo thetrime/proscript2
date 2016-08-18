@@ -1,3 +1,4 @@
+#include "global.h"
 #include "types.h"
 #include "ctable.h"
 #include "kernel.h"

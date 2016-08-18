@@ -1,3 +1,4 @@
+#include "global.h"
 #include "errors.h"
 
 int type_error(word expected, word actual)

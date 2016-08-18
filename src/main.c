@@ -1,3 +1,4 @@
+#include "global.h"
 #include <stdio.h>
 #include "init.h"
 #include "test.h"

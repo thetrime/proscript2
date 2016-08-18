@@ -1,3 +1,4 @@
+#include "global.h"
 #include <errno.h>
 #include "parser.h"
 #include <stdlib.h>

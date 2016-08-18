@@ -1,3 +1,4 @@
+#include "global.h"
 /* Some important points
 
    Generally speaking, a choicepoint accessible to a frame appears higher in the stack than the frame
@@ -2161,4 +2162,16 @@ void qqq()
 {
    debugging = 1;
    printf("Heap max %p (%"PRIwd" cells)\n", HMAX, (HMAX-HEAP));
+}
+
+EMSCRIPTEN_KEEPALIVE
+void* cmalloc(size_t size)
+{
+   return malloc(size);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void cfree(void* ptr)
+{
+   free(ptr);
 }
