@@ -873,8 +873,6 @@ void restore_state(Choicepoint state)
    //printf("Restoring state to %p from the current CP of %p\n", state, CP);
    //print_choices();
    // First though, we must pop off any choicepoints that might be lurking on the stack
-   if (CP != 0)
-      printf("XXX\n");
    while (CP != 0)
       apply_choicepoint(CP);
    CP = state;
