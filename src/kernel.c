@@ -562,7 +562,7 @@ int cut_to(Choicepoint point)
          {
             if (f->is_local)
             {
-               printf("Freeing clause from %p\n", f);
+               //printf("Freeing clause at %p\n", f->clause);
                free_clause(f->clause);
             }
             f = f->parent;
@@ -616,9 +616,10 @@ int apply_choicepoint(Choicepoint c)
    PC = c->PC;
    H = c->H;
    Frame f = FR;
-   //printf("Applying choicepoint at %p\n", c);
+//   printf("Applying choicepoint at %p. FR is %p, choicepoint had frame %p\n", c, FR, c->FR);
    while (f > c->FR)
    {
+//      printf("Checking for cleanup in frame %p\n", f);
       assert(f != f->parent);
       if (f->is_local)
       {
@@ -1142,7 +1143,7 @@ RC execute(int resume)
                SP = AFTER_CHOICE(CP);
             }
             PC = FR->returnPC;
-            if (FR->is_local && (word)FR > (word)SP)
+            if (FR->is_local && (word)FR >= (word)SP)
             {
                // Free the clause if it was generated specifically for this frame and it is now above SP (ie 'free')
                // FIXME: There could be more than one such clause, couldnt there?
@@ -1163,7 +1164,7 @@ RC execute(int resume)
             Frame parent = FR->parent;
             assert(parent != FR);
             Module contextModule = FR->contextModule;
-            if (FR->is_local && (word)FR > (word)CP)
+            if (FR->is_local && (word)FR >= (word)CP)
             {
                // Free the clause if it was generated specifically for this frame and we cannot possibly backtrack into it
                free_clause(FR->clause);
@@ -1329,6 +1330,7 @@ RC execute(int resume)
             NFR->parent = FR;
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
             NFR->clause = query->clause;
+            //printf("Allocated frame %p with local clause %p\n", NFR, NFR->clause);
             NFR->is_local = 1;
             NFR->returnPC = PC+1;
             NFR->choicepoint = CP;
@@ -1779,6 +1781,7 @@ RC prepare_query(word goal)
    NFR = allocFrame(FR);
    NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<query>"), 1);
    NFR->returnPC = FR->clause->code;
+   NFR->is_local = 1;
    NFR->clause = query->clause;
    NFR->choicepoint = CP;
 
@@ -2160,8 +2163,10 @@ word get_choicepoint_depth()
 EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
-   debugging = 1;
-   printf("Heap max %p (%"PRIwd" cells)\n", HMAX, (HMAX-HEAP));
+   //debugging = 1;
+   //printf("Heap max %p (%"PRIwd" cells)\n", HMAX, (HMAX-HEAP));
+   print_memory_info();
+   ctable_check();
 }
 
 EMSCRIPTEN_KEEPALIVE
