@@ -59,7 +59,8 @@ instruction_info_t instruction_info[] = {
 #define AFTER_CHOICE(p) &p->args[p->argc];
 
 
-word* qqqx = NULL;
+int debugging = 0;
+
 
 uint8_t* PC;
 int halted = 0;
@@ -218,7 +219,7 @@ word make_backtrace(List* list)
 void* allocAtom(void* data, int length)
 {
    Atom a = malloc(sizeof(atom));
-   a->data = strdup(data);
+   a->data = strndup(data, length);
    a->length = length;
    return a;
 }
@@ -855,6 +856,7 @@ void create_choicepoint(unsigned char* address, Clause clause, int type)
    SP = AFTER_CHOICE(c);
 }
 
+
 Choicepoint push_state()
 {
    //printf("Pushing state. CP is %p, PC is %p, FR is %p, and frame locality is %d, ", CP, PC, FR, FR->is_local);
@@ -993,7 +995,6 @@ void initialize_kernel()
    CP = 0;
 }
 
-int debugging = 0;
 
 RC execute(int resume)
 {
@@ -1004,6 +1005,7 @@ RC execute(int resume)
    while (!halted)
    {
       //print_choices();
+      ctable_check();
       if (debugging)
          print_instruction();
       switch(*PC)
@@ -1108,6 +1110,7 @@ RC execute(int resume)
 #ifdef EMSCRIPTEN
                PC -= (3+sizeof(word));
                unsigned char* foreign_ptr = PC+1+sizeof(word);
+
                rc = EM_ASM_INT({return _foreign_call($0, $1, $2, $3)}, FR->slots[CODE16(foreign_ptr)], CODEPTR(PC+1), f->arity, ARGP);
 #else
                rc = SET_EXCEPTION(existence_error(procedureAtom, MAKE_VCOMPOUND(predicateIndicatorFunctor, f->name, MAKE_INTEGER(f->arity))));
@@ -2169,10 +2172,16 @@ EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
    //debugging = 1;
-   //printf("Heap max %p (%"PRIwd" cells)\n", HMAX, (HMAX-HEAP));
    print_memory_info();
+   //ctable_check();
+}
+
+EMSCRIPTEN_KEEPALIVE
+void qqqy()
+{
    ctable_check();
 }
+
 
 EMSCRIPTEN_KEEPALIVE
 void* cmalloc(size_t size)

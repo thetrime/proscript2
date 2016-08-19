@@ -150,9 +150,7 @@ int bihashmap_rehash(bimap_t in)
       if (status != MAP_OK)
          return status;
    }
-
    free(curr);
-
    return MAP_OK;
 }
 
@@ -186,10 +184,6 @@ int bihashmap_put(bimap_t in, uint32_t hashcode, any_t key, uintptr_t value)
 
 void bihashmap_check(bimap_t in)
 {
-   hashmap_map* m;
-   m = (hashmap_map *) in;
-   printf("XXX %p (%p)\n", m->data, &m->data);
-   assert(m->data > (hashmap_element*)0x1000);
 }
 
 /*

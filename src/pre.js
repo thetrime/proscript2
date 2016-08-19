@@ -73,6 +73,12 @@ function _foreign_call(backtrack, name, arity, argp)
     }
     var context = environments[eTop-1];
     context.foreign = backtrack;
+    if (functions[name] === undefined)
+    {
+        console.log("Cannot find function for " + name);
+        console.log("fTop is " + fTop);
+        _qqqz();
+    }
     return functions[name].apply(context, args);
 }
 
@@ -456,6 +462,12 @@ function qqq()
     _qqq();
 }
 
+function qqqy()
+{
+    _qqqy();
+}
+
+
 function portray(t)
 {
     return _format_term(null, 1200, t);
@@ -519,7 +531,8 @@ module.exports = {_make_atom: _make_atom,
                   _string_to_local_term: string_to_local_term,
                   _portray: portray,
                   _deref: deref,
-                  _qqq: qqq
+                  _qqq: qqq,
+                  _qqqy: qqqy
                  };
 
 /* This is the ACTUAL preamble */

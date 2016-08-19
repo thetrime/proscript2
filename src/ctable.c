@@ -18,6 +18,8 @@ int CNext = 0;
 
 void ctable_check()
 {
+   bihashmap_check(map[ATOM_TYPE]);
+   /*
    printf("%d %d %d %d %d %d\n",
           bihashmap_length(map[ATOM_TYPE]),
           bihashmap_length(map[INTEGER_TYPE]),
@@ -25,6 +27,7 @@ void ctable_check()
           bihashmap_length(map[FLOAT_TYPE]),
           bihashmap_length(map[BIGINTEGER_TYPE]),
           bihashmap_length(map[RATIONAL_TYPE]));
+   */
 }
 
 
@@ -189,6 +192,14 @@ word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*,
 {
    word w = (word)((CNext << CONSTANT_BITS) | CONSTANT_TAG);
    Blob b = allocBlob(type, ptr, portray);
+   if (CTableSize == CNext)
+   {
+      CTableSize <<= 1;
+      constant* c = calloc(CTableSize, sizeof(constant));
+      memcpy(c, CTable, CNext * sizeof(constant));
+      free(CTable);
+      CTable = c;
+   }
    CTable[CNext].type = BLOB_TYPE;
    CTable[CNext++].data.blob_data = b;
    return w;

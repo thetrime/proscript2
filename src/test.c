@@ -13,8 +13,23 @@
 #define EMSCRIPTEN_KEEPALIVE
 #endif
 
+Choicepoint qxz = NULL;
+
+void query_complete3(RC result)
+{
+   printf("Back to the first goal: %d\n", result);
+}
+
+void query_complete2(RC result)
+{
+   restore_state(qxz);
+   backtrack_query(query_complete3);
+}
+
+
 void query_complete(RC result)
 {
+   printf("First goal has exited with %d\n", result);
    if (result == ERROR)
    {
       printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
@@ -23,16 +38,16 @@ void query_complete(RC result)
    {
       printf("Top level Failed\n");
    }
-   else
+   else if (result == SUCCESS_WITH_CHOICES)
    {
       printf("Success! %d\n", result);
-      if (result == SUCCESS_WITH_CHOICES)
-      {
-         printf("backtracking for other solutions...\n");
-         backtrack_query(query_complete);
-      }
+      //qxz = push_state();
+      //word w = MAKE_ATOM("run_all_tests");
+      //execute_query(w, query_complete2);
+      backtrack_query(query_complete3);
    }
 }
+
 
 
 EMSCRIPTEN_KEEPALIVE
@@ -42,6 +57,14 @@ void do_test()
    consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
    //consult_file("test.pl");
    printf("Consulted. Running tests...\n");
+   int n = 100000;
+   char* buffer = malloc(n);
+   for (int i = 0; i < n; i++)
+   {
+      buffer[i] = 'Q';
+      MAKE_NATOM(buffer, i);
+   }
+   printf("6000 atom test complete\n");
    word w = MAKE_ATOM("run_all_tests");
    execute_query(w, query_complete);
 }

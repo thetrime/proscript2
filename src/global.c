@@ -91,5 +91,5 @@ char* trace_strndup(const char* source, size_t len, char* where)
 void print_memory_info()
 {
    printf("Total allocated bytes: %zd\n", allocated);
-   qqqz = 1;
+//   qqqz = 1;
 }
