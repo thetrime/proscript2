@@ -1266,6 +1266,11 @@ RC execute(int resume)
                }
                f = f->parent;
             }
+            // Failed to handle. Return to top level. But first, try to unify the stack trace with the actual error term (and not a copy)
+            if (TAGOF(current_exception) == COMPOUND_TAG && FUNCTOROF(current_exception) == errorFunctor && (TAGOF(ARGOF(current_exception, 1)) == VARIABLE_TAG))
+            {
+               unify(ARGOF(current_exception, 1), make_backtrace(&backtrace));
+            }
             free_list(&backtrace);
             return ERROR;
          }
