@@ -69,7 +69,7 @@ function _foreign_call(backtrack, name, arity, argp)
     var args = Array(arity);
     for (var i = 0; i < arity; i++)
     {
-        args[i] = getValue(argp+(4*i), '*');
+        args[i] = _DEREF(getValue(argp+(SIZE_OF_WORD*i), '*'));
     }
     var context = environments[eTop-1];
     context.foreign = backtrack;
