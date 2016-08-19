@@ -2011,6 +2011,7 @@ PREDICATE(format, 3, (word sink, word format, word args)
                      NEXT_FORMAT_ARG;
                      if (!must_be_integer(arg)) BAD_FORMAT;
                      radix = getConstant(arg, NULL).integer_data;
+                     i++;
                      continue;
                   }
                   case '0':
