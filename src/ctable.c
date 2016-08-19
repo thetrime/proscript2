@@ -204,6 +204,12 @@ Blob allocBlob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, i
    return b;
 }
 
+void freeBlob(Blob b)
+{
+   free(b->type);
+   free(b);
+}
+
 
 word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*))
 {
@@ -218,9 +224,16 @@ word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*,
 void delete_constant(word w, int type)
 {
    int index = w >> CONSTANT_BITS;
+   constant c = CTable[index];
    CTable[index].type = TOMBSTONE_TYPE;
    CTable[index].data.tombstone_data = next_free_index;
    next_free_index = index;
+   switch(c.type)
+   {
+      case BLOB_TYPE: freeBlob(c.data.blob_data); break;
+      default: // Currently only freeing blobs is supported
+         assert(0);
+   }
    // FIXME: Also delete from the appropriate map, assuming type is not BLOB_TYPE
 }
 
