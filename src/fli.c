@@ -168,6 +168,21 @@ word _make_blob(char* type, int key)
 }
 
 EMSCRIPTEN_KEEPALIVE
+int _release_blob(char* type, word w)
+{
+   Blob b = getConstant(w, NULL).blob_data;
+   if (strcmp(type, b->type) != 0)
+   {
+      printf("Blob mismatch: Expecting %s but blob passed in is of type %s\n", type, b->type);
+      assert(0);
+   }
+   int i = (int)b->ptr;
+   delete_constant(w, BLOB_TYPE);
+   return i;
+}
+
+
+EMSCRIPTEN_KEEPALIVE
 int _get_blob(char* type, word w)
 {
    Blob b = getConstant(w, NULL).blob_data;

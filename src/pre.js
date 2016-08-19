@@ -205,6 +205,7 @@ function _is_variable(a)
 }
 
 var blobs = {};
+var next_free = {};
 
 function portray_js_blob(typeptr, typelen, index, options, precedence, lenptr)
 {
@@ -225,19 +226,42 @@ function _make_blob(type, object)
     if (blobs[type] == undefined)
     {
         blobs[type] = [object];
+        next_free[type] = -1;
         key = 0;
     }
     else
     {
+        if (next_free[type] == -1)
+            key = blobs[type].length-1;
+        else
+        {
+            key = next_free[type];
+            next_free[type] = blobs[key];
+        }
         blobs[type].push(object);
         key = blobs[type].length-1;
     }
-    //console.log("Created blob " + key + " of type " + type + ": " + blobs[type][key]);
     var ptr = _cmalloc(type.length+1);
     writeStringToMemory(type, ptr);
     var result = __make_blob(ptr, key);
+ //   console.log("Created blob at location " + key + " of type " + type + " with prolog handle " + result);
     _cfree(ptr);
     return result;
+}
+
+function _release_blob(type, w)
+{
+    w = _DEREF(w);
+    var ptr = _cmalloc(type.length+1);
+    writeStringToMemory(type, ptr);
+    var key = __release_blob(ptr, w);
+    _cfree(ptr);
+    // Finally, excise the blob from the blobs structure
+    // We cannot just splice the array (for one thing, it is inefficient. For another thing, it would change the indices of all the higher elements)
+    // Instead, insert a tombstone so we can recycle this spot later
+//    console.log("Destroying blob with handle " + w);
+    blobs[type][key] = next_free[type];
+    next_free[type] = key;
 }
 
 function _make_functor(name, arity)
@@ -274,7 +298,7 @@ function _get_blob(type, w)
     writeStringToMemory(type, ptr);
     var key = __get_blob(ptr, w);
     _cfree(ptr);
-    //console.log("Looking up blob " + key + " of type " + type + ": " + blobs[type][key]);
+    //console.log("Blob " + w + " of type " + w + " should be at location " + key);
     return blobs[type][key];
 }
 
@@ -496,6 +520,7 @@ module.exports = {_make_atom: _make_atom,
                   _make_integer: _make_integer,
                   _make_float: _make_float,
                   _make_blob: _make_blob,
+                  _release_blob: _release_blob,
                   _is_constant: _is_constant,
                   _is_functor: _is_functor,
                   _is_variable: _is_variable,

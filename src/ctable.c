@@ -30,7 +30,6 @@ void ctable_check()
    */
 }
 
-
 cdata getConstant(word w, int* type)
 {
    constant c = CTable[w >> CONSTANT_BITS];
@@ -135,6 +134,31 @@ void initialize_ctable()
    CTable = calloc(CTableSize, sizeof(constant));
 }
 
+int next_free_index = -1;
+
+int allocate_ctable_index(int type)
+{
+   if (next_free_index != -1)
+   {
+      int index = next_free_index;
+      next_free_index = CTable[index].data.tombstone_data;
+      //printf("Reusing index %d for a %d. Next free is %d\n", index, type, next_free_index);
+      return index;
+   }
+   else if (CTableSize == CNext)
+   {
+      CTableSize <<= 1;
+      constant* c = calloc(CTableSize, sizeof(constant));
+      memcpy(c, CTable, CNext * sizeof(constant));
+      free(CTable);
+      CTable = c;
+   }
+   int index = CNext;
+   CNext++;
+   return index;
+}
+
+
 word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(void*, int), int* isNew)
 {
    if (CTable == NULL)
@@ -146,25 +170,18 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
          *isNew = 0;
       return w;
    }
-   if (CTableSize == CNext)
-   {
-      CTableSize <<= 1;
-      constant* c = calloc(CTableSize, sizeof(constant));
-      memcpy(c, CTable, CNext * sizeof(constant));
-      free(CTable);
-      CTable = c;
-   }
-   w = (word)((CNext << CONSTANT_BITS) | CONSTANT_TAG);
-   CTable[CNext].type = type;
+   int index = allocate_ctable_index(type);
+   w = (word)((index << CONSTANT_BITS) | CONSTANT_TAG);
+   CTable[index].type = type;
    void* created = create(key1, key2);
    switch(type)
    {
-      case ATOM_TYPE: CTable[CNext++].data.atom_data = (Atom)created; break;
-      case FUNCTOR_TYPE: CTable[CNext++].data.functor_data = (Functor)created; break;
-      case INTEGER_TYPE: CTable[CNext++].data.integer_data = (long)created; break;
-      case FLOAT_TYPE: CTable[CNext++].data.float_data = (Float)created; break;
-      case BIGINTEGER_TYPE: CTable[CNext++].data.biginteger_data = (BigInteger)created; break;
-      case RATIONAL_TYPE: CTable[CNext++].data.rational_data = (Rational)created; break;
+      case ATOM_TYPE: CTable[index].data.atom_data = (Atom)created; break;
+      case FUNCTOR_TYPE: CTable[index].data.functor_data = (Functor)created; break;
+      case INTEGER_TYPE: CTable[index].data.integer_data = (long)created; break;
+      case FLOAT_TYPE: CTable[index].data.float_data = (Float)created; break;
+      case BIGINTEGER_TYPE: CTable[index].data.biginteger_data = (BigInteger)created; break;
+      case RATIONAL_TYPE: CTable[index].data.rational_data = (Rational)created; break;
       default:
          assert(0);
    }
@@ -190,17 +207,20 @@ Blob allocBlob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, i
 
 word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*))
 {
-   word w = (word)((CNext << CONSTANT_BITS) | CONSTANT_TAG);
+   int index = allocate_ctable_index(BLOB_TYPE);
+   word w = (word)((index << CONSTANT_BITS) | CONSTANT_TAG);
    Blob b = allocBlob(type, ptr, portray);
-   if (CTableSize == CNext)
-   {
-      CTableSize <<= 1;
-      constant* c = calloc(CTableSize, sizeof(constant));
-      memcpy(c, CTable, CNext * sizeof(constant));
-      free(CTable);
-      CTable = c;
-   }
-   CTable[CNext].type = BLOB_TYPE;
-   CTable[CNext++].data.blob_data = b;
+   CTable[index].type = BLOB_TYPE;
+   CTable[index].data.blob_data = b;
    return w;
 }
+
+void delete_constant(word w, int type)
+{
+   int index = w >> CONSTANT_BITS;
+   CTable[index].type = TOMBSTONE_TYPE;
+   CTable[index].data.tombstone_data = next_free_index;
+   next_free_index = index;
+   // FIXME: Also delete from the appropriate map, assuming type is not BLOB_TYPE
+}
+

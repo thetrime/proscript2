@@ -103,6 +103,7 @@ typedef union
    Blob blob_data;
    Rational rational_data;
    BigInteger biginteger_data;
+   int tombstone_data;
 } cdata;
 
 struct constant
