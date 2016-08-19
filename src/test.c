@@ -54,9 +54,10 @@ EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
 
-   consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
-   //consult_file("test.pl");
+   //consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
+   consult_file("test.pl");
    printf("Consulted. Running tests...\n");
+   /*
    int n = 100000;
    char* buffer = malloc(n);
    for (int i = 0; i < n; i++)
@@ -65,6 +66,7 @@ void do_test()
       MAKE_NATOM(buffer, i);
    }
    printf("6000 atom test complete\n");
+   */
    word w = MAKE_ATOM("run_all_tests");
    execute_query(w, query_complete);
 }
