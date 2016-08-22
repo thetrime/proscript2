@@ -1,7 +1,8 @@
 #ARCH=c
 ARCH=js
 
-FILESYSTEM=--embed-file src/builtin.pl --embed-file test.pl --embed-file tests
+FILESYSTEM=--embed-file src/builtin.pl
+#FILESYSTEM=--embed-file src/builtin.pl --embed-file test.pl --embed-file tests
 
 ifeq ($(ARCH),js)
 CC=emcc
