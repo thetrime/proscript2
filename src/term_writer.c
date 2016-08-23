@@ -327,7 +327,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          append_string_no_copy(sb, "(", 1);
          for (int i = 0; i < f->arity; i++)
          {
-            format_term(sb, options, 1200, ARGOF(term, i));
+            format_term(sb, options, 999, ARGOF(term, i));
             if (i+1 < f->arity)
                append_string_no_copy(sb, ",", 1);
          }
@@ -336,9 +336,17 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       }
       else if (op != NULL && get_option(options, ignoreOpsAtom, falseAtom) == falseAtom)
       {
+         int op_precedence = op->precedence;
+         if (functor == conjunctionFunctor)
+         {
+            // comma has to be handled a bit differently since it is sort of overloaded to also act as the separator between arguments in a compound
+            // That is, foo(a,b) is different to foo(','(a,b)). The latter is also equivalent to foo((a,b))
+            //op_precedence = 1300;
+
+         }
          Functor f = getConstant(functor, NULL).functor_data;
          StringBuilder sb1 = stringBuilder();
-         if (op->precedence > precedence)
+         if (op_precedence > precedence)
             append_string_no_copy(sb1, "(", 1);
          switch(op->fixity)
          {
@@ -346,7 +354,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
             {
                StringBuilder sb2 = stringBuilder();
                format_atom(sb1, options, f->name);
-               format_term(sb2, options, precedence-1, ARGOF(term, 0));
+               format_term(sb2, options, op->precedence-1, ARGOF(term, 0));
                glue_atoms(sb, sb1, sb2);
                break;
             }
@@ -354,7 +362,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
             {
                StringBuilder sb2 = stringBuilder();
                format_atom(sb1, options, f->name);
-               format_term(sb2, options, precedence, ARGOF(term, 0));
+               format_term(sb2, options, op->precedence, ARGOF(term, 0));
                glue_atoms(sb, sb1, sb2);
                break;
             }
@@ -363,9 +371,9 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
                StringBuilder sb2 = stringBuilder();
                StringBuilder sb3 = stringBuilder();
                StringBuilder sb4 = stringBuilder();
-               format_term(sb1, options, precedence-1, ARGOF(term, 0));
+               format_term(sb1, options, op->precedence-1, ARGOF(term, 0));
                format_atom(sb2, options, f->name);
-               format_term(sb3, options, precedence-1, ARGOF(term, 1));
+               format_term(sb3, options, op->precedence-1, ARGOF(term, 1));
                glue_atoms(sb4, sb1, sb2);
                glue_atoms(sb, sb4, sb3);
                break;
@@ -375,9 +383,9 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
                StringBuilder sb2 = stringBuilder();
                StringBuilder sb3 = stringBuilder();
                StringBuilder sb4 = stringBuilder();
-               format_term(sb1, options, precedence-1, ARGOF(term, 0));
+               format_term(sb1, options, op->precedence-1, ARGOF(term, 0));
                format_atom(sb2, options, f->name);
-               format_term(sb3, options, precedence, ARGOF(term, 1));
+               format_term(sb3, options, op->precedence, ARGOF(term, 1));
                glue_atoms(sb4, sb1, sb2);
                glue_atoms(sb, sb4, sb3);
                break;
@@ -387,9 +395,9 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
                StringBuilder sb2 = stringBuilder();
                StringBuilder sb3 = stringBuilder();
                StringBuilder sb4 = stringBuilder();
-               format_term(sb1, options, precedence, ARGOF(term, 0));
+               format_term(sb1, options, op->precedence, ARGOF(term, 0));
                format_atom(sb2, options, f->name);
-               format_term(sb3, options, precedence-1, ARGOF(term, 1));
+               format_term(sb3, options, op->precedence-1, ARGOF(term, 1));
                glue_atoms(sb4, sb1, sb2);
                glue_atoms(sb, sb4, sb3);
                break;
@@ -397,7 +405,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
             case XF:
             {
                StringBuilder sb2 = stringBuilder();
-               format_term(sb1, options, precedence-1, ARGOF(term, 0));
+               format_term(sb1, options, op->precedence-1, ARGOF(term, 0));
                format_atom(sb2, options, f->name);
                glue_atoms(sb, sb1, sb2);
                break;
@@ -405,13 +413,13 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
             case YF:
             {
                StringBuilder sb2 = stringBuilder();
-               format_term(sb1, options, precedence, ARGOF(term, 0));
+               format_term(sb1, options, op->precedence, ARGOF(term, 0));
                format_atom(sb2, options, f->name);
                glue_atoms(sb, sb1, sb2);
                break;
             }
          }
-         if (op->precedence > precedence)
+         if (op_precedence > precedence)
             append_string_no_copy(sb, ")", 1);
          return 1;
       }
