@@ -1,5 +1,5 @@
 /* This comprises the Javascript end of the FLI */
-var XMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
+var NodeXMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 
 var functions = [];
 var fTop = 0;
@@ -339,7 +339,7 @@ function _consult_string(a)
 
 function _consult_url(url, callback)
 {
-    var xhr = new XMLHttpRequest();
+    var xhr = new NodeXMLHttpRequest();
     xhr.open('get', url, true);
     xhr.onload = function()
     {
@@ -563,11 +563,17 @@ module.exports = {_make_atom: _make_atom,
 /* This is the ACTUAL preamble */
 var Module = Module || {};
 
+Module.memoryInitializerPrefixURL = "http://localhost:8081/";
+
 Module.onRuntimeInitialized = function()
 {
     Module._init_prolog();
+    //console.log("Hello from an initialized system!");
+    if (typeof onPrologReady == 'function')
+	onPrologReady(module.exports);
+    else
+	console.log("Prolog is ready but no one is interested :(");
     /*
-    console.log("Hello from an initialized system!");
     define_foreign("badger", badger);
     define_foreign("sleep", sleep);
 
