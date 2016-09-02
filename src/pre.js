@@ -563,7 +563,8 @@ module.exports = {_make_atom: _make_atom,
 /* This is the ACTUAL preamble */
 var Module = Module || {};
 
-Module.memoryInitializerPrefixURL = "http://localhost:8081/";
+if (typeof proscriptPrefixURL !== 'undefined')
+    Module.memoryInitializerPrefixURL = proscriptPrefixURL;
 
 Module.onRuntimeInitialized = function()
 {
