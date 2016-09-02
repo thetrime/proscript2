@@ -2000,8 +2000,7 @@ PREDICATE(format, 3, (word sink, word format, word args)
                      Options options;
                      init_options(&options);
                      set_option(&options, numbervarsAtom, trueAtom);
-                     set_option(&options, quotedAtom, trueAtom);
-                     int rc = format_term(output, &options, 1200, arg);
+		     int rc = format_term(output, &options, 1200, arg);
                      free_options(&options);
                      if (!rc) BAD_FORMAT;
                      break;
