@@ -243,9 +243,16 @@ Stream nullStream()
 
 int console_write(Stream stream, int length, unsigned char* buffer)
 {
-   for (int i = 0; i < length; i++)
+#ifdef __APPLE__
+#if TARGET_OS_IPHONE
+  fprintf(stderr, "%*.*s", length, length, buffer);
+#else
+  fprintf(stdout, "%*.*s", length, length, buffer);
+#endif
+#else
+  for (int i = 0; i < length; i++)
       putchar(buffer[i]);
-   //printf("%*.*s", length, length, buffer);
+#endif
    return length;
 }
 

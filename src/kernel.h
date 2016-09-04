@@ -33,34 +33,6 @@
 #define PRIpd "u"
 #endif
 
-#define FUNCTOR_VALUE(t) ((Functor)CTable[t])
-#define FUNCTOROF(t) (*((Word)(t & ~TAG_MASK)))
-#define ARGOF(t, i) DEREF(((word)(((Word*)(DEREF(t) & ~TAG_MASK))+i+1)))
-#define ARGPOF(t) ((Word)(((Word*)(t & ~TAG_MASK))+1)) // FIXME: These cannot both be right!
-
-#define VARIABLE_TAG 0b00
-#define POINTER_TAG  0b01
-#define COMPOUND_TAG 0b10
-#define CONSTANT_TAG 0b11
-#define TAG_MASK     0b11
-#define TAGOF(t) (t & TAG_MASK)
-
-word DEREF(word t);
-word MAKE_VAR();
-word MAKE_BIGINTEGER(mpz_t data);
-word MAKE_RATIONAL(mpq_t data);
-word MAKE_ATOM(char* data);
-word MAKE_NATOM(char* data, size_t length);
-word MAKE_BLOB(char* type, void* data);
-word MAKE_INTEGER(long data);
-word MAKE_FLOAT(double data);
-word MAKE_FUNCTOR(word name, int arity);
-word MAKE_VCOMPOUND(word functor, ...);
-word MAKE_LCOMPOUND(word functor, List* args);
-word MAKE_ACOMPOUND(word functor, word* args);
-void PORTRAY(word w);
-int SET_EXCEPTION(word);
-void CLEAR_EXCEPTION();
 
 enum OPCODE
 {
@@ -100,25 +72,10 @@ enum MODE
    WRITE,
 } mode;
 
-typedef enum
-{
-   FAIL = 0,
-   SUCCESS = 1,
-   SUCCESS_WITH_CHOICES = 2,
-   YIELD = 3,
-   ERROR = 4,
-   HALT,
-   AGAIN
-} RC;
-
 #define PREDICATE_FOREIGN 1
 #define PREDICATE_DYNAMIC 2
 
-typedef void(*ExecutionCallback)(RC);
-
-void execute_query(word, ExecutionCallback);
-void backtrack_query(ExecutionCallback);
-word getException();
+#include "proscript.h"
 
 int clause_functor(word, word*);
 void consult_string(char*);

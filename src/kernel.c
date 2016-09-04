@@ -989,7 +989,7 @@ void initialize_kernel()
    currentModule = userModule;
    current_input = nullStream();
    current_output = consoleOuputStream();
-   initialize_foreign();
+   initialize_foreign();   
    consult_file("src/builtin.pl");
    PC = 0;
    CP = 0;
