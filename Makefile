@@ -6,14 +6,13 @@ FILESYSTEM=--embed-file src/builtin.pl
 
 ifeq ($(ARCH),js)
 CC=emcc
-TARGET=build/proscript.js
+TARGET=proscript.js
 #CFLAGS=-O2
-OPT_LEVEL=-O1
+OPT_LEVEL=-O3
 #MEMORY_REQUIRED=-s TOTAL_MEMORY=67108864
 MEMORY_REQUIRED=
 #MEMORY_REQUIRED=-s ALLOW_MEMORY_GROWTH=1
-#GMP=lib/gmp.js
-GMP=lib/gmp6/gmp-6.1.1
+GMP=node_modules/gmpjs
 CFLAGS=$(OPT_LEVEL) -s NO_EXIT_RUNTIME=1 $(MEMORY_REQUIRED) -I$(GMP) -s ASSERTIONS=2 -Werror -DDEBUG -DMEMTRACE
 LDFLAGS=$(OPT_LEVEL) --llvm-lto 1 -s ASM_JS=1 $(MEMORY_REQUIRED) -s ASSERTIONS=2 $(GMP)/.libs/libgmp.a
 BOOT=--pre-js $(BOOTFILE)
@@ -21,7 +20,7 @@ BOOTFILE=src/pre.js
 BOOT_FS=$(FILESYSTEM)
 else
 CC=gcc
-TARGET=build/proscript
+TARGET=proscript
 CFLAGS=-g -I/opt/local/include
 LDFLAGS=-L/opt/local/lib -lgmp
 BOOTFILE=main.o
