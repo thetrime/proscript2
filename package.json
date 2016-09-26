@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thetrime/proscript2.git"
+    "url": "git+https://github.com/thetrime/proscript2.git#98d00f919a664efddc880d431d63ea37e8fb2cbd"
   },
   "author": "Matt Lilley",
   "license": "LGPL-3.0",
