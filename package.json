@@ -11,7 +11,7 @@
   },
   "devDependencies": {},
   "scripts": {
-      "prepublish": "make"
+      "install": "make"
   },
   "repository": {
     "type": "git",
