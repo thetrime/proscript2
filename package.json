@@ -7,7 +7,7 @@
       "xmlhttprequest": "^1.8.0",
       "browserify": "^13.0.0",
       "brfs": "^1.4.3",
-      "gmpjs": "git+https://github.com/thetrime/gmpjs#0e99e1aa3a12d9ebf8a51bc03d51f38f72c84e0a"
+      "gmpjs": "git+https://github.com/thetrime/gmpjs#98d00f919a664efddc880d431d63ea37e8fb2cbd"
   },
   "devDependencies": {},
   "scripts": {
