@@ -346,7 +346,9 @@ function _consult_url(url, callback)
 	var status = xhr.status;
 	if (status == 200)
         {
+            console.log("Consulting: " + xhr.responseText);
             _consult_string(xhr.responseText);
+            console.log("Done");
 	    callback();
 	}
 	else

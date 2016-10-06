@@ -96,8 +96,8 @@ Module create_module(word name)
    m->name = name;
    whashmap_put(modules, name, m);
    m->predicates = whashmap_new();
+   printf("Created a module: "); PORTRAY(name); printf("\n");
    return m;
-   //printf("Created a module: "); PORTRAY(name); printf("\n");
 }
 
 EMSCRIPTEN_KEEPALIVE
