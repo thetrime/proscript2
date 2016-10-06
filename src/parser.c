@@ -242,7 +242,7 @@ Token lex(Stream s)
       c = get_raw_char_with_conversion(s);
       if (c == -1)
          return NULL;
-      if (c == ' ' || c == '\n' || c == '\t')
+      if (c == ' ' || c == '\n' || c == '\t' || c == '\r')
          continue;
       else if (c == '%') // Discard single-line comment
       {
