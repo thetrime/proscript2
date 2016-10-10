@@ -460,10 +460,15 @@ function _free_options(options)
     return __free_options(options);
 }
 
-
+// If you pass in a constant to make_local, the same constant is returned
+// Calling free_local() on a constant has no effect. This simplifies a lot of
+// code so that you dont have to check the type before saving a word somewhere
+// in foreign code
 function make_local(t)
 {
     t = _DEREF(t);
+    if ((_DEREF(t) & TAG_MASK) == CONSTANT_TAG)
+        return t;
     var ptr = _cmalloc(SIZE_OF_WORD);
     _copy_local(t, ptr);
     var value = getValue(ptr, '*');
