@@ -3,6 +3,7 @@
 #include "ctable.h"
 #include "module.h"
 #include "checks.h"
+#include "format.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
@@ -165,7 +166,12 @@ Stream get_stream(word w)
       }
       else if (type == ATOM_TYPE)
       {
-         // Aliases not implemented yet
+         if (w == currentOutputAtom)
+            return current_output;
+         if (w == userErrorAtom)
+            return current_output;
+         // General purpose aliases not implemented yet. To do this we would have to be able to enumerate
+         // all streams, or at least keep track of the ones with aliases
          SET_EXCEPTION(domain_error(streamOrAliasAtom, w));
          return NULL;
       }
@@ -222,8 +228,6 @@ int qcompare_terms(const void * a, const void* b)
    return term_difference(*((word*)a), *((word*)b));
 }
 
-#define NEXT_FORMAT_ARG {if(TAGOF(args) == COMPOUND_TAG && FUNCTOROF(args) == listFunctor) { arg = ARGOF(args, 0); args = ARGOF(args, 1); } else { freeStringBuilder(output); return format_error(MAKE_ATOM("Not enough arguments")); }}
-#define BAD_FORMAT { freeStringBuilder(output); return ERROR; }
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
