@@ -172,7 +172,7 @@ Stream get_stream(word w)
             return current_output;
          // General purpose aliases not implemented yet. To do this we would have to be able to enumerate
          // all streams, or at least keep track of the ones with aliases
-         SET_EXCEPTION(domain_error(streamOrAliasAtom, w));
+         domain_error(streamOrAliasAtom, w);
          return NULL;
       }
    }
