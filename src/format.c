@@ -1,3 +1,4 @@
+#include "global.h"
 #include "format.h"
 
 int format(word sink, word fmt, word args)
