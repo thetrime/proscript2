@@ -1344,6 +1344,7 @@ RC execute(int resume)
             NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
             NFR->clause = query->clause;
             //printf("Allocated frame %p with local clause %p\n", NFR, NFR->clause);
+            NFR->contextModule = NULL; // CHECKME: Is this right?
             NFR->is_local = 1;
             NFR->returnPC = PC+1;
             NFR->choicepoint = CP;
