@@ -187,8 +187,11 @@ setup_call_cleanup(A,B,C):-
 setup_call_catcher_cleanup(Setup, Call, Catcher, Cleanup):-
         Setup,
         catch('$call_catcher_cleanup'(Call, Catcher, Cleanup),
-                Catcher,
-                ( Cleanup, throw(Catcher))).
+                Ball,
+              ( Catcher = error(Ball),
+                Cleanup,
+                throw(Catcher))
+             ).
 
 '$call_catcher_cleanup'(Call, Catcher, Cleanup):-
         '$choicepoint_depth'(P),
