@@ -548,6 +548,7 @@ void unwind_trail(word* from)
 // After executing, cut_to(X), we ensure that X is the current choicepoint.
 int cut_to(Choicepoint point)
 {
+   word* finalSP = SP;
    while (CP > point)
    {
       if (CP == NULL) // Fatal, I guess?
@@ -565,12 +566,17 @@ int cut_to(Choicepoint point)
             {
                //printf("Freeing clause at %p\n", f->clause);
                free_clause(f->clause);
+               f->is_local = 0;
             }
             f = f->parent;
          }
       }
+      // We cannot move SP just yet since we may run a cleanup on this frame
+      // and if we move SP back and start executing the cleanup goal now, it possibly write over
+      // important information. Instead, note where we would have moved it back to, and only
+      // move it once the cut is finalized
       if (c->FR > FR)
-         SP = AFTER_FRAME(c->FR);
+         finalSP = AFTER_FRAME(c->FR);
 
       CP = CP->CP;
       if (c->cleanup != NULL)
@@ -589,6 +595,7 @@ int cut_to(Choicepoint point)
          c->cleanup = NULL; // Missed your chance then
       }
    }
+   SP = finalSP;
 
    /*
    word* CPS = (word*)CP + sizeof(choicepoint)/sizeof(word) + (CP != NULL?CP->argc : 0);
