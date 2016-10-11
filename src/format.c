@@ -302,7 +302,6 @@ int format(word sink, word fmt, word args)
       free(result);
       return rc;
    }
-   printf("oh dear\n");
    Stream s = get_stream(sink);
    if (s == NULL)
    {
