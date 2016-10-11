@@ -1791,6 +1791,73 @@ PREDICATE(downcase_atom, 2, (word in, word out)
    return rc;
 })
 
+PREDICATE(atomic_list_concat, 3, (word atomics, word sep, word out)
+{
+   if (!must_be_bound(atomics))
+      return ERROR;
+   if (atomics == emptyListAtom)
+      return unify(out, emptyAtom);
+   if (!must_be_atom(sep))
+      return ERROR;
+   cdata csep = getConstant(sep, NULL);
+   if (TAGOF(atomics) == COMPOUND_TAG && FUNCTOROF(atomics) == listFunctor)
+   {
+      char* text;
+      int length;
+      word w = atomics;
+      StringBuilder sb = stringBuilder();
+      while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
+      {
+         word h = ARGOF(w, 0);
+         w = ARGOF(w, 1);
+         if (TAGOF(h) == CONSTANT_TAG)
+         {
+            int type;
+            cdata c = getConstant(h, &type);
+            if (type == ATOM_TYPE)
+               append_string_no_copy(sb, c.atom_data->data, c.atom_data->length);
+            else if (type == FLOAT_TYPE)
+            {
+               char buffer[64];
+               sprintf((char*)buffer, "%f", c.float_data->data);
+               append_string(sb, strdup(buffer), strlen(buffer));
+            }
+            else if (type == INTEGER_TYPE)
+            {
+               char buffer[64];
+               sprintf((char*)buffer, "%ld", c.integer_data);
+               append_string(sb, strdup(buffer), strlen(buffer));
+            }
+            else
+            {
+               freeStringBuilder(sb);
+               return type_error(textAtom, h);
+            }
+         }
+         else
+         {
+            freeStringBuilder(sb);
+            return type_error(textAtom, h);
+         }
+         if (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor && csep.atom_data->length != 0)
+            append_string_no_copy(sb, csep.atom_data->data, csep.atom_data->length);
+      }
+      if (TAGOF(w) == VARIABLE_TAG)
+      {
+         freeStringBuilder(sb);
+         return instantiation_error();
+      }
+      if (w != emptyListAtom)
+      {
+         freeStringBuilder(sb);
+         return type_error(listAtom, w);
+      }
+      finalize_buffer(sb, &text, &length);
+      return unify(out, MAKE_NATOM(text, length));
+   }
+   return type_error(listAtom, atomics);
+})
+
 extern void qqq();
 
 PREDICATE(qqq, 0, ()
