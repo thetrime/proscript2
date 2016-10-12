@@ -15,6 +15,7 @@ typedef predicate* Predicate;
 
 Predicate lookup_predicate(Module module, word functor);
 Module create_module(word name);
+void destroy_module(Module m);
 Module find_module(word name);
 void add_clause(Module module, word functor, word clause);
 void free_clause(Clause c);

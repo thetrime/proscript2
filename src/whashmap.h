@@ -77,6 +77,12 @@ extern int whashmap_get_one(wmap_t in, any_t *arg, int remove);
 extern void whashmap_free(wmap_t in);
 
 /*
+ * Empty the hashmap
+ */
+extern void whashmap_clear(wmap_t in);
+
+
+/*
  * Get the current size of a hashmap
  */
 extern int whashmap_length(wmap_t in);

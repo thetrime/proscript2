@@ -1926,6 +1926,15 @@ void consult_stream(Stream s)
                printf("Illegal export list\n");
                break;
             }
+            Module oldModule = find_module(ARGOF(directive, 0));
+            if (oldModule != NULL)
+            {
+               destroy_module(oldModule);
+               if (oldModule == currentModule)
+                  currentModule = userModule;
+               if (oldModule == userModule)
+                  userModule = create_module(MAKE_ATOM("user"));
+            }
             currentModule = create_module(ARGOF(directive, 0));
          }
          else if (TAGOF(directive) == COMPOUND_TAG && FUNCTOROF(directive) == metaPredicateFunctor)

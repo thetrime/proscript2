@@ -265,6 +265,14 @@ void whashmap_free(wmap_t in){
 	free(m);
 }
 
+/* Clear the hashmap */
+void whashmap_clear(wmap_t in){
+	hashmap_map* m = (hashmap_map*) in;
+	free(m->data);
+        m->data = (hashmap_element*) calloc(INITIAL_SIZE, sizeof(hashmap_element));
+}
+
+
 /* Return the length of the hashmap */
 int whashmap_length(wmap_t in){
 	hashmap_map* m = (hashmap_map *) in;

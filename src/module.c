@@ -90,9 +90,26 @@ Predicate lookup_predicate(Module module, word functor)
    return NULL;
 }
 
+static
+int _destroy_module_predicate(any_t ignored, word functor, any_t predicate)
+{
+   free_predicate((Predicate)predicate);
+   return MAP_OK;
+}
+
+void destroy_module(Module m)
+{
+   printf("Destroying module "); PORTRAY(m->name); printf("\n");
+   // CHECKME: Could there be references to this module or the predicates elsewhere?
+   whashmap_iterate(m->predicates, _destroy_module_predicate, NULL);
+   whashmap_free(m->predicates);
+   free(m);
+}
+
 Module create_module(word name)
 {
    Module m = malloc(sizeof(module));
+   Module old_module = NULL;
    m->name = name;
    whashmap_put(modules, name, m);
    m->predicates = whashmap_new();
@@ -106,7 +123,7 @@ Module find_module(word name)
    Module m;
    if (whashmap_get(modules, name, (any_t)&m) == MAP_OK)
       return m;
-   printf("Could not find module "); PORTRAY(name); printf("\n");
+//   printf("Could not find module "); PORTRAY(name); printf("\n");
    return NULL;
 }
 
