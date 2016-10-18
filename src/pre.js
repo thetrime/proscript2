@@ -518,6 +518,18 @@ function deref(t)
     return _DEREF(t);
 }
 
+function forEach(t, i, e)
+{
+    var list = t;
+    while (_is_list(list))
+    {
+        i(_list_head(list));
+        list = _list_tail(list);
+    }
+    if (!_is_empty_list(list))
+        e(list);
+}
+
 module.exports = {_make_atom: _make_atom,
                   _make_functor: _make_functor,
                   _make_variable: _make_variable,
@@ -560,6 +572,7 @@ module.exports = {_make_atom: _make_atom,
                   _free_local: free_local,
                   _string_to_local_term: string_to_local_term,
                   _portray: portray,
+                  _forEach: forEach,
                   _deref: deref,
                   _qqq: qqq,
                   _qqqy: qqqy

@@ -7,6 +7,7 @@
 #include "types.h"
 #include "kernel.h"
 #include "ctable.h"
+#include "constants.h"
 #include "module.h"
 #include "options.h"
 #include "string_builder.h"
@@ -276,5 +277,29 @@ word string_to_local_term(char* string, int length)
    return (word)ptr;
 }
 
-#endif
+EMSCRIPTEN_KEEPALIVE
+int is_list(word w)
+{
+   w = DEREF(w);
+   return (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor);
+}
 
+EMSCRIPTEN_KEEPALIVE
+word list_head(word w)
+{
+   return ARGOF(w, 0);
+}
+
+EMSCRIPTEN_KEEPALIVE
+word list_tail(word w)
+{
+   return ARGOF(w, 1);
+}
+
+EMSCRIPTEN_KEEPALIVE
+word is_empty_list(word w)
+{
+   return DEREF(w) == emptyListAtom;
+}
+
+#endif
