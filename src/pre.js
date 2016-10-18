@@ -130,6 +130,23 @@ function _atom_chars(a)
     return read_string(ptr, length);
 }
 
+function _numeric_value(a)
+{
+    a = _DEREF(a);
+    switch(_term_type(a))
+    {
+        case 2: // integer
+        return _integer_data(a);
+        case 4: // float
+        return _float_data(a);
+        case 5: // bigint
+        case 6: // rational
+        default:
+        return undefined;
+    }
+}
+
+
 function read_string(ptr, length)
 {
     var chunk_size = 0x8000;
@@ -573,6 +590,7 @@ module.exports = {_make_atom: _make_atom,
                   _string_to_local_term: string_to_local_term,
                   _portray: portray,
                   _forEach: forEach,
+                  _numeric_value: _numeric_value,
                   _deref: deref,
                   _qqq: qqq,
                   _qqqy: qqqy
