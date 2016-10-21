@@ -791,10 +791,11 @@ word copy_local_with_extra_space(word t, word** local, int extra)
    // First, if extra is 0 we can do some simple optimisations:
    if (extra == 0)
    {
-      if (TAGOF(t) == CONSTANT_TAG)
+      if (TAGOF(t) == CONSTANT_TAG || TAGOF(t) == POINTER_TAG)
+      {
+         *local = (word*)t;
          return t;
-      if (TAGOF(t) == POINTER_TAG)
-         return t;
+      }
       if (TAGOF(t) == VARIABLE_TAG)
       {
          word* localptr = malloc(sizeof(word));
