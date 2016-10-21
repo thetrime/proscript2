@@ -271,6 +271,8 @@ word string_to_local_term(char* string, int length)
    word w;
    if (read_term(stream, NULL, &w) == 0)
       return 0;
+   if (TAGOF(w) == CONSTANT_TAG)
+      return w;
    word* ptr;
    copy_local(w, &ptr);
    freeStream(stream);
