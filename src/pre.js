@@ -364,13 +364,13 @@ function _consult_url(url, callback)
 	if (status == 200)
         {
             _consult_string(xhr.responseText);
-	    callback();
+            callback(true);
 	}
 	else
 	{
 	    // FIXME: Do something better here?
 	    console.log("Failed to consult " + url);
-	    console.log(status);
+            callback(false);
 	}
     };
     xhr.send();
