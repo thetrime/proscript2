@@ -260,3 +260,7 @@ memberchk(A, B):- member(A, B), !.
 is_list(Var):- var(Var), !, fail.
 is_list([]):- !.
 is_list([_|B]):- is_list(B).
+
+
+forall(A, B):-
+        \+((A, \+B)).
