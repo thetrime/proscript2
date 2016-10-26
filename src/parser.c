@@ -28,7 +28,13 @@ token PeriodToken_ = {ConstantTokenType, .data = {.constant_data = "."}}; Token 
 int parse_infix(Stream s, word lhs, int precedence, map_t vars, word*);
 int parse_postfix(Stream s, word lhs, int precedence, map_t vars, word*);
 
-
+char_union* make_char_union(char* data)
+{
+   char_union* u = malloc(strlen(data) + 1 + sizeof(char_union));
+   memcpy(u->data, data, strlen(data));
+   u->data[strlen(data)] = 0;
+   return u;
+}
 
 void print_token(Token t)
 {
@@ -38,13 +44,13 @@ void print_token(Token t)
          printf("%s", t->data.constant_data);
          return;
       case AtomTokenType:
-         printf("%.*s", (int)t->data.atom_data->length, t->data.atom_data->data);
+         printf("%.*s", (int)t->data.atom_data->length, t->data.atom_data->data->data);
          return;
       case SyntaxErrorTokenType:
          printf("%s", t->data.syntax_error_data);
          break;
       case StringTokenType:
-         printf("%.*s", (int)t->data.atom_data->length, t->data.atom_data->data);
+         printf("%.*s", (int)t->data.atom_data->length, t->data.atom_data->data->data);
          break;
       case IntegerTokenType:
          printf("%ld", t->data.integer_data);
@@ -53,7 +59,7 @@ void print_token(Token t)
          printf("%f", t->data.float_data);
          break;
       case VariableTokenType:
-         printf("%s", t->data.variable_data);
+         printf("%s", t->data.variable_data->data);
          break;
       case BigIntegerTokenType:
          printf("<bigint>");
@@ -128,7 +134,7 @@ int is_graphic_char(char c)
       c == '\\'; // graphic-token-char is either graphic-char or backslash-char
 }
 
-char lookahead = -1;
+int lookahead = -1;
 void unget_raw_char(int c)
 {
     lookahead = c;
@@ -180,7 +186,7 @@ Token SyntaxErrorToken(char* message)
 
 }
 
-Token AtomToken(char* data, int length)
+Token AtomToken(char_union* data, int length)
 {
    Token t = malloc(sizeof(token));
    t->type = AtomTokenType;
@@ -190,7 +196,7 @@ Token AtomToken(char* data, int length)
    return t;
 }
 
-Token VariableToken(char* name)
+Token VariableToken(char_union* name)
 {
    Token t = malloc(sizeof(token));
    t->type = VariableTokenType;
@@ -207,7 +213,7 @@ Token BigIntegerToken(char* data)
 }
 
 
-Token StringToken(char* data, int length)
+Token StringToken(char_union* data, int length)
 {
    Token t = malloc(sizeof(token));
    t->type = StringTokenType;
@@ -285,7 +291,7 @@ Token lex(Stream s)
       if (peek_raw_char_with_conversion(s) == ']')
       {
          get_raw_char_with_conversion(s);
-         return AtomToken(strdup("[]"), 2);
+         return AtomToken(make_char_union("[]"), 2);
       }
       return ListOpenToken;
    }
@@ -402,12 +408,12 @@ Token lex(Stream s)
       }
       if (!seen_decimal && !seen_exp)
       {
-         char* str = finalize_char_buffer(sb);
+         char_union* str = finalize_char_buffer(sb);
          char* sp;
-         long l = strtol(str, &sp, base);
+         long l = strtol(str->data, &sp, base);
          if (errno == ERANGE)
          {
-            return BigIntegerToken(str);
+            return BigIntegerToken(str->data);
          }
          else
          {
@@ -418,9 +424,9 @@ Token lex(Stream s)
       else if (seen_decimal)
       {
          // Must be a float
-         char* s = finalize_char_buffer(sb);
+         char_union* s = finalize_char_buffer(sb);
          char* sp;
-         double d = strtod(s, &sp);
+         double d = strtod(s->data, &sp);
          free(s);
          return FloatToken(d);
       }
@@ -494,7 +500,7 @@ Token lex(Stream s)
             push_char(sb, c);
          }
          int length = char_buffer_length(sb);
-         char *data = finalize_char_buffer(sb);
+         char_union *data = finalize_char_buffer(sb);
          if (matcher == '"')
             return StringToken(data, length);
          else
@@ -523,7 +529,8 @@ Token lex(Stream s)
                break;
          }
          int length = char_buffer_length(sb);
-         char* data = finalize_char_buffer(sb);
+         char_union* data = finalize_char_buffer(sb);
+         printf("Here: %s (%d)\n", data->data, sb->length);
          return AtomToken(data, length);
       }
    }
@@ -566,7 +573,7 @@ int token_operator(Token t, Operator* op, OperatorPosition position)
    }
    if (t->type != AtomTokenType)
       return 0;
-   return find_operator(t->data.atom_data->data, op, position);
+   return find_operator(t->data.atom_data->data->data, op, position);
 }
 void curly_cons(word cell, void* result)
 {
@@ -681,14 +688,14 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
       }
       else if (t0->type == VariableTokenType)
       {
-         if (t0->data.variable_data[0] == '_')
+         if (t0->data.variable_data->data[0] == '_')
             lhs = MAKE_VAR();
          else
          {
-            if (hashmap_get(vars, t0->data.variable_data, (any_t*)&lhs) == MAP_MISSING)
+            if (hashmap_get(vars, t0->data.variable_data->data, (any_t*)&lhs) == MAP_MISSING)
             {
                lhs = MAKE_VAR();
-               hashmap_put(vars, strdup(t0->data.variable_data), (any_t)lhs);
+               hashmap_put(vars, strdup(t0->data.variable_data->data), (any_t)lhs);
             }
          }
       }
@@ -699,7 +706,10 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
          switch(t0->type)
          {
             case AtomTokenType:
-               lhs = MAKE_NATOM(t0->data.atom_data->data, t0->data.atom_data->length);
+               if (t0->data.atom_data->data->encoding == ENCODING_ISO_LATIN_1)
+                  lhs = MAKE_NATOM(t0->data.atom_data->data->data, t0->data.atom_data->length);
+               else
+                  lhs = MAKE_WATOM(t0->data.atom_data->data->ucs_data, t0->data.atom_data->length);
                break;
             case ConstantTokenType:
                lhs = MAKE_ATOM(t0->data.constant_data);
@@ -717,7 +727,12 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
                   List list;
                   init_list(&list);
                   for (int i = 0; i < t0->data.atom_data->length; i++)
-                     list_append(&list, MAKE_INTEGER(t0->data.atom_data->data[i]));
+                  {
+                     if (t0->data.atom_data->data->encoding == ENCODING_ISO_LATIN_1)
+                        list_append(&list, MAKE_INTEGER(t0->data.atom_data->data->data[i]));
+                     else
+                        list_append(&list, MAKE_INTEGER(t0->data.atom_data->data->ucs_data[i]));
+                  }
                   lhs = term_from_list(&list, emptyListAtom);
                   free_list(&list);
                   break;
@@ -727,14 +742,22 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
                   List list;
                   init_list(&list);
                   for (int i = 0; i < t0->data.atom_data->length; i++)
-                     list_append(&list, MAKE_NATOM(&t0->data.atom_data->data[i], 1));
+                  {
+                     if (t0->data.atom_data->data->encoding == ENCODING_ISO_LATIN_1)
+                        list_append(&list, MAKE_NATOM(&t0->data.atom_data->data->data[i], 1));
+                     else
+                        list_append(&list, MAKE_WATOM(&t0->data.atom_data->data->ucs_data[i], 1));
+                  }
                   lhs = term_from_list(&list, emptyListAtom);
                   free_list(&list);
                   break;
                }
                else if (get_prolog_flag("double_quotes") == atomAtom)
                {
-                  lhs = MAKE_NATOM(t0->data.atom_data->data, t0->data.atom_data->length);
+                  if (t0->data.atom_data->data->encoding == ENCODING_ISO_LATIN_1)
+                     lhs = MAKE_NATOM(t0->data.atom_data->data->data, t0->data.atom_data->length);
+                  else
+                     lhs = MAKE_WATOM(t0->data.atom_data->data->ucs_data, t0->data.atom_data->length);
                   break;
                }
             }
@@ -793,7 +816,7 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
          t2->data.integer_data = -t2->data.integer_data;
          unread_token(s, t2);
          // Must not free t2 since we will read it later
-         unread_token(s, AtomToken(strdup("-"), 1));
+         unread_token(s, AtomToken(make_char_union("-"), 1));
       }
       else if (t1 == ParenOpenToken)
       {
@@ -903,7 +926,7 @@ int parse_infix(Stream s, word lhs, int precedence, map_t vars, word* result)
 {
    Token t = read_token(s);
    assert(t->type == AtomTokenType || t == CommaToken);
-   char* data;
+   char_union* data;
    int len;
    if (t->type == AtomTokenType)
    {
@@ -912,7 +935,10 @@ int parse_infix(Stream s, word lhs, int precedence, map_t vars, word* result)
    }
    else if (t == CommaToken)
    {
-      data = ",";
+      char tmp[sizeof(char_union) + 2];
+      data = (char_union*)&tmp;
+      data->encoding = ENCODING_ISO_LATIN_1;
+      memcpy(data->data, ",", 2);
       len = 1;
    }
    word rhs;
@@ -921,7 +947,10 @@ int parse_infix(Stream s, word lhs, int precedence, map_t vars, word* result)
       freeToken(t);
       return 0;
    }
-   *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(data, len), 2), lhs, rhs);
+   if (data->encoding == ENCODING_ISO_LATIN_1)
+      *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(data->data, len), 2), lhs, rhs);
+   else
+      *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_WATOM(data->ucs_data, len), 2), lhs, rhs);
    freeToken(t);
    return 1;
 }
@@ -930,7 +959,10 @@ int parse_postfix(Stream s, word lhs, int precedence, map_t vars, word* result)
 {
    Token t = read_token(s);
    assert(t->type == AtomTokenType || t == CommaToken);
-   *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data, t->data.atom_data->length), 1), lhs);
+   if (t->data.atom_data->data->encoding == ENCODING_ISO_LATIN_1)
+      *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_NATOM(t->data.atom_data->data->data, t->data.atom_data->length), 1), lhs);
+   else
+      *result = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_WATOM(t->data.atom_data->data->ucs_data, t->data.atom_data->length), 1), lhs);
    freeToken(t);
    return 1;
 }

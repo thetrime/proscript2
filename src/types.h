@@ -7,10 +7,13 @@
 #include <gmp.h>
 
 
+#define ENCODING_UCS 1
+#define ENCODING_ISO_LATIN_1 0
 
 typedef uintptr_t word;
 typedef word* Word;
 
+typedef int wchar;
 
 typedef struct
 {
@@ -49,7 +52,12 @@ typedef query* Query;
 
 typedef struct
 {
-   char* data;
+   union
+   {
+      char* data;
+      int* ucs_data;
+   };
+   char encoding;
    int length;
 } atom;
 

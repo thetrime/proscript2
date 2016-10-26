@@ -6,7 +6,7 @@
 
 #define STREAM_BUFFER_SIZE 1024
 
-#define STREAM_BUFFER 1
+#define STREAM_BUFFER 2
 
 struct stream
 {
@@ -28,8 +28,8 @@ struct stream
 
 typedef struct stream* Stream;
 
-char get_raw_char(Stream s);
-char peek_raw_char(Stream s);
+int get_raw_char(Stream s);
+int peek_raw_char(Stream s);
 int getch(Stream s);
 int peekch(Stream s);
 int getb(Stream s);

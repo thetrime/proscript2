@@ -50,6 +50,7 @@ word MAKE_VAR();
 word MAKE_BIGINTEGER(mpz_t data);
 word MAKE_RATIONAL(mpq_t data);
 word MAKE_ATOM(char* data);
+word MAKE_WATOM(int* data, size_t length);
 word MAKE_NATOM(char* data, size_t length);
 word MAKE_BLOB(char* type, void* data);
 word MAKE_INTEGER(long data);

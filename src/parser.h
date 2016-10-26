@@ -5,6 +5,7 @@
 #include "options.h"
 #include "prolog_flag.h"
 #include "char_conversion.h"
+#include "char_buffer.h"
 
 typedef enum
 {
@@ -21,7 +22,7 @@ typedef enum
 
 typedef struct
 {
-   char* data;
+   char_union* data;
    size_t length;
 } atom_data_t;
 
@@ -34,7 +35,7 @@ typedef struct
       long integer_data;
       double float_data;
       char* syntax_error_data;
-      char* variable_data;
+      char_union* variable_data;
       char* biginteger_data;
       char* constant_data;
 // ...

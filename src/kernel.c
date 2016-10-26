@@ -224,6 +224,15 @@ void* allocAtom(void* data, int length)
    return a;
 }
 
+void* allocWAtom(void* data, int length)
+{
+   Atom a = malloc(sizeof(atom));
+   a->ucs_data = malloc(length * sizeof(wchar));
+   memcpy(a->ucs_data, (int*)data, length*sizeof(wchar));
+   a->length = length;
+   return a;
+}
+
 
 void* allocInteger(void* data, int len)
 {
@@ -328,6 +337,13 @@ word MAKE_NATOM(char* data, size_t length)
 {
    return intern(ATOM_TYPE, uint32_hash((unsigned char*)data, length), data, length, allocAtom, NULL);
 }
+
+EMSCRIPTEN_KEEPALIVE
+word MAKE_WATOM(int* data, size_t length)
+{
+   return intern(ATOM_TYPE, uint32_hash((unsigned char*)data, length), data, length, allocAtom, NULL);
+}
+
 
 EMSCRIPTEN_KEEPALIVE
 word MAKE_BIGINTEGER(mpz_t i)

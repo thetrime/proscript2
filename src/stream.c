@@ -108,11 +108,16 @@ int getb(Stream s)
    return s->buffer[s->buffer_ptr++];
 }
 
-int putch(Stream s, int c)
+
+int putch_direct(Stream s, int c)
 {
    if (s->filled_buffer_size < 0)
    {
       return io_error(writeAtom, s->term);
+   }
+   if (s->flags & ENCODING_UCS && c >= 0x80)
+   {
+
    }
    s->buffer[s->filled_buffer_size++] = c;
    if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)))
@@ -120,8 +125,31 @@ int putch(Stream s, int c)
    return SUCCESS;
 }
 
+int putch(Stream s, int c)
+{
+   if (c <= 0x80 || ((s->flags & ENCODING_UCS) == 0))
+      return putch_direct(s, c);
+   if (c < 0x800)
+      return putch_direct(s, (c >> 6) | 0xc0) && putch_direct(s, (c & 0x3f) | 0x80);
+   else if (c < 0xFFFF)
+   {
+      if (c >= 0xD800 && c <= 0xDFFF) // Malformed unicode
+         return io_error(writeAtom, s->term);
+      return putch_direct(s, (c >> 12) | 0xe0) && putch_direct(s, ((c >> 6) & 0x3f) | 0x80) && putch_direct(s, (c & 0x3f) | 0x80);
+   }
+   else if (c >= 0x10000 && c <= 0x10FFFF)
+   {
+      return putch_direct(s, (c >> 18) | 0xf0) && putch_direct(s, ((c >> 12) & 0x3f) | 0x80) && putch_direct(s, ((c >> 6) & 0x3f) | 0x80) && putch_direct(s, (c & 0x3f) | 0x80);
+   }
+   // Too large
+   return io_error(writeAtom, s->term);
+
+}
+
+
 int putb(Stream s, char c)
 {
+   printf("putb of %d\n", c);
    if (s->filled_buffer_size < 0)
    {
       return io_error(writeAtom, s->term);
@@ -191,7 +219,8 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
                    int(*flush)(struct stream*),
                    size_t (*tell)(struct stream*),
                    void(*free_stream)(void*),
-                   void* data)
+                   void* data,
+                   int flags)
 {
    Stream s = malloc(sizeof(struct stream));
    s->read = read;
@@ -206,7 +235,7 @@ Stream allocStream(int(*read)(struct stream*, int, unsigned char*),
    s->filled_buffer_size = 0;
    s->id = id++;
    s->term = MAKE_BLOB("stream", s);
-   s->flags = 0;
+   s->flags = flags;
    return s;
 }
 
@@ -226,7 +255,8 @@ Stream stringBufferStream(char* data, int length)
                       NULL,
                       NULL,
                       freeStringBuffer,
-                      allocStringBuffer(data, length));
+                      allocStringBuffer(data, length),
+                      ENCODING_UCS);
 }
 
 Stream nullStream()
@@ -238,13 +268,18 @@ Stream nullStream()
                       NULL,
                       NULL,
                       NULL,
-                      NULL);
+                      NULL,
+                      0);
 }
 
-int console_write(Stream stream, int length, unsigned char* buffer)
+int console_write(Stream stream, int length, unsigned char* raw_buffer)
 {
+   int* buffer = (int*)raw_buffer;
    for (int i = 0; i < length; i++)
-      putchar(buffer[i]);
+   {
+      printf("write char: %d\n", buffer[i]);
+      //putchar(buffer[i]);
+   }
    //printf("%*.*s", length, length, buffer);
    return length;
 }
@@ -258,7 +293,8 @@ Stream consoleOuputStream()
                       NULL,
                       NULL,
                       NULL,
-                      NULL);
+                      NULL,
+                      ENCODING_UCS);
 }
 
 int file_read(Stream stream, int length, unsigned char* buffer)
@@ -308,7 +344,8 @@ Stream fileReadStream(char* filename)
                       NULL,
                       NULL,
                       NULL,
-                      fd);
+                      fd,
+                      ENCODING_UCS);
 }
 
 Stream fileStream(char* filename, word io_mode, Options* options)
@@ -324,7 +361,8 @@ Stream fileStream(char* filename, word io_mode, Options* options)
                          NULL, // flush
                          file_tell,
                          file_free,
-                         fd);
+                         fd,
+                         ENCODING_UCS);
    }
    else if (io_mode == writeAtom)
    {
@@ -337,7 +375,8 @@ Stream fileStream(char* filename, word io_mode, Options* options)
                          file_flush,
                          file_tell,
                          file_free,
-                         fd);
+                         fd,
+                         ENCODING_UCS);
    }
    else if (io_mode == appendAtom)
    {
@@ -350,7 +389,8 @@ Stream fileStream(char* filename, word io_mode, Options* options)
                          file_flush,
                          file_tell,
                          file_free,
-                         fd);
+                         fd,
+                         ENCODING_UCS);
    }
    domain_error(ioModeAtom, io_mode);
    return NULL;

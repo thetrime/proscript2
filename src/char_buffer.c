@@ -1,6 +1,7 @@
 #include "global.h"
 #include <stdlib.h>
 #include "char_buffer.h"
+#include "types.h"
 
 CharBuffer charBuffer()
 {
@@ -8,12 +9,15 @@ CharBuffer charBuffer()
    cb->head = NULL;
    cb->tail = NULL;
    cb->length = 0;
+   cb->encoding = ENCODING_ISO_LATIN_1;
    return cb;
 }
 
 void push_char(CharBuffer cb, int c)
 {
    cb->length++;
+   if (c > 0xff)
+      cb->encoding = ENCODING_UCS;
    if (cb->tail == NULL)
    {
       cb->head = malloc(sizeof(CharCell));
@@ -41,21 +45,41 @@ void free_char_buffer(CharBuffer buffer)
 }
 
 
-char* finalize_char_buffer(CharBuffer buffer)
+char_union* finalize_char_buffer(CharBuffer buffer)
 {
    CharCell* c = buffer->head;
-   char* data = malloc(buffer->length + 1);
-   c = buffer->head;
-   int i = 0;
-   CharCell* d;
-   while (c != NULL)
+   if (buffer->encoding == ENCODING_ISO_LATIN_1)
    {
-      data[i++] = c->data;
-      d = c->next;
-      free(c);
-      c = d;
+      char_union* u = malloc(buffer->length + 1 + sizeof(char_union));
+      c = buffer->head;
+      int i = 0;
+      CharCell* d;
+      while (c != NULL)
+      {
+         u->data[i++] = c->data;
+         d = c->next;
+         free(c);
+         c = d;
+      }
+      u->data[i++] = '\0';
+      free(buffer);
+      return u;
    }
-   data[i++] = '\0';
-   free(buffer);
-   return data;
+   else
+   {
+      char_union* u = malloc(sizeof(int)* (buffer->length + 1) + sizeof(char_union));
+      c = buffer->head;
+      int i = 0;
+      CharCell* d;
+      while (c != NULL)
+      {
+         u->ucs_data[i++] = c->data;
+         d = c->next;
+         free(c);
+         c = d;
+      }
+      u->ucs_data[i++] = '\0';
+      free(buffer);
+      return u;
+   }
 }
