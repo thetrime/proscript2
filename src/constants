@@ -55,6 +55,13 @@ FUNCTOR(subAtomContext, "$sc", 6)
 FUNCTOR(fail, "fail", 0)
 FUNCTOR(formatError, "format_error", 1)
 FUNCTOR(atom, "atom", 1)
+FUNCTOR(upper, "upper", 1);
+FUNCTOR(toUpper, "to_upper", 1);
+FUNCTOR(lower, "lower", 1);
+FUNCTOR(toLower, "to_lower", 1);
+FUNCTOR(xdigit, "xdigit", 1);
+FUNCTOR(digit, "digit", 1);
+FUNCTOR(paren, "paren", 1);
 
 ATOM(instantiationError, "instantiation_error")
 ATOM(cut, "!")
@@ -131,3 +138,25 @@ ATOM(currentOutput, "current_output")
 ATOM(userError, "user_error")
 ATOM(empty, "")
 ATOM(text, "text")
+ATOM(alnum, "alnum")
+ATOM(alpha, "alpha")
+ATOM(ascii, "ascii")
+ATOM(cntrl, "cntrl")
+ATOM(csym, "csym")
+ATOM(csymf, "csymf")
+ATOM(digit, "digit")
+ATOM(endOfLine, "end_of_line")
+ATOM(graph, "graph")
+ATOM(lower, "lower")
+ATOM(newline, "newline")
+ATOM(period, "period")
+ATOM(prologAtomStart, "prolog_atom_start")
+ATOM(prologIdentifierContinue, "prolog_identifier_continue")
+ATOM(prologSymbol, "prolog_symbol")
+ATOM(prologVarStart, "prolog_var_start")
+ATOM(punct, "punct")
+ATOM(quote, "quote")
+ATOM(space, "space")
+ATOM(upper, "upper")
+ATOM(white, "white")
+ATOM(charType, "char_type")

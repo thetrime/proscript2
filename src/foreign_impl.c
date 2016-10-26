@@ -765,7 +765,7 @@ PREDICATE(read, 2, (word stream, word term)
    return rc && unify(term, t);
 })
 
-// 8.14.2 write_term/2,3 write/1,2, writeq/1,2, write_canonical/1,2 IMPLEMENT
+// 8.14.2 write_term/2,3 write/1,2, writeq/1,2, write_canonical/1,2
 PREDICATE(write_term, 2, (word term, word options)
 {
    Options _options;
@@ -1856,6 +1856,223 @@ PREDICATE(atomic_list_concat, 3, (word atomics, word sep, word out)
       return unify(out, MAKE_NATOM(text, length));
    }
    return type_error(listAtom, atomics);
+})
+
+NONDET_PREDICATE(code_type, 2, (word code, word type, word backtrack)
+{
+   if (TAGOF(code) == VARIABLE_TAG && TAGOF(type) == VARIABLE_TAG)
+      return instantiation_error();
+   if (TAGOF(code) == VARIABLE_TAG)
+   {
+      // Nondeterministic hard case - find all codes with the given class
+      // Not currently implemented
+      return instantiation_error();
+   }
+   else
+   {
+      if (!must_be_atomic(code))
+         return ERROR;
+      int ctype;
+      cdata c = getConstant(code, &ctype);
+      int cval = -1;
+      if (ctype == ATOM_TYPE)
+      {
+         if (c.atom_data->length != 1)
+            return type_error(characterAtom, code);
+         cval = c.atom_data->data[0];
+      }
+      else if (!must_be_character_code(code))
+         return ERROR;
+      else
+      {
+         cval = c.integer_data;
+      }
+      if (TAGOF(type) != VARIABLE_TAG)
+      {
+         // Deterministic case - check whether cval has this class or not
+         if (TAGOF(type) == COMPOUND_TAG)
+         {
+            // upper/1, lower/1, to_upper/1, to_lower/1
+            if (FUNCTOROF(type) == upperFunctor)
+            {
+               return (isupper(cval) && unify(ARGOF(type, 0), MAKE_INTEGER(tolower(cval))));
+            }
+            else if (FUNCTOROF(type) == lowerFunctor)
+            {
+               return (islower(cval) && unify(ARGOF(type, 0), MAKE_INTEGER(toupper(cval))));
+            }
+            else if (FUNCTOROF(type) == toLowerFunctor)
+            {
+               return unify(ARGOF(type, 0), MAKE_INTEGER(toupper(cval)));
+            }
+            else if (FUNCTOROF(type) == toUpperFunctor)
+            {
+               return unify(ARGOF(type, 0), MAKE_INTEGER(tolower(cval)));
+            }
+            else if (FUNCTOROF(type) == xdigitFunctor)
+            {
+               if (isxdigit(cval))
+               {
+                  if (cval >= 'a')
+                     return unify(ARGOF(type, 0), MAKE_INTEGER(cval - 'a' + 10));
+                  if (cval >= 'A')
+                     return unify(ARGOF(type, 0), MAKE_INTEGER(cval - 'A' + 10));
+                  return unify(ARGOF(type, 0), MAKE_INTEGER(cval - '0'));
+               }
+               return FAIL;
+            }
+            else if (FUNCTOROF(type) == digitFunctor)
+            {
+               return isdigit(cval) && unify(ARGOF(type, 0), MAKE_INTEGER(cval - '0'));
+            }
+            else if (FUNCTOROF(type) == parenFunctor)
+            {
+               if (cval == '(')
+                  return unify(ARGOF(type, 0), MAKE_INTEGER(')'));
+               if (cval == '{')
+                  return unify(ARGOF(type, 0), MAKE_INTEGER('}'));
+               if (cval == '[')
+                  return unify(ARGOF(type, 0), MAKE_INTEGER(']'));
+               return FAIL;
+            }
+            else
+               return type_error(charTypeAtom, type);
+         }
+         else
+         {
+            if (type == alnumAtom)
+               return isalnum(cval);
+            else if (type == alphaAtom)
+               return isalpha(cval);
+            else if (type == asciiAtom)
+               return cval <= 127;
+            else if (type == cntrlAtom)
+               return iscntrl(cval);
+            else if (type == csymAtom)
+               return isalnum(cval) || cval == '_';
+            else if (type == csymfAtom)
+               return isalpha(cval) || cval == '_';
+            else if (type == digitAtom)
+               return isdigit(cval);
+            else if (type == endOfLineAtom)
+               return cval >= 10 && cval <= 13;
+            else if (type == graphAtom)
+               return isgraph(cval);
+            else if (type == lowerAtom)
+               return islower(cval);
+            else if (type == newlineAtom)
+               return cval == 10;
+            else if (type == periodAtom)
+               return cval == 33 || cval == 46 || cval == 63;
+            else if (type == prologAtomStartAtom)
+               return islower(cval);
+            else if (type == prologIdentifierContinueAtom)
+               return isalnum(cval) || cval == '_';
+            else if (type == prologSymbolAtom)
+               return is_graphic_char(cval);
+            else if (type == prologVarStartAtom)
+               return isupper(cval) || cval == '_';
+            else if (type == punctAtom)
+               return ispunct(cval);
+            else if (type == quoteAtom)
+               return cval == 34 || cval == 39 || cval == 96;
+            else if (type == spaceAtom)
+               return isspace(cval);
+            else if (type == upperAtom)
+               return isupper(cval);
+            else if (type == whiteAtom)
+               return cval == 9 || cval == 32;
+            return type_error(charTypeAtom, type);
+         }
+      }
+      else
+      {
+         // Nondetermistic case - Find all classes for the code cval
+         word list = backtrack;
+         if (backtrack == 0)
+         {
+            // First call. Build a list of all the classes for cval
+            List tmp;
+            init_list(&tmp);
+            if (isalnum(cval))
+               list_append(&tmp, alnumAtom);
+            if (isalpha(cval))
+               list_append(&tmp, alphaAtom);
+            if (cval <= 127)
+               list_append(&tmp, asciiAtom);
+            if (iscntrl(cval))
+               list_append(&tmp, cntrlAtom);
+            if (isalnum(cval) || cval == '_')
+               list_append(&tmp, csymAtom);
+            if (isalpha(cval) || cval == '_')
+               list_append(&tmp, csymfAtom);
+            if (isdigit(cval))
+            {
+               list_append(&tmp, digitAtom);
+               list_append(&tmp, MAKE_VCOMPOUND(digitFunctor, MAKE_INTEGER(cval - '0')));
+               list_append(&tmp, MAKE_VCOMPOUND(xdigitFunctor, MAKE_INTEGER(cval - '0')));
+            }
+            if (isxdigit(cval) && cval > '9')
+            {
+               int val = 0;
+               if (cval >= 'a')
+                  val = cval - 'a' + 10;
+               else if (cval >= 'A')
+                  val = cval - 'A' + 10;
+               list_append(&tmp, MAKE_VCOMPOUND(xdigitFunctor, MAKE_INTEGER(val)));
+            }
+            if (cval >= 10 && cval <= 13)
+               list_append(&tmp, endOfLineAtom);
+            if (isgraph(cval))
+               list_append(&tmp, graphAtom);
+            if (islower(cval))
+            {
+               list_append(&tmp, lowerAtom);
+               list_append(&tmp, MAKE_VCOMPOUND(lowerFunctor, MAKE_INTEGER(toupper(cval))));
+            }
+            if (isupper(cval))
+            {
+               list_append(&tmp, upperAtom);
+               list_append(&tmp, MAKE_VCOMPOUND(upperFunctor, MAKE_INTEGER(tolower(cval))));
+            }
+            if (cval == 10)
+               list_append(&tmp, newlineAtom);
+            if (cval == 33 || cval == 46 || cval == 63)
+               list_append(&tmp, periodAtom);
+            if (islower(cval))
+               list_append(&tmp, prologAtomStartAtom);
+            if (isalnum(cval) || cval == '_')
+               list_append(&tmp, prologIdentifierContinueAtom);
+            if (is_graphic_char(cval))
+               list_append(&tmp, prologSymbolAtom);
+            if (isupper(cval) || cval == '_')
+               list_append(&tmp, prologVarStartAtom);
+            if (ispunct(cval))
+               list_append(&tmp, punctAtom);
+            if (cval == 34 || cval == 39 || cval == 96)
+               list_append(&tmp, quoteAtom);
+            if (isspace(cval))
+               list_append(&tmp, spaceAtom);
+            if (cval == 9 || cval == 32)
+               list_append(&tmp, whiteAtom);
+            if (cval == '(')
+               list_append(&tmp, MAKE_VCOMPOUND(parenFunctor, MAKE_INTEGER(')')));
+            if (cval == '{')
+               list_append(&tmp, MAKE_VCOMPOUND(parenFunctor, MAKE_INTEGER('}')));
+            if (cval == '[')
+               list_append(&tmp, MAKE_VCOMPOUND(parenFunctor, MAKE_INTEGER(']')));
+            list_append(&tmp, MAKE_VCOMPOUND(toLowerFunctor, MAKE_INTEGER(toupper(cval))));
+            list_append(&tmp, MAKE_VCOMPOUND(toUpperFunctor, MAKE_INTEGER(tolower(cval))));
+            list = term_from_list(&tmp, emptyListAtom);
+            free_list(&tmp);
+         }
+         if (list == emptyListAtom)
+            return FAIL;
+         if (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
+            make_foreign_choicepoint(ARGOF(list,1));
+         return unify(ARGOF(list, 0), type);
+      }
+   }
 })
 
 extern void qqq();
