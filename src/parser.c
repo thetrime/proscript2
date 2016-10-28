@@ -318,7 +318,7 @@ Token lex(Stream s)
             return VariableToken(finalize_char_buffer(sb));
       }
    }
-   else if ((c >= '0' && c <= '9') || (c == '-' && peek_raw_char_with_conversion(s) >= '0' && peek_raw_char_with_conversion(s) <= '9'))
+   else if ((c >= '0' && c <= '9') || ((c == '-' || c == '+') && peek_raw_char_with_conversion(s) >= '0' && peek_raw_char_with_conversion(s) <= '9'))
    {
       int base = 10;
       if (c == '0' && peek_raw_char_with_conversion(s) == '\'')
