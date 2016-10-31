@@ -4,6 +4,16 @@ Proscript
 An implementation of a VM and compiler for Prolog. Written with a view for transpilation from C to Javascript.
 hashmap comes from https://github.com/petewarden/c_hashmap where it is stated "There are no restrictions on how you reuse this code.". The code is included in modified forms in bihashmap and whashmap.
 
+
+Building
+--------
+Proscript can be built either as a native (C) interpreter or a Javascript library. To build as a Javascript library you must have emscripten installed and the appropriate variables set in your envrionment.
+
+   * To build as a native executable (./proscript): make ARCH=c
+   * To build as a javascript library (./proscript.js): make ARCH=js
+      * You must also obtain and build gmpjs from https://github.com/thetrime/githubjs. The build process expects to find this in ./node_modules/gmpjs
+      * Alternatively, if you have npm installed, you can just run `npm install`. This *should* take care of the dependencies as well. Note that you still need emscripten set up in your shell.
+
 Design
 ------
 The compiler design was originally based on GNU Prolog for Java, since my most recent experience with Prolog had been with that package. However, the opcodes themselves were borrowed from SWI-Prolog, partly because I wanted to better understand the architecture. There are a couple of serious departures however:
