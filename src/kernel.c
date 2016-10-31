@@ -1013,7 +1013,7 @@ RC execute(int resume)
    while (!halted)
    {
       //print_choices();
-      ctable_check();
+      //ctable_check();
       if (debugging)
          print_instruction();
       switch(*PC)
