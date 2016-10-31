@@ -789,12 +789,14 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
       }
       if (t1->type == IntegerTokenType)
       {
+         char is_negative = t1->data.integer_data <= 0;
          Token t2 = read_token(s);
          if (t1->data.integer_data <= 0)
             t2->data.integer_data = -t2->data.integer_data;
          unread_token(s, t2);
+
          // Must not free t2 since we will read it later
-         if (t1->data.integer_data <= 0)
+         if (is_negative)
             unread_token(s, AtomToken(strdup("-"), 1));
          else
             unread_token(s, AtomToken(strdup("+"), 1));
