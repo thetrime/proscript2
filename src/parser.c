@@ -787,13 +787,17 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
          *result = lhs;
          return 1;
       }
-      if (t1->type == IntegerTokenType && t1->data.integer_data <= 0)
+      if (t1->type == IntegerTokenType)
       {
          Token t2 = read_token(s);
-         t2->data.integer_data = -t2->data.integer_data;
+         if (t1->data.integer_data <= 0)
+            t2->data.integer_data = -t2->data.integer_data;
          unread_token(s, t2);
          // Must not free t2 since we will read it later
-         unread_token(s, AtomToken(strdup("-"), 1));
+         if (t1->data.integer_data <= 0)
+            unread_token(s, AtomToken(strdup("-"), 1));
+         else
+            unread_token(s, AtomToken(strdup("+"), 1));
       }
       else if (t1 == ParenOpenToken)
       {
