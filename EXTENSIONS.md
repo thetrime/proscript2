@@ -47,6 +47,8 @@ Several additional predicates are made available beyond what is required by ISO/
    * format/3 (including using atom(X) as the first argument instead of a stream)
    * atomic_list_concat/3
    * code_type/2
+   * append/2
+   * reverse/2
 
 There are also several non-ISO exceptions which can be raised:
    * io_error/2

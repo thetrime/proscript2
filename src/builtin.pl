@@ -264,3 +264,25 @@ is_list([_|B]):- is_list(B).
 
 forall(A, B):-
         \+((A, \+B)).
+
+reverse(A, B) :-
+        reverse(A, [], B, B).
+
+reverse([], A, A, []).
+reverse([B|A], C, D, [_|E]) :-
+        reverse(A, [B|C], D, E).
+
+phrase(Rule, Input):-
+        phrase(Rule, Input, []).
+
+phrase(Rule, Input, Tail):-
+        ( Rule = Module:InGoal->
+            InGoal =.. [Name|Args],
+            append(Args, [Input, Tail], NewArgs),
+            Goal =.. [Name|NewArgs],
+            call(Module:Goal)
+        ; Rule =.. [Name|Args],
+          append(Args, [Input, Tail], NewArgs),
+          Goal =.. [Name|NewArgs],
+          call(Goal)
+        )
