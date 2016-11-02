@@ -1,19 +1,24 @@
 #ARCH=c
 ARCH?=js
 
+FLAGS=
+
+STRICT_ISO?=no
+ifeq ($(STRICT_ISO),yes)
+	FLAGS+=-DSTRICT_ISO
+endif
+
+
 FILESYSTEM=--embed-file src/builtin.pl
 #FILESYSTEM=--embed-file src/builtin.pl --embed-file test.pl --embed-file tests
 
 ifeq ($(ARCH),js)
 CC=emcc
 TARGET=proscript.js
-#CFLAGS=-O2
 OPT_LEVEL=-O3
-#MEMORY_REQUIRED=-s TOTAL_MEMORY=67108864
 MEMORY_REQUIRED=
-#MEMORY_REQUIRED=-s ALLOW_MEMORY_GROWTH=1
 GMP=node_modules/gmpjs
-CFLAGS=$(OPT_LEVEL) -s NO_EXIT_RUNTIME=1 $(MEMORY_REQUIRED) -I$(GMP) -s ASSERTIONS=2 -Werror -DDEBUG -DMEMTRACE
+CFLAGS=$(OPT_LEVEL) -s NO_EXIT_RUNTIME=1 $(MEMORY_REQUIRED) -I$(GMP) -s ASSERTIONS=2 -Werror -DDEBUG -DMEMTRACE $(FLAGS)
 LDFLAGS=$(OPT_LEVEL) --llvm-lto 1 -s ASM_JS=1 $(MEMORY_REQUIRED) -s ASSERTIONS=2 $(GMP)/.libs/libgmp.a
 BOOT=--pre-js $(BOOTFILE)
 BOOTFILE=src/pre.js
@@ -21,7 +26,7 @@ BOOT_FS=$(FILESYSTEM)
 else
 CC=gcc
 TARGET=proscript
-CFLAGS=-g -I/opt/local/include
+CFLAGS=-g -I/opt/local/include $(FLAGS)
 LDFLAGS=-L/opt/local/lib -lgmp
 BOOTFILE=main.o
 BOOT=main.o

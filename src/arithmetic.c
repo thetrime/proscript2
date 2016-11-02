@@ -10,7 +10,10 @@
 #include <gmp.h>
 
 int is_unbounded = 1;
-int strict_iso = 0;
+
+#ifndef STRICT_ISO
+#define STRICT_ISO 0
+#endif
 
 
 typedef enum
@@ -694,7 +697,7 @@ int evaluate(word a, number* n)
             return 0;
          if (n0.type == IntegerType || n0.type == BigIntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
             {
                free_number(n0);
                return type_error(floatAtom, ARGOF(a, 0));
@@ -757,7 +760,7 @@ int evaluate(word a, number* n)
             return 0;
          if (n0.type == IntegerType || n0.type == BigIntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
             {
                free_number(n0);
                return type_error(floatAtom, ARGOF(a, 0));
@@ -878,7 +881,7 @@ int evaluate(word a, number* n)
          }
          if (n0.type == IntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
                return type_error(floatAtom, ARGOF(a, 0));
             n->type = IntegerType;
             n->i = n0.i;
@@ -886,7 +889,7 @@ int evaluate(word a, number* n)
          }
          if (n0.type == BigIntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
             {
                free_number(n0);
                return type_error(floatAtom, ARGOF(a, 0));
@@ -947,7 +950,7 @@ int evaluate(word a, number* n)
          }
          if (n0.type == IntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
                return type_error(floatAtom, ARGOF(a, 0));
             n->type = IntegerType;
             n->i = n0.i;
@@ -955,7 +958,7 @@ int evaluate(word a, number* n)
          }
          if (n0.type == BigIntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
             {
                free_number(n0);
                return type_error(floatAtom, ARGOF(a, 0));
@@ -1016,7 +1019,7 @@ int evaluate(word a, number* n)
          }
          if (n0.type == IntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
                return type_error(floatAtom, ARGOF(a, 0));
             n->type = IntegerType;
             n->i = n0.i;
@@ -1024,7 +1027,7 @@ int evaluate(word a, number* n)
          }
          if (n0.type == BigIntegerType)
          {
-            if (strict_iso)
+            if (STRICT_ISO)
             {
                free_number(n0);
                return type_error(floatAtom, ARGOF(a, 0));
@@ -1140,7 +1143,7 @@ int evaluate(word a, number* n)
             }
          }
       }
-      else if (FUNCTOROF(a) == rdivFunctor && !strict_iso)
+      else if (FUNCTOROF(a) == rdivFunctor && !STRICT_ISO)
       {
          number n0, n1;
          if (!(evaluate(ARGOF(a, 0), &n0) && evaluate(ARGOF(a, 1), &n1)))
