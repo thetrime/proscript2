@@ -116,11 +116,54 @@ int format(word sink, word fmt, word args)
                      number n;
                      if (!evaluate(arg, &n))
                         BAD_FORMAT;
-                     double d = toFloatAndFree(n);
-                     char fmt[32]; // This will fit any radix up to LONG_MAX plus an identifier and null terminator (at least!)
-                     sprintf(fmt, "%%.%d%c", radix == -1?6:radix, input->data[i]);
-                     sprintf(str, fmt, d);
-                     append_string(output, strdup(str), strlen(str));
+                     // Some special cases for ~f and bignums
+                     if (input->data[i] == 'f' && n.type == BigIntegerType)
+                     {
+                        // ~f must still print .000 depending on the radix
+                        // I think it is easiest just to do it ourselves
+                        char* str = mpz_get_str(NULL, 10, n.ii);
+                        append_string(output, str, strlen(str));
+                        toFloatAndFree(n);
+                        if (radix == -1)
+                           append_string(output, strdup(".000000"), 7);
+                        else if (radix > 0)
+                        {
+                           char str[32];
+                           for (int i = 0; i < radix; i++)
+                              str[i] = '0';
+                           str[i] = 0;
+                           append_string(output, strdup(str), strlen(str));
+                        }
+                     }
+                     else if (input->data[i] == 'f' && n.type == RationalType)
+                     {
+                        char fmt[32]; // This will fit any radix up to LONG_MAX plus an identifier and null terminator (at least!)
+                        mpf_t result;
+                        // Note that 512 bits of precision here will only get you ~160 significant figures. Hopefully that is sufficient!
+                        mpf_init2(result, 512);
+                        mpf_set_q(result, n.r);
+                        // This is quite tricky.
+                        sprintf(fmt, "%%.%dFf", radix == -1?6:radix);
+                        int nn = gmp_snprintf(str, 128, fmt, result);
+                        if (nn >= 128)
+                        {
+                           char* big_str = malloc(nn+1);
+                           gmp_snprintf(big_str, nn+1, fmt, result);
+                           append_string_no_copy(output, big_str, nn);
+                        }
+                        else
+                           append_string(output, strdup(str), strlen(str));
+                        mpf_clear(result);
+                        toFloatAndFree(n);
+                     }
+                     else
+                     {
+                        double d = toFloatAndFree(n);
+                        char fmt[32]; // This will fit any radix up to LONG_MAX plus an identifier and null terminator (at least!)
+                        sprintf(fmt, "%%.%d%c", radix == -1?6:radix, input->data[i]);
+                        sprintf(str, fmt, d);
+                        append_string(output, strdup(str), strlen(str));
+                     }
                      break;
                   }
                   case 'i': // ignore
