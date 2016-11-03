@@ -459,7 +459,14 @@ void PORTRAY(word w)
          case BLOB_TYPE:
             printf("<%s>(%p)", c.blob_data->type, c.blob_data->ptr);
             break;
-         default:
+         case BIGINTEGER_TYPE:
+         {
+            char* str = mpz_get_str(NULL, 10, c.biginteger_data->data);
+            printf("%s", str);
+            free(str);
+            break;
+         }
+      default:
             printf("Unknown type: %d\n", type);
             assert(0);
 
