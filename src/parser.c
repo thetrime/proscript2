@@ -405,7 +405,7 @@ Token lex(Stream s)
          char* str = finalize_char_buffer(sb);
          char* sp;
          long l = strtol(str, &sp, base);
-         if (errno == ERANGE)
+         if ((l == LONG_MIN || l == LONG_MAX) && errno == ERANGE)
          {
             return BigIntegerToken(str);
          }
