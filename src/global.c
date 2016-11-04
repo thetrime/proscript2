@@ -57,7 +57,10 @@ void* trace_realloc_gmp(void* userptr, size_t oldsize, size_t newsize)
    if (userptr == NULL)
       return trace_malloc_gmp(newsize);
    void* newptr = trace_malloc(newsize, "GMP");
-   memcpy(newptr, userptr, oldsize);
+   if (oldsize < newsize)
+      memcpy(newptr, userptr, oldsize);
+   else
+      memcpy(newptr, userptr, newsize);
    trace_free(userptr, "GMP");
    return newptr;
 }
