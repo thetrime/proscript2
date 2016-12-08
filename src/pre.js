@@ -308,6 +308,11 @@ function _restore_state(a)
     __restore_state(a);
 }
 
+function _copy_term(a)
+{
+    return ___copy_term(a);
+}
+
 function _get_blob(type, w)
 {
     w = _DEREF(w);
@@ -587,6 +592,7 @@ module.exports = {_make_atom: _make_atom,
                   _free_options: _free_options,
                   _yield: yield_resumption,
                   _make_local: make_local,
+                  _copy_term: _copy_term,
                   _free_local: free_local,
                   _string_to_local_term: string_to_local_term,
                   _portray: portray,

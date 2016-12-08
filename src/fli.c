@@ -280,6 +280,12 @@ word string_to_local_term(char* string, int length)
 }
 
 EMSCRIPTEN_KEEPALIVE
+word __copy_term(word w)
+{
+   return copy_term(w);
+}
+
+EMSCRIPTEN_KEEPALIVE
 int is_list(word w)
 {
    w = DEREF(w);
