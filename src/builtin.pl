@@ -285,4 +285,7 @@ phrase(Rule, Input, Tail):-
           append(Args, [Input, Tail], NewArgs),
           Goal =.. [Name|NewArgs],
           call(Goal)
-        )
+        ).
+
+atomic_list_concat(A, B):-
+        atomic_list_concat(A, '', B).
