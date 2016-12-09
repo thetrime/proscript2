@@ -434,6 +434,13 @@ function _term_functor_arity(a)
     return __term_functor_arity(a);
 }
 
+function _make_choicepoint(a)
+{
+    a = _DEREF(a);
+    return __make_choicepoint(a);
+}
+
+
 function _term_functor_name(a)
 {
     a = _DEREF(a);
@@ -557,6 +564,7 @@ module.exports = {_make_atom: _make_atom,
                   _make_functor: _make_functor,
                   _make_variable: _make_variable,
                   _make_compound: _make_compound,
+                  _make_choicepoint: _make_choicepoint,
                   _make_integer: _make_integer,
                   _make_float: _make_float,
                   _make_blob: _make_blob,

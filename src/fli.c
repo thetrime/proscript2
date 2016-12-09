@@ -115,6 +115,13 @@ word _make_atom(char* a, int l)
 }
 
 EMSCRIPTEN_KEEPALIVE
+void _make_choicepoint(word w)
+{
+   make_foreign_choicepoint(w);
+}
+
+
+EMSCRIPTEN_KEEPALIVE
 word _make_functor(word name, int arity)
 {
    return MAKE_FUNCTOR(name, arity);
