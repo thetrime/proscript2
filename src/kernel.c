@@ -66,7 +66,7 @@ uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
 #define HEAP_SIZE 655350
-#define TRAIL_SIZE 65535
+#define TRAIL_SIZE 327675
 #define STACK_SIZE 65535
 #define ARG_STACK_SIZE 256
 
