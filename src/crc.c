@@ -134,3 +134,11 @@ uint32_t uint32_hash(const unsigned char *keystring, unsigned int keylen)
    key = (key >> 3) * 2654435761;
    return key;
 }
+
+uint32_t long_hash(unsigned long x)
+{
+   x = ((x >> 16) ^ x) * 0x45d9f3b;
+   x = ((x >> 16) ^ x) * 0x45d9f3b;
+   x = (x >> 16) ^ x;
+   return x & 0xffffffff;
+}

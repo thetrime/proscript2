@@ -357,7 +357,7 @@ word MAKE_BLOB(char* type, void* ptr)
 EMSCRIPTEN_KEEPALIVE
 word MAKE_INTEGER(long data)
 {
-   return intern(INTEGER_TYPE, data, &data, sizeof(long), allocInteger, NULL);
+   return intern(INTEGER_TYPE, long_hash(data), &data, sizeof(long), allocInteger, NULL);
 }
 
 EMSCRIPTEN_KEEPALIVE
