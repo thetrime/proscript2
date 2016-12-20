@@ -20,8 +20,8 @@ typedef enum
 {
    IntegerType = 0,
    BigIntegerType = 1,
-   FloatType = 2,
-   RationalType = 3
+   RationalType = 2,
+   FloatType = 3
 } NumberType;
 
 
@@ -37,6 +37,8 @@ typedef struct
    };
 } number;
 
+
+int arith_compare(word a, word b);
 
 void free_number(number n)
 {
@@ -110,7 +112,7 @@ void toRationalAndFree(number n, mpq_t* m)
          break;
       }
       case FloatType:
-         assert(0 && "Illegal conversion to BigInteger");
+         assert(0 && "Illegal conversion to Rational");
       case RationalType:
          mpq_set(*m, n.r);
          mpq_clear(n.r);
@@ -125,10 +127,10 @@ int common_type(number a, number b)
       type = IntegerType;
    else if (a.type == BigIntegerType)
       type = BigIntegerType;
-   else if (a.type == FloatType)
-      type = FloatType;
    else if (a.type == RationalType)
       type = RationalType;
+   else if (a.type == FloatType)
+      type = FloatType;
    else
       assert(0 && "Illegal number type");
    if (b.type == IntegerType)
@@ -136,18 +138,18 @@ int common_type(number a, number b)
    }
    else if (b.type == BigIntegerType)
    {
-      if (type < 1)
-         type = 1;
-   }
-   else if (b.type == FloatType)
-   {
-      if (type < 2)
-         type = 2;
+      if (type < IntegerType)
+         type = IntegerType;
    }
    else if (b.type == RationalType)
    {
-      if (type < 3)
-         type = 3;
+      if (type < RationalType)
+         type = RationalType;
+   }
+   else if (b.type == FloatType)
+   {
+      if (type < FloatType)
+         type = FloatType;
    }
    else
       assert(0 && "Illegal number type");
@@ -1170,6 +1172,42 @@ int evaluate(word a, number* n)
          mpq_canonicalize(n->r);
          mpz_clear(b0);
          mpz_clear(b1);
+         return 1;
+      }
+      else if (FUNCTOROF(a) == maxFunctor && !STRICT_ISO)
+      {
+         number na, nb;
+         if (!(evaluate(ARGOF(a, 0), &na) && evaluate(ARGOF(a, 1), &nb)))
+            return 0;
+         int rc = arith_compare(ARGOF(a, 0), ARGOF(a, 1));
+         if (rc == 1)
+         {
+            *n = na;
+            free_number(nb);
+         }
+         else
+         {
+            *n = nb;
+            free_number(na);
+         }
+         return 1;
+      }
+      else if (FUNCTOROF(a) == minFunctor && !STRICT_ISO)
+      {
+         number na, nb;
+         if (!(evaluate(ARGOF(a, 0), &na) && evaluate(ARGOF(a, 1), &nb)))
+            return 0;
+         int rc = arith_compare(ARGOF(a, 0), ARGOF(a, 1));
+         if (rc == -1)
+         {
+            *n = na;
+            free_number(nb);
+         }
+         else
+         {
+            *n = nb;
+            free_number(na);
+         }
          return 1;
       }
    }

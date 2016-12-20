@@ -62,6 +62,8 @@ FUNCTOR(toLower, "to_lower", 1);
 FUNCTOR(xdigit, "xdigit", 1);
 FUNCTOR(digit, "digit", 1);
 FUNCTOR(paren, "paren", 1);
+FUNCTOR(min, "min", 2);
+FUNCTOR(max, "max", 2);
 
 ATOM(instantiationError, "instantiation_error")
 ATOM(cut, "!")
