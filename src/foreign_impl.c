@@ -1631,7 +1631,7 @@ NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
 
 NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
 {
-   if (!(must_be_integer(low) && must_be_integer(high)))
+   if (!must_be_integer(low) || !must_be_integer(high))
       return FAIL;
    long _low = getConstant(low, NULL).integer_data;
    long _high = getConstant(high, NULL).integer_data;
@@ -1647,6 +1647,10 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
       if (current+1 <= _high)
          make_foreign_choicepoint(MAKE_INTEGER(current+1));
       return unify(value, MAKE_INTEGER(current));
+   }
+   else if (_high < _low)
+   {
+      return FAIL;
    }
    else if (_high == _low)
    {
@@ -2075,10 +2079,46 @@ NONDET_PREDICATE(code_type, 2, (word code, word type, word backtrack)
    }
 })
 
-extern void qqq();
-
-PREDICATE(qqq, 0, ()
+// non-iso
+PREDICATE(succ, 2, (word a, word b)
 {
-   qqq();
+   if (TAGOF(a) == VARIABLE_TAG)
+   {
+      if (!must_be_positive_integer(b))
+         return ERROR;
+      long b_val = getConstant(b, NULL).integer_data;
+      if (b_val == 0)
+         return FAIL;
+      return unify(a, MAKE_INTEGER(b_val-1));
+   }
+   if (TAGOF(b) != VARIABLE_TAG && !must_be_positive_integer(b))
+      return ERROR;
+   if (!must_be_positive_integer(a))
+      return ERROR;
+   long a_val = getConstant(a, NULL).integer_data;
+   return unify(b, MAKE_INTEGER(a_val+1));
+})
+
+// non-iso
+PREDICATE(callable, 1, (word a)
+{
+   return (TAGOF(a) == CONSTANT_TAG && getConstantType(a) == ATOM_TYPE) || TAGOF(a) == COMPOUND_TAG;
+})
+
+// non-iso
+PREDICATE(nb_setarg, 3, (word arg, word term, word value)
+{
+   value = DEREF(value);
+   if (!must_be_bound(term))
+      return ERROR;
+   if (TAGOF(term) != COMPOUND_TAG)
+      return type_error(compoundAtom, term);
+   if (TAGOF(value) != CONSTANT_TAG)
+      value = copy_term(value);
+   if (!must_be_positive_integer(arg))
+      return ERROR;
+   long i = getConstant(arg, NULL).integer_data;
+   *((Word)(((Word*)(DEREF(term) & ~TAG_MASK))+i)) = value;
    return SUCCESS;
 })
+

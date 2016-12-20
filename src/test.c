@@ -17,7 +17,19 @@ Choicepoint qxz = NULL;
 
 void query_complete3(RC result)
 {
-   printf("Back to the first goal: %d\n", result);
+   if (result == ERROR)
+   {
+      printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
+   }
+   else if (result == FAIL)
+   {
+      printf("No more solutions\n");
+   }
+   else if (result == SUCCESS_WITH_CHOICES)
+   {
+      //printf("Success! %d\n", result);
+      backtrack_query(query_complete3);
+   }
 }
 
 void query_complete2(RC result)
@@ -29,7 +41,7 @@ void query_complete2(RC result)
 
 void query_complete(RC result)
 {
-   printf("First goal has exited with %d\n", result);
+   //printf("First goal has exited with %d\n", result);
    if (result == ERROR)
    {
       printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
@@ -40,12 +52,14 @@ void query_complete(RC result)
    }
    else if (result == SUCCESS_WITH_CHOICES)
    {
-      printf("Success! %d\n", result);
+      //printf("Success! %d\n", result);
       //qxz = push_state();
       //word w = MAKE_ATOM("run_all_tests");
       //execute_query(w, query_complete2);
       backtrack_query(query_complete3);
    }
+   else if (result == SUCCESS)
+      printf("Success!\n");
 }
 
 
@@ -53,9 +67,9 @@ void query_complete(RC result)
 EMSCRIPTEN_KEEPALIVE
 void do_test()
 {
-
-   //consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
-   consult_file("test.pl");
+   printf("Consulting...\n");
+   consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
+   //consult_file("test.pl");
    printf("Consulted. Running tests...\n");
    /*
    int n = 100000;
