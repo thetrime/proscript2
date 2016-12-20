@@ -740,6 +740,7 @@ file(number_chars).
 file(number_codes).
 file(once).
 file(or).
+file(rdiv).
 file(repeat).
 file(retract).
 file(set_prolog_flag).

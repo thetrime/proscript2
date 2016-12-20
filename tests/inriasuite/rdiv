@@ -1,18 +1,20 @@
 /* file rdiv. This was added to test the rational extensions in Proscript */
 
-%['=:='(2 rdiv 3, 2 rdiv 3), success].
-%['>'(2 rdiv 3, 0), success].
-%['<'(2 rdiv 3, 1), success].
-%['>'(2 rdiv 3, 0.5), success].
-%['=:='(2 rdiv 3 + 1, 5 rdiv 3), success].
-%['=:='(2 rdiv 3 + 1 rdiv 3, 1), success].
-%['=:='(2 rdiv 3 + 1 rdiv 3, 1.0), success].
-%['=:='(2 rdiv 3 + 1 rdiv 3, 1.0), success].
-%['=:='((2 rdiv 3) * 3, 2.0), success].
-%['=:='((2 rdiv 3) * 3, 2), success].
-%['=:='((1 rdiv 3) * 1.0, 1 rdiv 3), success].
-%['=:='(1082152022374638, 12345678 * 87654321), success].
-['>'(9895604649985 rdiv 9, 1099511627776), success].
+['=:='(2 rdiv 3, 2 rdiv 3), success].
+['>'(2 rdiv 3, 0), success].
+['<'(2 rdiv 3, 1), success].
+['>'(2 rdiv 3, 0.5), success].
+['=:='(2 rdiv 3 + 1, 5 rdiv 3), success].
+['=:='(2 rdiv 3 + 1 rdiv 3, 1), success].
+['=:='(2 rdiv 3 + 1 rdiv 3, 1.0), success].
+['=:='(2 rdiv 3 + 1 rdiv 3, 1.0), success].
+['=:='((2 rdiv 3) * 3, 2.0), success].
+['=:='((2 rdiv 3) * 3, 2), success].
+['=:='((1 rdiv 3) * 1.0, 1 rdiv 3), success].
+['=:='(1082152022374638, 12345678 * 87654321), success].
+['>'(9895604649985, 1099511627776), success].
 ['<'(9895604649985 rdiv 9, 1099511627776), failure].
+['<'(73786976294838206464, 221360928884514619393 rdiv 3), success].
+['<'(221360928884514619393 rdiv 3, 73786976294838206464), failure].
 
 /* end of =:= */
