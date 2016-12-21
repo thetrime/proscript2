@@ -15,6 +15,9 @@ int is_unbounded = 1;
 #define STRICT_ISO 0
 #endif
 
+int rand_init = 0;
+gmp_randstate_t rand_state;
+
 
 typedef enum
 {
@@ -1208,6 +1211,32 @@ int evaluate(word a, number* n)
             *n = nb;
             free_number(na);
          }
+         return 1;
+      }
+      else if (FUNCTOROF(a) == randomFunctor && !STRICT_ISO)
+      {
+         number na;
+         mpz_t ii;
+         mpz_init(n->ii);
+         if (!(evaluate(ARGOF(a, 0), &na)))
+            return 0;
+         // This is safe so long as we dont have multi-threading
+         if (rand_init == 0)
+         {
+            gmp_randinit_mt(rand_state);
+            rand_init = 1;
+         }
+         toBigIntegerAndFree(na, &ii);
+         mpz_urandomm(n->ii, rand_state, ii);
+         if (mpz_fits_slong_p(n->ii))
+         {
+            long l = mpz_get_si(n->ii);
+            mpz_clear(n->ii);
+            n->type = IntegerType;
+            n->i = l;
+            return 1;
+         }
+         n->type = BigIntegerType;
          return 1;
       }
    }

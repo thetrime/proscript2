@@ -64,6 +64,7 @@ FUNCTOR(digit, "digit", 1);
 FUNCTOR(paren, "paren", 1);
 FUNCTOR(min, "min", 2);
 FUNCTOR(max, "max", 2);
+FUNCTOR(random, "random", 1);
 
 ATOM(instantiationError, "instantiation_error")
 ATOM(cut, "!")
