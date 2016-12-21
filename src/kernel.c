@@ -1595,7 +1595,9 @@ RC execute(int resume)
                   //printf("Value: %08lx from %p\n   ", *ARGP, ARGP); PORTRAY(*ARGP);printf("\n");
                   word w = *(ARGP++);
                   FR->slots[CODE16(PC+1)] = w;
-                  assert(w < (word)FR);
+                  // The variable must either be on the heap (safe) or have been made local via a call to make_local (risky - you can free this memory later and
+                  // end up with a pointer to nowhere)
+                  assert(w < (word)FR || w > (word)TTOP);
                }
                else
                {
