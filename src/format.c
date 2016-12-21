@@ -1,6 +1,20 @@
 #include "global.h"
 #include "format.h"
 
+/* About tabs
+   Tabs are tricky to get right. The general design is like this:
+
+   1) The stream itself must remember where the last tab was if we want to support tabs across calls to format
+   2) Whenever we get a ~t character, start writing to a second buffer. Keep the real output as last_output. Set tab_base to the number of characters already written
+   3) When we get a ~| or ~+ character, set tab_stop to the current position. Otherwise tab stop only resets on newline.
+   4) When we get to ~+, we must distribute the tab character (or space if the tab character is undefined):
+      A) Count the spaces between the current position and the last tab_stop
+      B) subtract the length of the current buffer
+      C) subtract further tab_base, since this is the number of characters that had already been written when we encountered the ~t
+      D) If this number is =< 0, then do nothing. Just dump the current output to last_output, promote last_output to the current output and delete the temporary buffer
+      E) Otherwise, add a padding of that many spaces to the last output (if there is no last_output, write them to the current output) then cleanup as in D above
+*/
+
 int format(word sink, word fmt, word args)
 {
    if (!must_be_atom(fmt))
@@ -8,7 +22,12 @@ int format(word sink, word fmt, word args)
    int a = 0;
    Atom input = getConstant(fmt, NULL).atom_data;
    StringBuilder output = stringBuilder();
+   StringBuilder last_output = NULL;
+   char tab_character = ' ';
    word arg;
+   int tab_stop = 0;
+   int tab_base = 0;
+
    for (int i = 0; i < input->length; i++)
    {
       if (input->data[i] == '~')
@@ -283,10 +302,56 @@ int format(word sink, word fmt, word args)
                   }
                   case 's': // string
                   case '@': // execute
-                  case 't': // tab
-                  case '|': // tab-stop
-                  case '+': // tab-stop
                      assert(0 && "Not implemented");
+                  case '|': // reset-tab-stop
+                  {
+                     tab_stop = length(output);
+                     break;
+                  }
+                  case '+': // create-tab-stop
+                  {
+                     int pad_length;
+                     if (radix == -1)
+                        pad_length = 6 - length(output) - tab_base;
+                     else
+                        pad_length = radix - length(output) - tab_base;
+                     char* pad = NULL;
+                     if (pad_length > 0)
+                     {
+                        pad = malloc(pad_length + 1);
+                        memset(pad, tab_character, pad_length);
+                        pad[pad_length] = '\0';
+                     }
+                     if (last_output == NULL)
+                     {
+                        if (pad != NULL)
+                           append_string(output, pad, pad_length);
+                     }
+                     else
+                     {
+                        // left-pad
+                        if (pad != NULL)
+                           append_string(last_output, pad, pad_length);
+                        char* text;
+                        int length;
+                        finalize_buffer(output, &text, &length);
+                        append_string(last_output, text, length);
+                        output = last_output;
+                        last_output = NULL;
+                     }
+                     tab_stop = length(output);
+                     break;
+                  }
+                  case 't': // tab
+                  {
+                     last_output = output;
+                     output = stringBuilder();
+                     tab_base = length(last_output) - tab_stop;
+                     if (tab_base < 0)
+                        tab_base = 0;
+                     tab_character = radix;
+                     break;
+                  }
                   case 'w': // write
                   {
                      NEXT_FORMAT_ARG;
@@ -306,6 +371,10 @@ int format(word sink, word fmt, word args)
                      i++;
                      continue;
                   }
+                  case '`':
+                     radix = input->data[i+1];
+                     i+=2;
+                     continue;
                   case '0':
                   case '1':
                   case '2':
@@ -335,9 +404,22 @@ int format(word sink, word fmt, word args)
       else
          append_string_no_copy(output, &input->data[i], 1);
    }
+
+   // Finish up any deferred tab output
+   if (last_output != NULL)
+   {
+      char* text;
+      int length;
+      finalize_buffer(output, &text, &length);
+      append_string(last_output, text, length);
+      output = last_output;
+   }
+
+
    char* result;
    int len;
    int rc;
+
    finalize_buffer(output, &result, &len);
    if (TAGOF(sink) == COMPOUND_TAG && FUNCTOROF(sink) == atomFunctor)
    {

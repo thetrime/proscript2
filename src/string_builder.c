@@ -110,3 +110,8 @@ void freeStringBuilder(StringBuilder b)
    }
    free(b);
 }
+
+int length(StringBuilder b)
+{
+   return b->length;
+}

@@ -29,4 +29,5 @@ void append_atom(StringBuilder b, Atom a);
 void finalize_buffer(StringBuilder b, char** text, int* length);
 void freeStringBuilder(StringBuilder b);
 int lastChar(StringBuilder b);
+int length(StringBuilder b);
 #endif
