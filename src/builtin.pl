@@ -345,7 +345,9 @@ maplist_([Elem1|Tail1], [Elem2|Tail2], [Elem3|Tail3], [Elem4|Tail4], Goal) :-
 
 		 /*******************************
 		 *	     AGGREGATE		*
-		 *******************************/
+                 *******************************/
+
+:-meta_predicate(aggregate(+, ^, -)).
 
 %%	aggregate(+Template, :Goal, -Result) is nondet.
 %
@@ -367,6 +369,8 @@ aggregate(Template, Discriminator, Goal0, Result) :-
 	setof(Discriminator-Pattern, Goal, Pairs),
 	pairs_values(Pairs, List),
 	aggregate_list(Aggregate, List, Result).
+
+:-meta_predicate(aggregate_all(+, 0, -)).
 
 %%	aggregate_all(+Template, :Goal, -Result) is semidet.
 %
