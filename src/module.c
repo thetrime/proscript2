@@ -168,6 +168,17 @@ int set_dynamic(Module module, word functor)
 void add_clause(Module module, word functor, word clause)
 {
    Predicate p;
+   // See asserta for an explanaton of what is going on here.
+   word* local;
+   copy_local(clause, &local);
+   clause = (word)local;
+   // I realised that (consult('file.pl'), fail ; some_fact_in_file(X)) results in a crash
+   // because when we backtrack to before the consult/1 all the term references created in
+   // consult/1 are destroyed, but we still have references to them in the list of clauses
+   // in the predicate. To fix this, we now keep a local copy of every clause. This means
+   // that if you ever want to unconsult (or reconsult) a file, you must remember to free
+   // the old references or you'll leak memory.
+
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
       list_append(&p->clauses, clause);
