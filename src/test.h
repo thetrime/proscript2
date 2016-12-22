@@ -1,1 +1,1 @@
-void do_test();
+void do_test(int argc, char** argv);

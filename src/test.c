@@ -65,11 +65,24 @@ void query_complete(RC result)
 
 
 EMSCRIPTEN_KEEPALIVE
-void do_test()
+void do_test(int argc, char** argv)
 {
    printf("Consulting...\n");
-   consult_file("tests/inriasuite/inriasuite.pl"); chdir("tests/inriasuite");
-   //consult_file("test.pl");
+   int do_inria = 0;
+   for (int i = 0; i < argc; i++)
+   {
+      if (strcmp(argv[i], "--inria") == 0)
+         do_inria = 1;
+   }
+   if (do_inria)
+   {
+      consult_file("tests/inriasuite/inriasuite.pl");
+      chdir("tests/inriasuite");
+   }
+   else
+   {
+      consult_file("test.pl");
+   }
    printf("Consulted. Running tests...\n");
    /*
    int n = 100000;

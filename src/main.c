@@ -4,10 +4,10 @@
 #include "test.h"
 
 
-int main()
+int main(int argc, char** argv)
 {
    init_prolog();
-   do_test();
+   do_test(argc, argv);
    return 0;
 }
 
