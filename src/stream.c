@@ -300,7 +300,8 @@ int file_seek(Stream stream, int offset, int origin)
 Stream fileReadStream(char* filename)
 {
    FILE* fd = fopen(filename, "rb");
-   assert(fd != NULL);
+   if (fd == NULL)
+      return NULL;
    return allocStream(file_read,
                       NULL,
                       NULL,

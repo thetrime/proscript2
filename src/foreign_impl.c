@@ -1640,7 +1640,7 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
       // Nondet case
       long current;
       if (backtrack == 0)
-         current = 0;
+         current = _low;
       else
          current = getConstant(backtrack, NULL).integer_data;
       //printf("Current: %d (out of %d)\n", current, _high);
@@ -2122,3 +2122,19 @@ PREDICATE(nb_setarg, 3, (word arg, word term, word value)
    return SUCCESS;
 })
 
+// consult
+PREDICATE(consult, 1, (word a)
+{
+   if (!must_be_atom(a))
+      return ERROR;
+   Stream s = fileReadStream(getConstant(a, NULL).atom_data->data);
+   if (s == NULL)
+   {
+      existence_error(sourceSinkAtom, a);
+      return ERROR;
+   }
+   consult_stream(s);
+   s->close(s);
+   freeStream(s);
+   return SUCCESS;
+})
