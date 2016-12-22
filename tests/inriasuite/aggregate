@@ -1,0 +1,22 @@
+/* file aggregate. This was added to test the aggregate extensions in Proscript which is borrowed from SWI-Prolog */
+
+[consult('countries.pl'), success].
+[aggregate(sum(X), between(1,5,X), Sum), [[Sum <-- 15]]].
+[aggregate(count, X^between(1,5,X), Count), [[Count <-- 5]]].
+[aggregate(term(count, sum(X)), between(1,2,X), Result), [[Result <-- term(2,3)]]].
+[aggregate(term(count, bag(X)), between(1,2,X), Result), [[Result <-- term(2, [1,2])]]].
+[aggregate_all(term(count, bag(X)), between(1,0,X), Result), [[Result <-- term(0, [])]]].
+[aggregate(sum(X), age(Name, X), Sum), [[Name<--sara, Sum<--25],
+                                        [Name<--john, Sum<--25],
+                                        [Name<--bob, Sum<--41]]].
+[aggregate(sum(X), Name, age(Name, X), Sum), [[Sum <-- 91]]].
+[aggregate(max(Pop/Area, Country), country(Country, Area, Pop), Country), [[Country <-- max(15993.5, 'Monaco')]]].
+[aggregate(r(max(Pop/Area, Country), min(Pop/Area, Country)), country(Country, Area, Pop), Result), [[Result <-- r(max(15993.500000, 'Monaco'),
+                                                                                                                   min(0.046221534593627614, 'Svalbard (Norway)'))]]].
+[(List = [1,2,3],aggregate_all(r(max(A)), member(A,List), r(Max))), [[Max <-- 3]]].
+[aggregate(r(sum(0)), Y^(between(1, 5, X), Y=1),C), [[X<--1, C<--r(0)],
+                                                     [X<--2, C<--r(0)],
+                                                     [X<--3, C<--r(0)],
+                                                     [X<--4, C<--r(0)],
+                                                     [X<--5, C<--r(0)]]].
+/* end of aggregate */

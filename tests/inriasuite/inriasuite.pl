@@ -696,6 +696,7 @@ inerror(F) :-
 %
 file(fail).
 file(abolish).
+file(aggregate).
 file(and).
 file(arg).
 file(arith_diff).
