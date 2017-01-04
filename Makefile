@@ -37,6 +37,12 @@ OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compile
 $(TARGET):	$(OBJECTS) $(BOOTFILE)
 		$(CC) $(OBJECTS) $(BOOT) $(BOOT_FS) $(LDFLAGS) -o $@
 
+kernel.o:	src/kernel.c src/constants src/instructions src/builtin.h
+		$(CC) $(CFLAGS) -c $< -o $@
+
+src/builtin.h:	src/builtin.pl
+		xxd -i $< $@
+
 foreign.o:	src/foreign.c src/foreign_impl.c
 		$(CC) $(CFLAGS) -c $< -o $@
 

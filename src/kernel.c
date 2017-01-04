@@ -1,4 +1,5 @@
 #include "global.h"
+#include "builtin.h"
 /* Some important points
 
    Generally speaking, a choicepoint accessible to a frame appears higher in the stack than the frame
@@ -1012,7 +1013,7 @@ void initialize_kernel()
    current_input = nullStream();
    current_output = consoleOuputStream();
    initialize_foreign();
-   consult_file("src/builtin.pl");
+   consult_string((char*)src_builtin_pl);
    PC = 0;
    CP = 0;
 }
@@ -2034,12 +2035,17 @@ void consult_stream(Stream s)
 
 }
 
-void consult_file(char* filename)
+int consult_file(char* filename)
 {
    Stream s = fileReadStream(filename);
-   consult_stream(s);
-   s->close(s);
-   freeStream(s);
+   if (s != NULL)
+   {
+      consult_stream(s);
+      s->close(s);
+      freeStream(s);
+      return 1;
+   }
+   return 0;
 }
 
 void consult_string(char* string)

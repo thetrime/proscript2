@@ -117,7 +117,7 @@ word getException();
 
 int clause_functor(word, word*);
 void consult_string(char*);
-void consult_file(char*);
+int consult_file(char*);
 void consult_stream(Stream);
 void print_clause(Clause);
 void initialize_kernel();
