@@ -94,11 +94,6 @@ typedef struct
 
 extern instruction_info_t instruction_info[];
 
-enum MODE
-{
-   READ,
-   WRITE,
-} mode;
 
 typedef enum
 {

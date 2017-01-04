@@ -37,6 +37,13 @@
 #include <string.h>
 #include <assert.h>
 
+enum MODE
+{
+   READ,
+   WRITE,
+} mode;
+
+
 instruction_info_t instruction_info[] = {
 #define INSTRUCTION(a) {#a, 0},
 #define INSTRUCTION_CONST(a) {#a, HAS_CONST},
