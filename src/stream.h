@@ -30,7 +30,7 @@ typedef struct stream* Stream;
 
 char get_raw_char(Stream s);
 char peek_raw_char(Stream s);
-int getch(Stream s);
+int _getch(Stream s);
 int peekch(Stream s);
 int getb(Stream s);
 int peekb(Stream s);

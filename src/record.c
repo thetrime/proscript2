@@ -91,7 +91,7 @@ word recordz(word key, word term)
    return *slot;
 }
 
-int erase(word ref)
+int _erase(word ref)
 {
    struct record_t* record = (struct record_t*)GET_POINTER(ref);
    list_splice(record->list, record->cell);

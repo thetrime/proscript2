@@ -10,7 +10,7 @@
 
 char get_raw_char(Stream s)
 {
-   return getch(s);
+   return _getch(s);
 }
 char peek_raw_char(Stream s)
 {
@@ -44,7 +44,7 @@ int flush_stream(Stream s)
     return 1; // Nothing to write
 }
 
-int getch(Stream s)
+int _getch(Stream s)
 {
    int b = getb(s);
    if (b == -1)

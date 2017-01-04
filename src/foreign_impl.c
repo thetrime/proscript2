@@ -591,7 +591,7 @@ PREDICATE(set_stream_position, 2, (word stream, word position)
 // 8.12.1 get_char/1,2 get_code/1,2
 PREDICATE(get_char, 1, (word c)
 {
-   char ch = getch(current_input);
+   char ch = _getch(current_input);
    return unify(c, MAKE_NATOM(&ch, 1));
 })
 PREDICATE(get_char, 2, (word stream, word c)
@@ -599,19 +599,19 @@ PREDICATE(get_char, 2, (word stream, word c)
    Stream s = get_stream(stream);
    if (s == NULL)
       return ERROR;
-   char ch = getch(s);
+   char ch = _getch(s);
    return unify(c, MAKE_NATOM(&ch, 1));
 })
 PREDICATE(get_code, 1, (word code)
 {
-   return unify(code, MAKE_INTEGER(getch(current_input)));
+   return unify(code, MAKE_INTEGER(_getch(current_input)));
 })
 PREDICATE(get_code, 2, (word stream, word code)
 {
    Stream s = get_stream(stream);
    if (s == NULL)
       return ERROR;
-   return unify(code, MAKE_INTEGER(getch(s)));
+   return unify(code, MAKE_INTEGER(_getch(s)));
 })
 
 // 8.12.2 peek_char/1,2, peek_code/1,2
@@ -1583,7 +1583,7 @@ PREDICATE(recordz, 3, (word key, word term, word ref)
 
 PREDICATE(erase, 1, (word ref)
 {
-   return erase(ref);
+   return _erase(ref);
 })
 
 
