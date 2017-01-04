@@ -1,7 +1,9 @@
 #include "types.h"
 
-#define FUNCTOR(a,b,c) word a##Functor;
-#define ATOM(a,b) word a##Atom;
+#undef ATOM
+#undef FUNCTOR
+#define FUNCTOR(a,b,c) extern word a##Functor;
+#define ATOM(a,b) extern word a##Atom;
 #include "constants"
 #undef FUNCTOR
 #undef ATOM
