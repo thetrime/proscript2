@@ -1021,7 +1021,7 @@ void initialize_kernel()
    current_input = nullStream();
    current_output = consoleOuputStream();
    initialize_foreign();
-   consult_string((char*)src_builtin_pl);
+   consult_string_of_length((char*)src_builtin_pl, src_builtin_pl_len);
    PC = 0;
    CP = 0;
    // Allocate a dummy-frame at the very top of the stack. This allows us to call push_state() if desired even when there is
