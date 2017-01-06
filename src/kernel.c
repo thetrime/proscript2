@@ -1306,6 +1306,8 @@ RC execute(int resume)
             {
                unify(ARGOF(current_exception, 1), make_backtrace(&backtrace));
             }
+            // Remember to push FR back otherwise we might end up trying to clean up (now discarded) frames
+            FR = f;
             free_list(&backtrace);
             return ERROR;
          }
