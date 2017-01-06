@@ -31,6 +31,7 @@ word _make_blob(const char* name, int ptr);
 word _make_vcompound(word functor, ...);
 word _make_vacompound(word functor, va_list argp);
 void _consult_string(const char* string);
+void _consult_string_of_length(const char* string, int len);
 int _consult_file(const char* filename);
 void _execute(word goal, void(*callback)(RC));
 int _is_variable(word w);

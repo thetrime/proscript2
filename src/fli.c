@@ -240,6 +240,13 @@ void _consult_string(char* string)
 }
 
 EMSCRIPTEN_KEEPALIVE
+void _consult_string_of_length(char* string, int len)
+{
+   consult_string_of_length(string, len);
+}
+
+
+EMSCRIPTEN_KEEPALIVE
 int _exists_predicate(word module, word functor)
 {
    Module m = find_module(module);

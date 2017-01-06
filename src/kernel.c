@@ -2067,6 +2067,14 @@ void consult_string(char* string)
    freeStream(s);
 }
 
+void consult_string_of_length(char* string, int length)
+{
+   Stream s = stringBufferStream(string, length);
+   consult_stream(s);
+   freeStream(s);
+}
+
+
 void print_clause(Clause clause)
 {
    for (int i = 0; i < clause->code_size; i++)
