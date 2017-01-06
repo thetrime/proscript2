@@ -650,7 +650,6 @@ int apply_choicepoint(Choicepoint c)
    while (f > c->FR)
    {
 //      printf("Checking for cleanup in frame %p\n", f);
-       printf("Cleaning up "); PORTRAY(f->functor); printf("\n");
       assert(f != f->parent);
       if (f->is_local)
       {
