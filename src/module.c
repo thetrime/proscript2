@@ -181,6 +181,12 @@ void add_clause(Module module, word functor, word clause)
 
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
+      if ((p->flags & PREDICATE_FOREIGN) != 0)
+      {
+         printf("Warning: Attempt to redefine foreign predicate "); PORTRAY(functor); printf(" with prolog version. Ignoring Prolog\n");
+         free(local);
+         return;
+      }
       list_append(&p->clauses, clause);
    }
    else
