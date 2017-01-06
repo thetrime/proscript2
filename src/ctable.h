@@ -12,7 +12,7 @@
 #include "bihashmap.h"
 
 word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(void*, int), int* isNew);
-word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*));
+word intern_blob(const char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*));
 cdata getConstant(word t, int* type);
 void deleteConstant(word t, int* type);
 int getConstantType(word t);

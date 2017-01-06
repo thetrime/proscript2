@@ -38,7 +38,7 @@ int putch(Stream s, int i);
 int putb(Stream s, char i);
 int flush(Stream s);
 Stream stringBufferStream(char* data, int length);
-Stream fileReadStream(char* filename);
+Stream fileReadStream(const char* filename);
 Stream nullStream();
 Stream fileStream(char* source_sink, word io_mode, Options* options);
 Stream consoleOuputStream();

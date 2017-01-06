@@ -6,6 +6,7 @@
 #include "types.h"
 #include "stream.h"
 #include <gmp.h>
+#include <stdarg.h>
 
 
 // NFR is a pointer to the next frame
@@ -56,6 +57,7 @@ word MAKE_INTEGER(long data);
 word MAKE_FLOAT(double data);
 word MAKE_FUNCTOR(word name, int arity);
 word MAKE_VCOMPOUND(word functor, ...);
+word MAKE_VACOMPOUND(word functor, va_list args);
 word MAKE_LCOMPOUND(word functor, List* args);
 word MAKE_ACOMPOUND(word functor, word* args);
 void PORTRAY(word w);
@@ -117,7 +119,7 @@ word getException();
 
 int clause_functor(word, word*);
 void consult_string(char*);
-int consult_file(char*);
+int consult_file(const char*);
 void consult_stream(Stream);
 void print_clause(Clause);
 void initialize_kernel();

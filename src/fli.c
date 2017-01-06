@@ -1,8 +1,13 @@
 #include "global.h"
 #ifdef EMSCRIPTEN
 #include <emscripten/emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
+#endif
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #include "types.h"
 #include "kernel.h"
@@ -15,7 +20,7 @@
 #include "parser.h"
 
 EMSCRIPTEN_KEEPALIVE
-int atom_length(word a)
+int _atom_length(word a)
 {
    assert(TAGOF(a) == CONSTANT_TAG);
    int type;
@@ -25,7 +30,7 @@ int atom_length(word a)
 }
 
 EMSCRIPTEN_KEEPALIVE
-char* atom_data(word a)
+const char* _atom_data(word a)
 {
    assert(TAGOF(a) == CONSTANT_TAG);
    int type;
@@ -133,8 +138,21 @@ word _make_compound(word functor, word* args)
    return MAKE_ACOMPOUND(functor, args);
 }
 
+word _make_vcompound(word functor, ...)
+{
+   va_list argp;
+   va_start(argp, functor);
+   return MAKE_VACOMPOUND(functor, argp);
+}
+
+word _make_vacompound(word functor, va_list argp)
+{
+   return MAKE_VACOMPOUND(functor, argp);
+}
+
+
 EMSCRIPTEN_KEEPALIVE
-word make_variable()
+word _make_variable()
 {
    return MAKE_VAR();
 }
@@ -149,6 +167,11 @@ int _set_exception(word error)
 EMSCRIPTEN_KEEPALIVE
 extern int unify(word, word);
 
+int _unify(word a, word b)
+{
+   return unify(a, b);
+}
+
 EMSCRIPTEN_KEEPALIVE
 word _get_exception()
 {
@@ -161,19 +184,27 @@ void _clear_exception()
    CLEAR_EXCEPTION();
 }
 
+#ifdef EMSCRIPTEN
 char* _portray_js_blob(char* type, void* ptr, Options* options, int precedence, int* len)
 {
    return (char*)EM_ASM_INT({return portray_js_blob($0, $1, $2, $3, $4, $5)}, type, strlen(type), (int)ptr, options, precedence, len);
 }
 
 EMSCRIPTEN_KEEPALIVE
-word _make_blob(char* type, int key)
+word _make_blob_from_index(char* type, int key)
 {
    //printf("Making blob of type %s\n", type);
    word q = intern_blob(type, (void*)key, _portray_js_blob);
    //printf("Allocated blob %08x\n", q);
    return q;
 }
+#endif
+
+word _make_blob(const char* type, int key)
+{
+   return intern_blob(type, (void*)key, NULL);
+}
+
 
 EMSCRIPTEN_KEEPALIVE
 int _release_blob(char* type, word w)
@@ -217,6 +248,7 @@ int _exists_predicate(word module, word functor)
    return 0;
 }
 
+#ifdef EMSCRIPTEN
 void jscall(RC result)
 {
    EM_ASM_({_jscallback($0)}, (result == SUCCESS || result == SUCCESS_WITH_CHOICES));
@@ -227,6 +259,13 @@ void executejs(word goal, int callback_ref)
 {
    execute_query(goal, jscall);
 }
+#else
+
+void _execute(word goal, void(*callback)(RC))
+{
+   execute_query(goal, callback);
+}
+#endif
 
 EMSCRIPTEN_KEEPALIVE
 void _format_term(Options* options, int priority, word term, char** ptr, int* length)
@@ -272,7 +311,7 @@ void _restore_state(Choicepoint w)
 }
 
 EMSCRIPTEN_KEEPALIVE
-word string_to_local_term(char* string, int length)
+word _string_to_local_term(char* string, int length)
 {
    Stream stream = stringBufferStream(string, length);
    word w;
@@ -317,4 +356,53 @@ word is_empty_list(word w)
    return DEREF(w) == emptyListAtom;
 }
 
-#endif
+EMSCRIPTEN_KEEPALIVE
+word _deref(word w)
+{
+   return DEREF(w);
+}
+
+int _consult_file(const char* f)
+{
+   return consult_file(f);
+}
+
+int _is_variable(word a)
+{
+   a = DEREF(a);
+   return (a & TAG_MASK) == VARIABLE_TAG;
+}
+
+int _is_atom(word a)
+{
+   a = DEREF(a);
+   return (a & TAG_MASK) == CONSTANT_TAG && getConstantType(a) == ATOM_TYPE;
+}
+
+int _is_compound(word a)
+{
+   a = DEREF(a);
+   return (a & TAG_MASK) == COMPOUND_TAG;
+}
+
+int _is_compound_with_functor(word a, word f)
+{
+   a = DEREF(a);
+   return ((a & TAG_MASK) == COMPOUND_TAG) && (FUNCTOROF(a) == f);
+}
+
+word _make_local(word t)
+{
+   t = DEREF(t);
+   if ((t & TAG_MASK) == CONSTANT_TAG)
+      return t;
+   word* w;
+   copy_local(t, &w);
+   return (word)w;
+}
+
+int _define_foreign_predicate(word moduleName, word functor, int(*func)(), int flags)
+{
+   Module* module = find_module(moduleName);
+   return define_foreign_predicate_c(module, functor, func, flags);
+}

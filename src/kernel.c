@@ -152,11 +152,9 @@ word MAKE_COMPOUND(word functor)
    return addr | COMPOUND_TAG;
 }
 
-word MAKE_VCOMPOUND(word functor, ...)
+word MAKE_VACOMPOUND(word functor, va_list argp)
 {
    Functor f = getConstant(functor, NULL).functor_data;
-   va_list argp;
-   va_start(argp, functor);
    word addr = (word)H;
    *H = functor;
    H++;
@@ -167,8 +165,17 @@ word MAKE_VCOMPOUND(word functor, ...)
       *(H++) = w;
    }
    RECORD_HEAP_USAGE;
+   va_end(argp);
    return addr | COMPOUND_TAG;
 }
+
+word MAKE_VCOMPOUND(word functor, ...)
+{
+   va_list argp;
+   va_start(argp, functor);
+   return MAKE_VACOMPOUND(functor, argp);
+}
+
 
 // You MUST call MAKE_ACOMPOUND with a functor as the first arg
 EMSCRIPTEN_KEEPALIVE
@@ -643,6 +650,7 @@ int apply_choicepoint(Choicepoint c)
    while (f > c->FR)
    {
 //      printf("Checking for cleanup in frame %p\n", f);
+       printf("Cleaning up "); PORTRAY(f->functor); printf("\n");
       assert(f != f->parent);
       if (f->is_local)
       {
@@ -1016,6 +1024,10 @@ void initialize_kernel()
    consult_string((char*)src_builtin_pl);
    PC = 0;
    CP = 0;
+   // Allocate a dummy-frame at the very top of the stack. This allows us to call push_state() if desired even when there is
+   // no current frame.
+   FR = allocFrame(NULL);
+   FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<system>"), 1);
 }
 
 
@@ -2035,7 +2047,7 @@ void consult_stream(Stream s)
 
 }
 
-int consult_file(char* filename)
+int consult_file(const char* filename)
 {
    Stream s = fileReadStream(filename);
    if (s != NULL)

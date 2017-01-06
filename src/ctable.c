@@ -211,7 +211,7 @@ void freeBlob(Blob b)
 }
 
 
-word intern_blob(char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*))
+word intern_blob(const char* type, void* ptr, char* (*portray)(char*, void*, Options*, int, int*))
 {
    int index = allocate_ctable_index(BLOB_TYPE);
    word w = (word)((index << CONSTANT_BITS) | CONSTANT_TAG);

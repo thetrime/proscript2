@@ -297,7 +297,7 @@ int file_seek(Stream stream, int offset, int origin)
 
 
 
-Stream fileReadStream(char* filename)
+Stream fileReadStream(const char* filename)
 {
    FILE* fd = fopen(filename, "rb");
    if (fd == NULL)

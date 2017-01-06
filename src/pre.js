@@ -125,8 +125,8 @@ function term_to_string(a)
 function _atom_chars(a)
 {
     a = _DEREF(a);
-    var length = _atom_length(a);
-    var ptr = _atom_data(a);
+    var length = __atom_length(a);
+    var ptr = __atom_data(a);
     return read_string(ptr, length);
 }
 
@@ -253,6 +253,7 @@ function _make_blob(type, object)
         else
         {
             key = next_free[type];
+            // FIXME: Shouldnt this be next_free[type] = (blobs[type])[key]; ?
             next_free[type] = blobs[key];
         }
         blobs[type].push(object);
@@ -260,7 +261,7 @@ function _make_blob(type, object)
     }
     var ptr = _cmalloc(type.length+1);
     writeStringToMemory(type, ptr);
-    var result = __make_blob(ptr, key);
+    var result = __make_blob_from_index(ptr, key);
  //   console.log("Created blob at location " + key + " of type " + type + " with prolog handle " + result);
     _cfree(ptr);
     return result;
@@ -537,7 +538,7 @@ function string_to_local_term(str)
 {
     var ptr = _cmalloc(str.length+1);
     writeStringToMemory(str, ptr);
-    var result = _string_to_local_term(ptr, str.length);
+    var result = __string_to_local_term(ptr, str.length);
     _cfree(ptr);
     return result;
 }
