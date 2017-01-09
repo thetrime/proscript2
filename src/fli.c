@@ -198,6 +198,13 @@ word _make_blob_from_index(char* type, int key)
    //printf("Allocated blob %08x\n", q);
    return q;
 }
+#else
+word _make_blob_from_index(char* type, int key)
+{
+   word q = intern_blob(type, (void*)key, NULL);
+   return q;
+}
+
 #endif
 
 
