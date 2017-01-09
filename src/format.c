@@ -287,7 +287,7 @@ int format(word sink, word fmt, word args)
                               k--;
                               source = source / radix;
                            }
-                           append_string(output, strdup(&str[k]), strlen(&str[k]));
+                           append_string(output, strdup(&str[k+1]), strlen(&str[k+1]));
                            break;
                         }
                         else if (type == BIGINTEGER_TYPE)
