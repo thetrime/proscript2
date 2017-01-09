@@ -200,11 +200,6 @@ word _make_blob_from_index(char* type, int key)
 }
 #endif
 
-word _make_blob(const char* type, int key)
-{
-   return intern_blob(type, (void*)key, NULL);
-}
-
 
 EMSCRIPTEN_KEEPALIVE
 int _release_blob(char* type, word w)
@@ -270,6 +265,7 @@ void executejs(word goal, int callback_ref)
 
 void _execute(word goal, void(*callback)(RC))
 {
+    PORTRAY(goal); printf("\n");
    execute_query(goal, callback);
 }
 #endif
@@ -410,6 +406,6 @@ word _make_local(word t)
 
 int _define_foreign_predicate(word moduleName, word functor, int(*func)(), int flags)
 {
-   Module* module = find_module(moduleName);
+   Module module = find_module(moduleName);
    return define_foreign_predicate_c(module, functor, func, flags);
 }

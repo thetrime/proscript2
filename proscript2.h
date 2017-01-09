@@ -27,7 +27,7 @@ Choicepoint _push_state();
 void _restore_state(Choicepoint w);
 word _string_to_local_term(const char* string, int length);
 word _make_functor(word name, int arity);
-word _make_blob(const char* name, int ptr);
+word _make_blob_from_index(const char* name, int ptr);
 word _make_vcompound(word functor, ...);
 word _make_vacompound(word functor, va_list argp);
 void _consult_string(const char* string);
