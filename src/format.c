@@ -73,7 +73,7 @@ int format(word sink, word fmt, word args)
                         if (type == INTEGER_TYPE)
                         {
                            char str[64];
-                           sprintf(str, "%ld\n", c.integer_data);
+                           sprintf(str, "%ld", c.integer_data);
                            append_string(output, strdup(str), strlen(str));
                            break;
                         }
@@ -81,6 +81,7 @@ int format(word sink, word fmt, word args)
                         {
                            char* str = mpz_get_str(NULL, 10, c.biginteger_data->data);
                            append_string(output, str, strlen(str));
+                           break;
                         }
                      }
                      type_error(integerAtom, arg);
@@ -216,7 +217,7 @@ int format(word sink, word fmt, word args)
                         for (int j = 0; j < strlen(str);)
                         {
                            append_string(output, strndup(&str[j], k), k);
-                           if (k+3 < strlen(str))
+                           if (j+3 < strlen(str))
                               append_string_no_copy(output, "_", 1);
                            j += k;
                            k = 3;
