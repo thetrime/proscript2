@@ -112,7 +112,7 @@ int format(word sink, word fmt, word args)
                         for (int j = 0; j < strlen(str);)
                         {
                            append_string(output, strndup(&str[j], k), k);
-                           if (k+3 < strlen(str))
+                           if (j+3 < strlen(str))
                               append_string_no_copy(output, ",", 1);
                            j += k;
                            k = 3;
