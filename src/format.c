@@ -38,7 +38,10 @@ int format(word sink, word fmt, word args)
             return format_error(MAKE_ATOM("End of string in format specifier"));
          }
          if (input->data[i+1] == '~')
+         {
             append_string_no_copy(output, "~", 1);
+            i++;
+         }
          else
          {
             i++;
