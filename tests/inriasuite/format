@@ -1,11 +1,30 @@
 /* file format. This was added to test the format extensions in Proscript */
 
-[format(atom(A), '~16R', [200]), [[A <-- 'C8']]].
+[format(atom(A), '~a', [a]), [[A <-- 'a']]].
+[format(atom(A), '~a', [4/3]), type_error(atom,4/3)].
+[format(atom(A), '~c', [65]), [[A <-- 'A']]].
+[format(atom(A), '~c', [a]), type_error(integer, a)].
+[format(atom(A), '~c', [-1]), representation_error(character_code)].
+[format(atom(A), '~d', [123456789]), [[A <-- '123456789']]].
+[format(atom(A), '~d', [1208925819614629174706176]), [[A <-- '1208925819614629174706176']]].
+[format(atom(A), '~D', [12345678]), [[A <-- '12,345,678']]].                                           % Int
+[format(atom(A), '~D', [1208925819614629174706176]), [[A <-- '1,208,925,819,614,629,174,706,176']]].   % BigInt
+[format(atom(A), '~i~w~i', [cat, rat, dog]), [[A <-- 'rat']]].
+[format(atom(A), '~I', [12345678]), [[A <-- '12_345_678']]].                                           % Int
+[format(atom(A), '~I', [1208925819614629174706176]), [[A <-- '1_208_925_819_614_629_174_706_176']]].   % BigInt
+[format(atom(A), '~w~n~w', [cat, dog]), [[A <-- 'cat\ndog']]].
+[format(atom(A), '~w~n~N~w', [cat, dog]), [[A <-- 'cat\ndog']]].
+[format(atom(A), '~w~N~w', [cat, dog]), [[A <-- 'cat\ndog']]].
+[format(atom(A), '~w~N~n~w', [cat, dog]), [[A <-- 'cat\n\ndog']]].
+[format(atom(A), '~p', ['Cat']), [[A <-- 'Cat']]].
+[format(atom(A), '~q', ['Cat']), [[A <-- '\'Cat\'']]].
 [format(atom(A), '~16r', [200]), [[A <-- 'c8']]].
 [format(atom(A), '~16r', [1208925819614629174706176]), [[A <-- '100000000000000000000']]].               % BigInt
+[format(atom(A), '~16R', [200]), [[A <-- 'C8']]].
+[format(atom(A), '~16R', [200]), [[A <-- 'C8']]].
 [format(atom(A), '~`0t~16r~5+', [200]), [[A <-- '000c8']]].
 [format(atom(A), '~16r~`0t~5+', [200]), [[A <-- 'c8000']]].
 [format(atom(A), '~`0t~16r~2+~`0t~16r~2+~`0t~16r~2+', [1, 200, 3]), [[A <-- '01c803']]].
-[format(atom(A), '~16D', [12345678]), [[A <-- '12,345,678']]].                                           % Int
-[format(atom(A), '~16D', [1208925819614629174706176]), [[A <-- '1,208,925,819,614,629,174,706,176']]].   % BigInt
+[format(atom(A), '~w', ['Cat']), [[A <-- 'Cat']]].
+[format(atom(A), '~~~w', [cat]), [[A <-- '~cat']]].
 /* end of format */
