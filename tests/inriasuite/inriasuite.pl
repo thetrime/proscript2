@@ -728,6 +728,7 @@ file(cut).
 %%file(file_manip).  % needs complete rewite.
 file(findall).
 file(float).
+file(format).
 file(functor).
 file('if-then').
 file('if-then-else').

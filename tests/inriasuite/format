@@ -1,0 +1,9 @@
+/* file format. This was added to test the format extensions in Proscript */
+
+[format(atom(A), '~16R', [200]), [[A <-- 'C8']]].
+[format(atom(A), '~16r', [200]), [[A <-- 'c8']]].
+[format(atom(A), '~`0t~16r~5+', [200]), [[A <-- '000c8']]].
+[format(atom(A), '~16r~`0t~5+', [200]), [[A <-- 'c8000']]].
+[format(atom(A), '~`0t~16r~2+~`0t~16r~2+~`0t~16r~2+', [1, 200, 3]), [[A <-- '01c803']]].
+
+/* end of format */
