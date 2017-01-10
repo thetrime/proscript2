@@ -201,7 +201,8 @@ word _make_blob_from_index(char* type, int key)
 #else
 word _make_blob_from_index(char* type, int key)
 {
-   word q = intern_blob(type, (void*)key, NULL);
+   uintptr_t p = (uintptr_t)key;
+   word q = intern_blob(type, (void*)p, NULL);
    return q;
 }
 
@@ -282,6 +283,7 @@ void _format_term(Options* options, int priority, word term, char** ptr, int* le
 {
    StringBuilder formatted = stringBuilder();
    format_term(formatted, options, priority, term);
+    PORTRAY(term); printf("\n");
    finalize_buffer(formatted, ptr, length);
    //printf("-> "); PORTRAY(term);
    //printf(" turned into string at %p (%d): %s\n", *ptr, *length, *ptr);
