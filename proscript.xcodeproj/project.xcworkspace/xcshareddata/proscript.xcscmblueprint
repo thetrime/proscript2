@@ -1,0 +1,30 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "2BDDA899D3F9418286E738DFBBCC7EEA0BD1BD2F",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "2BDDA899D3F9418286E738DFBBCC7EEA0BD1BD2F" : 9223372036854775807,
+    "376D02D17509BDFD19F7426F0B8328E0F935C1A8" : 9223372036854775807
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "B67AE441-0AC8-4DD3-A8D3-507B92FDD055",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "2BDDA899D3F9418286E738DFBBCC7EEA0BD1BD2F" : "proscript2\/",
+    "376D02D17509BDFD19F7426F0B8328E0F935C1A8" : "gmp-ios-builder\/"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "proscript",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "proscript.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/thetrime\/proscript2.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "2BDDA899D3F9418286E738DFBBCC7EEA0BD1BD2F"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/NeoTeo\/gmp-ios-builder.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "376D02D17509BDFD19F7426F0B8328E0F935C1A8"
+    }
+  ]
+}
