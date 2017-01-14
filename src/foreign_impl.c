@@ -2138,3 +2138,20 @@ PREDICATE(consult, 1, (word a)
    freeStream(s);
    return SUCCESS;
 })
+
+PREDICATE(nth0, 3, (word n, word list, word item)
+{
+   int i;
+   if (!must_be_positive_integer(n))
+      return 0;
+   long position = getConstant(n, NULL).integer_data;
+   for (i = 0; i < position && TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor; i++)
+      list = ARGOF(list, 1);
+   return i == position && TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor && unify(item, ARGOF(list, 0));
+})
+
+PREDICATE(qqq, 0, ()
+{
+ qqq();
+ return SUCCESS;
+})

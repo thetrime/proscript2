@@ -736,6 +736,7 @@ file(is).
 file(nonvar).
 file(not_provable).
 file(not_unify).
+file(nth0).
 file(number).
 file(number_chars).
 file(number_codes).
