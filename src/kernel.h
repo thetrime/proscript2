@@ -147,3 +147,5 @@ word copy_local(word t, word** local);
 word get_choicepoint_depth();
 Choicepoint push_state();
 void restore_state(Choicepoint state);
+
+void qqq();
