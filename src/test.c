@@ -81,7 +81,10 @@ void do_test(int argc, char** argv)
    }
    else
    {
-      consult_file("test.pl");
+      if (consult_file("test.pl"))
+         printf("Consulted test.pl\n");
+      else
+         printf("Failed to load test.pl\n");
    }
    printf("Consulted. Running tests...\n");
    /*

@@ -413,6 +413,11 @@ word _make_local(word t)
    return (word)w;
 }
 
+void _free_local(word t)
+{
+   free((void*)t);
+}
+
 int _define_foreign_predicate(word moduleName, word functor, int(*func)(), int flags)
 {
    Module module = find_module(moduleName);

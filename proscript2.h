@@ -44,6 +44,7 @@ int _atom_length(word a);
 int _is_blob(word a, const char* type);
 int _get_blob(const char* type, word w);
 word _make_local(word t);
+void _free_local(word t);
 word _get_exception(); // Returns (word)0 if no exception
 void _format_term(Options* options, int priority, word term, char** ptr, int* length);
 Options* _create_options();
