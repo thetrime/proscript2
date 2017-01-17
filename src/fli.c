@@ -273,7 +273,7 @@ void executejs(word goal, int callback_ref)
 
 void _execute(word goal, void(*callback)(RC))
 {
-    PORTRAY(goal); printf("\n");
+//    PORTRAY(goal); printf("\n");
    execute_query(goal, callback);
 }
 #endif
@@ -283,10 +283,7 @@ void _format_term(Options* options, int priority, word term, char** ptr, int* le
 {
    StringBuilder formatted = stringBuilder();
    format_term(formatted, options, priority, term);
-    PORTRAY(term); printf("\n");
    finalize_buffer(formatted, ptr, length);
-   //printf("-> "); PORTRAY(term);
-   //printf(" turned into string at %p (%d): %s\n", *ptr, *length, *ptr);
 }
 
 EMSCRIPTEN_KEEPALIVE

@@ -2155,3 +2155,8 @@ PREDICATE(qqq, 0, ()
  qqq();
  return SUCCESS;
 })
+
+PREDICATE($heap_usage, 1, (word u)
+{
+   return unify(MAKE_INTEGER(heap_usage()), u);
+})

@@ -149,3 +149,4 @@ Choicepoint push_state();
 void restore_state(Choicepoint state);
 
 void qqq();
+long heap_usage();

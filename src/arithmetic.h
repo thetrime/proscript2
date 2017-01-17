@@ -4,8 +4,8 @@ typedef enum
 {
    IntegerType = 0,
    BigIntegerType = 1,
-   FloatType = 2,
-   RationalType = 3
+   RationalType = 2,
+   FloatType = 3
 } NumberType;
 
 

@@ -76,7 +76,7 @@ Choicepoint CP = NULL;
 #define HEAP_SIZE 655350
 #define TRAIL_SIZE 327675
 #define STACK_SIZE 65535
-#define ARG_STACK_SIZE 256
+#define ARG_STACK_SIZE 512
 
 word TRAIL[TRAIL_SIZE];
 word* TTOP = &TRAIL[TRAIL_SIZE];
@@ -2233,6 +2233,10 @@ word get_choicepoint_depth()
    return MAKE_POINTER(CP);
 }
 
+long heap_usage() // Returns heap usage in bytes
+{
+   return ((unsigned int)H - (unsigned int)HEAP) / sizeof(void*);
+}
 
 EMSCRIPTEN_KEEPALIVE
 void qqq()
