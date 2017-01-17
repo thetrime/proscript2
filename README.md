@@ -76,3 +76,10 @@ Known Bugs
 ----------
 * If you assert two clauses of a fact, enter the predicate, abolish the fact (or retract the clauses) then backtrack, the system will likely crash. This could be fixed by changing the is_local attribute of clauses into a reference counting scheme; query clauses will start with a count of 0, predicate clauses with a count of 1 (since they're 'owned' by the predicate).
 * The TRY_ME_OR_NEXT_CLAUSE is inefficient because it destroys the choicepoint and creates a new one, and this requires copying the ARGS array needlessly around. It would be much better to do a TRY_ME_ELSE, RETRY_ME_ELSE, TRUST_ME triple as per the original design. Care must be taken with dynamic predicates though, since you might end up at a TRUST_ME or a RETRY_ME_ELSE without a preceeding TRY_ME_ELSE if clauses are being added as they're executed.
+
+
+Licensing Issues
+----------------
+It is possible to compile proscript for iOS, but there is a licensing problem. libgmp is distributed under GPLv2 and LGPLv3. It seems like it would not be possible to distribute code with such restrictions through the App store since it is not possible to relink an application and run it. It seems that running it locally, on your own device (using your own signing key) and possibly distribution via enterprise channels would be OK, but it's a complicated legal issue.
+
+If necessary, libgmp could be replaced with a BSD-licensed library such as the OpenSSL MP library to avoid this restriction.
