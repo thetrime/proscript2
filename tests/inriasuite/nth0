@@ -1,0 +1,10 @@
+/* file nth0 */
+
+[nth0(0, [a,b,c], X), [[X <-- a]]].
+[nth0(1, [a,b,c], X), [[X <-- b]]].
+[nth0(2, [a,b,c], X), [[X <-- c]]].
+[nth0(3, [a,b,c], X), failure].
+[nth0(_, [a,b,c], X), instantiation_error].
+[nth0(0, garbage, X), failure].
+
+/* end of nth0 */
