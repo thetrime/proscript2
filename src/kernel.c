@@ -2233,6 +2233,10 @@ word get_choicepoint_depth()
    return MAKE_POINTER(CP);
 }
 
+long heap_usage() // Returns heap usage in bytes
+{
+   return ((unsigned int)H - (unsigned int)HEAP) / sizeof(void*);
+}
 
 EMSCRIPTEN_KEEPALIVE
 void qqq()
