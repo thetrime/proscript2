@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <gmp.h>
+#include "arithmetic.h"
 
 int is_unbounded = 1;
 
@@ -17,28 +18,6 @@ int is_unbounded = 1;
 
 int rand_init = 0;
 gmp_randstate_t rand_state;
-
-
-typedef enum
-{
-   IntegerType = 0,
-   BigIntegerType = 1,
-   RationalType = 2,
-   FloatType = 3
-} NumberType;
-
-
-typedef struct
-{
-   NumberType type;
-   union
-   {
-      long i;
-      double f;
-      mpz_t ii; // big integer
-      mpq_t r; // rational
-   };
-} number;
 
 
 int arith_compare(word a, word b);
