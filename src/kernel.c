@@ -76,7 +76,7 @@ Choicepoint CP = NULL;
 #define HEAP_SIZE 655350
 #define TRAIL_SIZE 327675
 #define STACK_SIZE 65535
-#define ARG_STACK_SIZE 256
+#define ARG_STACK_SIZE 512
 
 word TRAIL[TRAIL_SIZE];
 word* TTOP = &TRAIL[TRAIL_SIZE];
