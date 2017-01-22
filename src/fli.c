@@ -81,6 +81,9 @@ EMSCRIPTEN_KEEPALIVE
 int _is_blob(word a, char* type)
 {
    int t;
+   a = DEREF(a);
+   if (TAGOF(a) != CONSTANT_TAG)
+       return 0;
    cdata c = getConstant(a, &t);
    return (t == BLOB_TYPE && strcmp(type, c.blob_data->type) == 0);
 }
@@ -412,6 +415,8 @@ word _make_local(word t)
 
 void _free_local(word t)
 {
+   if ((DEREF(t) & TAG_MASK) == CONSTANT_TAG)
+      return;
    free((void*)t);
 }
 
