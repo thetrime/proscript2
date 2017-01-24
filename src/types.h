@@ -135,6 +135,7 @@ struct choicepoint
    Clause clause;
    Module module;
    struct frame* cleanup;
+   void (*foreign_cleanup)(word);
    int argc;
    word args[0];
 };

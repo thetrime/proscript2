@@ -1589,8 +1589,8 @@ PREDICATE(erase, 1, (word ref)
 // Note there is a known bug here
 // If you use recorded/3 to get a list, then erase one of the items, then backtrack, you will end up with the wrong value
 // This is because we get the list again each time recorded/3 is called OR redone. But on redo, we keep the index in the list
-// This could be fixed if we could store a struct in backtrack instead, but then we would need to be able to free it on cut
-// and this type of foreign cleanup is not yet implemented
+// In many cases you can use this to get a reference to a subsequently-freed clause, resulting in a crash
+// However, it is safe if called from the code in builtin.pl, and that is currently all I anticipate anyone using it for
 NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
 {
    if (TAGOF(ref) == POINTER_TAG)
@@ -2166,3 +2166,4 @@ PREDICATE($heap_usage, 1, (word u)
 {
    return unify(MAKE_INTEGER(heap_usage()), u);
 })
+

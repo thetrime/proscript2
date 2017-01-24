@@ -601,7 +601,13 @@ int cut_to(Choicepoint point)
          finalSP = AFTER_FRAME(c->FR);
 
       CP = CP->CP;
-      if (c->cleanup != NULL)
+      if (c->foreign_cleanup != NULL)
+      {
+         // The PC stored in c->PC is the original PC + 3 + sizeof(word). We want to read out the value at slot [PC + 3 + sizeof(word)]
+         word backtrack_ptr = c->FR->slots[CODE16(c->PC-2)];
+         c->foreign_cleanup(backtrack_ptr);
+      }
+      else if (c->cleanup != NULL)
       {
          Frame cleanupFrame = c->cleanup;
          if (unify(cleanupFrame->slots[1], cutAtom))
@@ -2139,7 +2145,8 @@ void print_instruction()
    printf("\n");
 }
 
-void make_foreign_choicepoint(word w)
+// Note that this is not tested and may not work very well!
+void make_foreign_cleanup_choicepoint(word w, void (*fn)(word))
 {
    //printf("Saving foreign pointer to %p\n", &FR->slots[CODE16(PC+1+sizeof(word))]);
    FR->slots[CODE16(PC+1+sizeof(word))] = w;
@@ -2156,6 +2163,7 @@ void make_foreign_choicepoint(word w)
    }
    c->H = H;
    c->type = Head;
+   c->foreign_cleanup = fn;
    c->cleanup = NULL;
    CP = c;
    SP += sizeof(choicepoint)/sizeof(word);
@@ -2167,6 +2175,11 @@ void make_foreign_choicepoint(word w)
    c->TR = TR;
    c->PC = PC+3+sizeof(word);
    assert(FR->slots[CODE16(PC+1+sizeof(word))] == w);
+}
+
+void make_foreign_choicepoint(word w)
+{
+   make_foreign_cleanup_choicepoint(w, NULL);
 }
 
 int head_functor(word head, Module* module, word* functor)
@@ -2251,8 +2264,9 @@ long heap_usage() // Returns heap usage in bytes
 EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
-   //debugging = 1;
+   debugging = 0;
    //print_memory_info();
+   // printf("Heap: H=%p(%"PRIpd" slots used)\n", H, H-HEAP);
    //ctable_check();
 }
 
