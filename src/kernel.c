@@ -872,6 +872,7 @@ void create_choicepoint(unsigned char* address, Clause clause, int type)
    c->clause = clause;
    c->module = currentModule;
    c->cleanup = NULL;
+   c->foreign_cleanup = NULL;
    c->NFR = NFR;
    c->functor = FR->functor;
    c->TR = TR;
