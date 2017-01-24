@@ -2251,7 +2251,7 @@ long heap_usage() // Returns heap usage in bytes
 EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
-   debugging = 1;
+   //debugging = 1;
    //print_memory_info();
    //ctable_check();
 }
