@@ -1,6 +1,6 @@
 {
   "name": "proscript",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A Prolog Engine for Javascript",
   "main": "proscript.js",
   "dependencies": {
