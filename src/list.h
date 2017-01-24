@@ -33,5 +33,6 @@ word term_from_list(List* list, word tail);
 word list_shift(List* list);
 word list_pop(List* list);
 word list_delete_first(List* list, word w);
+word list_element(List* list, int index);
 int populate_list_from_term(List* list, word w);
 #endif

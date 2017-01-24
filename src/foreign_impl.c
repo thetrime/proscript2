@@ -1586,7 +1586,11 @@ PREDICATE(erase, 1, (word ref)
    return _erase(ref);
 })
 
-
+// Note there is a known bug here
+// If you use recorded/3 to get a list, then erase one of the items, then backtrack, you will end up with the wrong value
+// This is because we get the list again each time recorded/3 is called OR redone. But on redo, we keep the index in the list
+// This could be fixed if we could store a struct in backtrack instead, but then we would need to be able to free it on cut
+// and this type of foreign cleanup is not yet implemented
 NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
 {
    if (TAGOF(ref) == POINTER_TAG)
@@ -1600,27 +1604,29 @@ NONDET_PREDICATE(recorded, 3, (word key, word value, word ref, word backtrack)
    {
       if (TAGOF(ref) == VARIABLE_TAG)
       {
-         word list;
-         if (backtrack == 0)
-         {
-            if (TAGOF(key) == CONSTANT_TAG)
-               list = find_records(key);
-            else if (TAGOF(key) == COMPOUND_TAG)
-               return list = find_records(FUNCTOROF(key));
-            else if (TAGOF(key) == VARIABLE_TAG)
-               return instantiation_error();
-            else
-               return type_error(dbReferenceAtom, key);
-         }
+         List* list;
+         int index;
+         if (TAGOF(key) == CONSTANT_TAG)
+            list = find_records(key);
+         else if (TAGOF(key) == COMPOUND_TAG)
+            list = find_records(FUNCTOROF(key));
+         else if (TAGOF(key) == VARIABLE_TAG)
+            return instantiation_error();
          else
-            list = backtrack;
-         if (list == emptyListAtom)
+            return type_error(dbReferenceAtom, key);
+         if (backtrack == 0)
+            index = 0;
+         else
+            index = getConstant(backtrack, NULL).integer_data;
+         if (list == NULL)
             return FAIL;
-         if (ARGOF(list, 1) != emptyListAtom)
+         if (list_length(list) < index)
+            return FAIL;
+         if (list_length(list) - index != 1)
          {
-            make_foreign_choicepoint(ARGOF(list, 1));
+            make_foreign_choicepoint(MAKE_INTEGER(index+1));
          }
-         word head = ARGOF(list, 0);
+         word head = list_element(list, index);
          // DANGER! head contains references to the local storage! We must copy it to the heap or it will no longer be valid after erased!
          return unify(value, copy_term(ARGOF(head, 0))) && unify(ref, ARGOF(head, 1));
       }

@@ -4,4 +4,4 @@ word recordz(word key, word term);
 int _erase(word ref);
 void initialize_database();
 int recorded(word ref, word* key, word* value);
-word find_records(word);
+List* find_records(word);

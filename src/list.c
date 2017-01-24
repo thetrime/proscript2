@@ -2,6 +2,7 @@
 #include "list.h"
 #include "kernel.h"
 #include "errors.h"
+#include "assert.h"
 #include "constants.h"
 
 void init_list(List* list)
@@ -35,6 +36,20 @@ void list_splice(List* list, struct cell_t* cell)
       list->tail = cell->prev;
    free(cell);
    list->length--;
+}
+
+word list_element(List* list, int index)
+{
+   assert(index < list->length);
+   struct cell_t* cell = list->head;
+   while (cell != NULL && index != 0)
+   {
+      struct cell_t* next = cell->next;
+      index--;
+      cell = next;
+   }
+   return cell->data;
+
 }
 
 word list_delete_first(List* list, word w)

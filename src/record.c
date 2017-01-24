@@ -111,10 +111,10 @@ int recorded(word ref, word* key, word* value)
    return 1;
 }
 
-word find_records(word key)
+List* find_records(word key)
 {
    List* list;
    if (whashmap_get(database, key, (any_t)&list) == MAP_OK)
-      return term_from_list(list, emptyListAtom);
-   return emptyListAtom;
+      return list;
+   return NULL;
 }
