@@ -1594,6 +1594,16 @@ RC execute(int resume)
             PC+=3;
             continue;
          }
+         case B_RFUNCTOR:
+         {
+            // Like B_FUNCTOR except it does not need to push to the argStack since it is the last arg in the word
+            // When we do the B_POP for the last non-rfunctor we will reset ARGP to the next place in the list
+            word t = MAKE_COMPOUND(FR->clause->constants[CODE16(PC+1)]);
+            *(ARGP++) = t;
+            ARGP = ARGPOF(t);
+            PC+=3;
+            continue;
+         }
          case H_FIRSTVAR:
          {
             // ARGP is pointing to something we must match with a variable in the head that we have not seen until now (and is not an arg)
@@ -2241,8 +2251,8 @@ long heap_usage() // Returns heap usage in bytes
 EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
-   //debugging = 1;
-   print_memory_info();
+   debugging = 1;
+   //print_memory_info();
    //ctable_check();
 }
 

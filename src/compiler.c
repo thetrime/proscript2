@@ -298,7 +298,7 @@ void compile_head(word term, wmap_t variables, instruction_list_t* instructions)
    }
 }
 
-int compile_term_creation(word term, wmap_t variables, instruction_list_t* instructions, int depth, word parent)
+int compile_term_creation(word term, wmap_t variables, instruction_list_t* instructions, int depth, word parent, int isFinalArg)
 {
    int size = 0;
    if (TAGOF(term) == VARIABLE_TAG)
@@ -342,11 +342,15 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
    }
    else if (TAGOF(term) == COMPOUND_TAG)
    {
-      size += push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
+      if (isFinalArg)
+         size += push_instruction(instructions, INSTRUCTION_CONST(B_RFUNCTOR, FUNCTOROF(term)));
+      else
+         size += push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
       Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
       for (int i = 0; i < f->arity; i++)
-         size += compile_term_creation(ARGOF(term, i), variables, instructions, depth+1, term);
-      size += push_instruction(instructions, INSTRUCTION(B_POP));
+         size += compile_term_creation(ARGOF(term, i), variables, instructions, depth+1, term, i+1==f->arity);
+      if (!isFinalArg)
+         size += push_instruction(instructions, INSTRUCTION(B_POP));
    }
    else if (TAGOF(term) == CONSTANT_TAG)
    {
@@ -367,7 +371,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
    int size = 0;
    if (TAGOF(term) == VARIABLE_TAG)
    {
-      size += compile_term_creation(term, variables, instructions, 0, 0); // FIXME: Is the parent of a usercall really 0?
+      size += compile_term_creation(term, variables, instructions, 0, 0, 0); // FIXME: Is the parent of a usercall really 0?
       size += push_instruction(instructions, INSTRUCTION(I_USERCALL));
       if (is_tail)
          size += push_instruction(instructions, INSTRUCTION(I_EXIT));
@@ -548,7 +552,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else if (FUNCTOROF(term) == throwFunctor)
       {
-         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0);
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0, 0);
          size += push_instruction(instructions, INSTRUCTION(B_THROW));
       }
       else if (FUNCTOROF(term) == crossModuleCallFunctor)
@@ -561,8 +565,8 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else if (FUNCTOROF(term) == cleanupChoicepointFunctor)
       {
-         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0);
-         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0, 0);
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0, 0);
+         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0, 0, 0);
          size += push_instruction(instructions, INSTRUCTION(B_CLEANUP_CHOICEPOINT));
       }
       else if (FUNCTOROF(term) == localCutFunctor)
@@ -581,8 +585,8 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       }
       else if (FUNCTOROF(term) == unifyFunctor)
       {
-         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0);
-         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0, 0);
+         size += compile_term_creation(ARGOF(term, 0), variables, instructions, 0, 0, 0);
+         size += compile_term_creation(ARGOF(term, 1), variables, instructions, 0, 0, 0);
          size += push_instruction(instructions, INSTRUCTION(I_UNIFY));
          if (is_tail)
             size += push_instruction(instructions, INSTRUCTION(I_EXIT));
@@ -591,7 +595,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       {
          Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
          for (int i = 0; i < f->arity; i++)
-            size += compile_term_creation(ARGOF(term, i), variables, instructions, 0, term);
+            size += compile_term_creation(ARGOF(term, i), variables, instructions, 0, term, 0);
          size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, FUNCTOROF(term)));
       }
    }
