@@ -18,10 +18,6 @@ TARGET=proscript.js
 OPT_LEVEL=-O3
 MEMORY_REQUIRED=-s TOTAL_MEMORY=33554432
 GMP=node_modules/gmpjs
-
-node_modules/gmpjs:
-	npm install https://github.com/thetrime/gmpjs
-
 CFLAGS=$(OPT_LEVEL) -s NO_EXIT_RUNTIME=1 $(MEMORY_REQUIRED) -I$(GMP) -s ASSERTIONS=2 -Werror -DDEBUG -DMEMTRACE $(FLAGS)
 LDFLAGS=$(OPT_LEVEL) --llvm-lto 1 -s ASM_JS=1 $(MEMORY_REQUIRED) -s ASSERTIONS=2 $(GMP)/.libs/libgmp.a
 BOOT=--pre-js $(BOOTFILE)
@@ -52,6 +48,9 @@ foreign.o:	src/foreign.c src/foreign_impl.c $(GMP)
 
 %.o:		src/%.c src/constants src/instructions $(GMP)
 		$(CC) $(CFLAGS) -c $< -o $@
+
+node_modules/gmpjs:
+	npm install https://github.com/thetrime/gmpjs
 
 clean:
 		rm -f *.o
