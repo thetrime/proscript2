@@ -330,15 +330,15 @@ atomic_list_concat(A, B):-
 maplist(Goal, List1, List2, List3) :-
 	maplist_(List1, List2, List3, Goal).
 
-maplist_([], [], [], _).
+maplist_([], [], [], _):- !.
 maplist_([Elem1|Tail1], [Elem2|Tail2], [Elem3|Tail3], Goal) :-
-	call(Goal, Elem1, Elem2, Elem3),
-	maplist_(Tail1, Tail2, Tail3, Goal).
+        call(Goal, Elem1, Elem2, Elem3),
+        maplist_(Tail1, Tail2, Tail3, Goal).
 
 maplist(Goal, List1, List2, List3, List4) :-
 	maplist_(List1, List2, List3, List4, Goal).
 
-maplist_([], [], [], [], _).
+maplist_([], [], [], [], _):- !.
 maplist_([Elem1|Tail1], [Elem2|Tail2], [Elem3|Tail3], [Elem4|Tail4], Goal) :-
 	call(Goal, Elem1, Elem2, Elem3, Elem4),
         maplist_(Tail1, Tail2, Tail3, Tail4, Goal).
@@ -449,7 +449,7 @@ aggregate_all(min(X,W), Goal, min(Min,Witness)) :- !,
 	).
 aggregate_all(Template, Goal0, Result) :-
 	template_to_pattern(all, Template, Pattern, Goal0, Goal, Aggregate),
-	findall(Pattern, Goal, List),
+        findall(Pattern, Goal, List),
 	aggregate_list(Aggregate, List, Result).
 
 %%	aggregate_all(+Template, +Discriminator, :Goal, -Result) is semidet.
@@ -599,6 +599,7 @@ aggregate_list(min, List, Sum) :-
 aggregate_list(min_witness, List, min(Min, Witness)) :-
 	min_pair(List, Min, Witness).
 aggregate_list(term(0, Functor, Ops), List, Result) :- !,
+        writeq(maplist(state0, Ops, StateArgs, FinishArgs)), nl,
         maplist(state0, Ops, StateArgs, FinishArgs),
         State0 =.. [Functor|StateArgs],
         aggregate_term_list(List, Ops, State0, Result0),
@@ -607,10 +608,10 @@ aggregate_list(term(1, Functor, Ops), [H|List], Result) :-
 	H =.. [Functor|Args],
 	maplist(state1, Ops, Args, StateArgs, FinishArgs),
 	State0 =.. [Functor|StateArgs],
-	aggregate_term_list(List, Ops, State0, Result0),
+        aggregate_term_list(List, Ops, State0, Result0),
 	finish_result(Ops, FinishArgs, Result0, Result).
 
-aggregate_term_list([], _, State, State).
+aggregate_term_list([], _, State, State):- !.
 aggregate_term_list([H|T], Ops, State0, State) :-
         step_term(Ops, H, State0, State1),
 	aggregate_term_list(T, Ops, State1, State).
@@ -673,12 +674,13 @@ step_term(Ops, Row, Row0, Row1) :-
         functor(Row1, Name, Arity),
 	step_list(Ops, 1, Row, Row0, Row1).
 
-step_list([], _, _, _, _).
+step_list([], _, _, _, _):- !.
 step_list([Op|OpT], Arg, Row, Row0, Row1) :-
 	arg(Arg, Row, X),
 	arg(Arg, Row0, X0),
 	arg(Arg, Row1, X1),
         step(Op, X, X0, X1),
+        !,
         succ(Arg, Arg1),
         step_list(OpT, Arg1, Row, Row0, Row1).
 
@@ -687,7 +689,7 @@ finish_result(Ops, Finish, R0, R) :-
 	functor(R, Functor, Arity),
 	finish_result(Ops, Finish, 1, R0, R).
 
-finish_result([], _, _, _, _).
+finish_result([], _, _, _, _):- !.
 finish_result([Op|OpT], [F|FT], I, R0, R) :-
 	arg(I, R0, A0),
 	arg(I, R, A),
@@ -707,10 +709,10 @@ finish_result1(_, _, A, A).
 
 %%	state0(+Op, -State, -Finish)
 
-state0(bag,   L, L).
-state0(set,   L, L).
-state0(count, 0, _).
-state0(sum,   0, _).
+state0(bag,   L, L):- !.
+state0(set,   L, L):- !.
+state0(count, 0, _):- !.
+state0(sum,   0, _):- !.
 
 %%	state1(+Op, +First, -State, -Finish)
 
@@ -749,7 +751,7 @@ min_list([Value|Tail], Min, Result) :-
 call(A,B):-
 	( A = Module:InGoal->
             InGoal =.. [Name|Args],
-            append(Args, [B], NewArgs),
+            once(append(Args, [B], NewArgs)),
             Goal =.. [Name|NewArgs],
             call(Module:Goal)
         ; A =.. [Name|Args],
@@ -763,7 +765,7 @@ call(A,B):-
 call(A,B,C):-
 	( A = Module:InGoal->
             InGoal =.. [Name|Args],
-            append(Args, [B,C], NewArgs),
+            once(append(Args, [B,C], NewArgs)),
             Goal =.. [Name|NewArgs],
             call(Module:Goal)
         ; A =.. [Name|Args],
@@ -775,9 +777,9 @@ call(A,B,C):-
 :-meta_predicate(call(0,?,?,?)).
 
 call(A,B,C,D):-
-	( A = Module:InGoal->
+        ( A = Module:InGoal->
             InGoal =.. [Name|Args],
-            append(Args, [B,C,D], NewArgs),
+            once(append(Args, [B,C,D], NewArgs)),
             Goal =.. [Name|NewArgs],
             call(Module:Goal)
         ; A =.. [Name|Args],
