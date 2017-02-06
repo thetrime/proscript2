@@ -1924,9 +1924,8 @@ int clause_functor(word t, word* functor)
 
 void consult_stream(Stream s)
 {
-   // FIXME: WE cannot recover this heap unless we actually compile all the clauses. Even then we need the terms for clause/2 etc
-   //word* savedH = H;
-   //word* savedSP = SP;
+   word* savedH = H;
+   word* savedSP = SP;
    word clause;
    while (1)
    {
@@ -2060,8 +2059,8 @@ void consult_stream(Stream s)
    // In case this has changed, set it back after consulting any file
    currentModule = userModule;
    // Restore H and SP
-   //H = savedH;
-   //SP = savedSP;
+   H = savedH;
+   SP = savedSP;
 
 }
 
@@ -2267,7 +2266,8 @@ void qqq()
 {
    debugging = 0;
    //print_memory_info();
-   // printf("Heap: H=%p(%"PRIpd" slots used)\n", H, H-HEAP);
+   //printf("Heap: H=%p(%"PRIpd" slots used)\n", H, H-HEAP);
+   //   print_choices();
    //ctable_check();
 }
 
