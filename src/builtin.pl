@@ -599,7 +599,6 @@ aggregate_list(min, List, Sum) :-
 aggregate_list(min_witness, List, min(Min, Witness)) :-
 	min_pair(List, Min, Witness).
 aggregate_list(term(0, Functor, Ops), List, Result) :- !,
-        writeq(maplist(state0, Ops, StateArgs, FinishArgs)), nl,
         maplist(state0, Ops, StateArgs, FinishArgs),
         State0 =.. [Functor|StateArgs],
         aggregate_term_list(List, Ops, State0, Result0),
