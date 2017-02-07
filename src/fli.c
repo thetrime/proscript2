@@ -128,6 +128,19 @@ void _make_choicepoint(word w)
    make_foreign_choicepoint(w);
 }
 
+#ifdef EMSCRIPTEN
+static void __jscleanup(int i, word w)
+{
+   EM_ASM_({_jscleanup($0, $1)}, i, w);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void _make_choicepoint_with_cleanup(word w, int index)
+{
+ make_foreign_cleanup_choicepoint(w, __jscleanup, index);
+}
+#endif
+
 
 EMSCRIPTEN_KEEPALIVE
 word _make_functor(word name, int arity)

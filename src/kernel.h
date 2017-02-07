@@ -131,7 +131,7 @@ word copy_term(word term);
 void make_foreign_choicepoint(word);
 
 // NOTE: make_foreign_choicepoint() is NOT well-tested!
-void make_foreign_cleanup_choicepoint(word, void (*fn)(word));
+void make_foreign_cleanup_choicepoint(word, void (*fn)(int, word), int);
 
 int head_functor(word clause, Module* module, word* functor);
 word predicate_indicator(word term);

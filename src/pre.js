@@ -7,6 +7,9 @@ var fTop = 0;
 var callbacks = [];
 var cTop = 0;
 
+var cleanups = {};
+var next_cleanup = 0;
+
 var environments = [];
 var eTop = 0;
 
@@ -441,6 +444,19 @@ function _make_choicepoint(a)
     return __make_choicepoint(a);
 }
 
+function _jscleanup(index, arg)
+{
+    cleanups[index](arg);
+    cleanups[index] = undefined;
+}
+
+function _make_choicepoint_with_cleanup(a, callback)
+{
+    var index = next_cleanup;
+    next_cleanup++;
+    cleanups[index] = callback;
+    return __make_choicepoint_with_cleanup(_DEREF(a), index);
+}
 
 function _term_functor_name(a)
 {
@@ -566,6 +582,7 @@ module.exports = {_make_atom: _make_atom,
                   _make_variable: _make_variable,
                   _make_compound: _make_compound,
                   _make_choicepoint: _make_choicepoint,
+                  _make_choicepoint_with_cleanup: _make_choicepoint_with_cleanup,
                   _make_integer: _make_integer,
                   _make_float: _make_float,
                   _make_blob: _make_blob,
