@@ -37,7 +37,7 @@ OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compile
 $(TARGET):	$(OBJECTS) $(BOOTFILE) $(GMP)
 		$(CC) $(OBJECTS) $(BOOT) $(BOOT_FS) $(LDFLAGS) -o $@
 
-kernel.o:	src/kernel.c src/constants src/instructions src/builtin.h $(GMP)
+kernel.o:	src/kernel.c src/constants src/instructions src/builtin.h $(GMP) src/gc.c
 		$(CC) $(CFLAGS) -c $< -o $@
 
 src/builtin.h:	src/builtin.pl

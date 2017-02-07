@@ -1,6 +1,7 @@
 #include "global.h"
 #include "kernel.h"
 #include "errors.h"
+#include "gc.h"
 #include "stream.h"
 #include "parser.h"
 #include "options.h"
@@ -2167,3 +2168,22 @@ PREDICATE($heap_usage, 1, (word u)
    return unify(MAKE_INTEGER(heap_usage()), u);
 })
 
+PREDICATE(gc, 0, ()
+{
+#ifdef COLLECT_GARBAGE
+   gc();
+#endif
+   return SUCCESS;
+})
+
+PREDICATE(gc_test, 4, (word A, word B, word C, word D)
+{
+   word atom = MAKE_ATOM("foo");
+   unify(D, C);
+   unify(C, B);
+   unify(B, A);
+   unify(A, atom);
+   printf("A = %ld, (*A = %ld), B = %ld, (*B = %ld), C = %ld, (*C = %ld), D = %ld, (*D = %ld), Atom = %ld\n", A, *((Word)A), B, *((Word)B), C, *((Word)C), D, *((Word)D), atom);
+   gc();
+   return SUCCESS;
+});

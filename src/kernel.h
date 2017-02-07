@@ -8,6 +8,9 @@
 #include <gmp.h>
 #include <stdarg.h>
 
+#include "gc.h"
+
+
 
 // NFR is a pointer to the next frame
 // FR is a pointer to the current frame
@@ -37,7 +40,7 @@
 #define FUNCTOR_VALUE(t) ((Functor)CTable[t])
 #define FUNCTOROF(t) (*((Word)(t & ~TAG_MASK)))
 #define ARGOF(t, i) DEREF(((word)(((Word*)(DEREF(t) & ~TAG_MASK))+i+1)))
-#define ARGPOF(t) ((Word)(((Word*)(t & ~TAG_MASK))+1)) // FIXME: These cannot both be right!
+#define ARGPOF(t) ((Word)(((Word*)(t & ~TAG_MASK))+1))
 
 #define VARIABLE_TAG 0b00
 #define POINTER_TAG  0b01

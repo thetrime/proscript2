@@ -73,14 +73,12 @@ int debugging = 0;
 uint8_t* PC;
 int halted = 0;
 Choicepoint CP = NULL;
-#define HEAP_SIZE 655350
+//#define HEAP_SIZE 655350
+#define HEAP_SIZE 677002
 #define TRAIL_SIZE 327675
 #define STACK_SIZE 65535
 #define ARG_STACK_SIZE 512
 
-word TRAIL[TRAIL_SIZE];
-word* TTOP = &TRAIL[TRAIL_SIZE];
-word* TR = &TRAIL[0];
 word HEAP[HEAP_SIZE];
 word* HTOP = &HEAP[HEAP_SIZE];
 word* H = &HEAP[0];
@@ -88,6 +86,9 @@ word* HMAX = &HEAP[0];
 word STACK[STACK_SIZE];
 word* STOP = &STACK[STACK_SIZE];
 word* SP = &STACK[0];
+word TRAIL[TRAIL_SIZE];
+word* TTOP = &TRAIL[TRAIL_SIZE];
+word* TR = &TRAIL[0];
 uintptr_t argStack[ARG_STACK_SIZE];
 uintptr_t* argStackP = &argStack[0];
 uintptr_t* argStackTop = &argStack[ARG_STACK_SIZE];
@@ -105,6 +106,7 @@ word* exception_local = NULL;
 Stream current_input = NULL;
 Stream current_output = NULL;
 
+
 void print_choices()
 {
    Choicepoint q = CP;
@@ -115,6 +117,17 @@ void print_choices()
       q = q->CP;
    }
    printf("-----End choices\n");
+
+}
+
+void ensure_global(int cell_count)
+{
+#ifdef COLLECT_GARBAGE
+   if (H + cell_count < HTOP)
+      return;
+   gc();
+#endif
+   assert(H < HTOP);
 
 }
 
@@ -130,7 +143,7 @@ word MAKE_VAR()
 {
    word newVar = (word)H;
    *H = newVar;
-   assert(H < HTOP);
+   ensure_global(1);
    H++;
    RECORD_HEAP_USAGE;
    return newVar;
@@ -143,7 +156,7 @@ word MAKE_COMPOUND(word functor)
    H++;
    // Make all the args vars
    int arity = getConstant(functor, NULL).functor_data->arity;
-   assert(H + arity < HTOP);
+   ensure_global(arity);
    for (int i = 0; i < arity; i++)
    {
       MAKE_VAR();
@@ -158,7 +171,7 @@ word MAKE_VACOMPOUND(word functor, va_list argp)
    word addr = (word)H;
    *H = functor;
    H++;
-   assert(H + f->arity < HTOP);
+   ensure_global(f->arity);
    for (int i = 0; i < f->arity; i++)
    {
       word w = va_arg(argp, word);
@@ -188,7 +201,7 @@ word MAKE_ACOMPOUND(word functor, word* values)
    word addr = (word)H;
    *H = functor;
    H++;
-   assert(H + f->arity < HTOP);
+   ensure_global(f->arity);
    for (int i = 0; i < f->arity; i++)
       *(H++) = values[i];
    assert(H < HTOP);
@@ -2266,8 +2279,8 @@ void qqq()
 {
    debugging = 0;
    //print_memory_info();
-   //printf("Heap: H=%p(%"PRIpd" slots used)\n", H, H-HEAP);
-   //   print_choices();
+   //printf("Heap Ptr: H=%p(%"PRIpd" slots used)\n", H, H-HEAP);
+   //print_choices();
    //ctable_check();
 }
 
@@ -2289,3 +2302,7 @@ void cfree(void* ptr)
 {
    free(ptr);
 }
+
+#ifdef COLLECT_GARBAGE
+#include "gc.c"
+#endif
