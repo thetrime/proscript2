@@ -304,7 +304,11 @@ Token lex(Stream s)
    else if (c == ',')
       return CommaToken;
    else if (c == '.')
-      return PeriodToken;
+   {
+      char peeked = peek_raw_char_with_conversion(s);
+      if (!is_graphic_char(peeked))
+         return PeriodToken;
+   }
    if ((c >= 'A' && c <= 'Z') || c == '_')
    {
       CharBuffer sb = charBuffer();
