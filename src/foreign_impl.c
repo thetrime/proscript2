@@ -1749,7 +1749,7 @@ PREDICATE(sort, 2, (word in, word out)
 
    while (--i >= 0)
    {
-      if (array[i] != last)
+      if (term_difference(array[i], last) != 0)
       {
          list = MAKE_VCOMPOUND(listFunctor, array[i], list);
          last = array[i];

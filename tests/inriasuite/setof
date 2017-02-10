@@ -8,6 +8,8 @@
 
 [setof(X,(X=2;X=2),L), [[L <-- [2]]]].
 
+[setof(X,(X=foo(a,a);X=foo(a,a)),L), [[L <-- [foo(a,a)]]]].
+
 
 [setof(X,fail,L), failure].
 
