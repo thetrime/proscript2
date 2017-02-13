@@ -181,11 +181,11 @@ int _set_exception(word error)
 }
 
 EMSCRIPTEN_KEEPALIVE
-extern int unify(word, word);
+extern int safe_unify(word, word);
 
 int _unify(word a, word b)
 {
-   return unify(a, b);
+   return safe_unify(a, b);
 }
 
 EMSCRIPTEN_KEEPALIVE

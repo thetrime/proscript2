@@ -423,7 +423,7 @@ function _execute(context, goal, callback)
 
 function xunify(a, b)
 {
-    return _unify(a, b);
+    return _safe_unify(a, b);
 }
 
 function _term_functor(a)

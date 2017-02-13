@@ -526,6 +526,24 @@ void CLEAR_EXCEPTION()
 }
 
 EMSCRIPTEN_KEEPALIVE
+// safe_unify is used by the FLI.
+// It is possible for one of a or b to be a variable on the heap, and the other to be a local-storage term
+// This is dangerous (to say the least)
+// When executing Prolog code, we know that this will never happen, since the compiler would have emitted UNSAFE_* terms if the
+// unifier was on the stack (and we can never have anything outside of the heap/stack like we can with the FLI)
+// So ordinary prolog code can just run unify() but FLI code must run safe_unify()
+int safe_unify(word a, word b)
+{
+   a = DEREF(a);
+   b = DEREF(b);
+   if ((TAGOF(a) == COMPOUND_TAG) && (((Word)a) > HTOP || (Word)a < HEAP))
+      a = copy_term(a);
+   if ((TAGOF(b) == COMPOUND_TAG) && (((Word)b) > HTOP || (Word)b < HEAP))
+      b = copy_term(b);
+   return unify(a, b);
+}
+
+
 int unify(word a, word b)
 {
    a = DEREF(a);
