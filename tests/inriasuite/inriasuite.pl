@@ -730,6 +730,7 @@ file(findall).
 file(float).
 file(format).
 file(functor).
+file(ground).
 file('if-then').
 file('if-then-else').
 file(integer).

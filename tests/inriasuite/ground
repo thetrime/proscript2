@@ -1,0 +1,14 @@
+/* file ground */
+
+[ground(a), success].
+[ground([a,b,c]), success].
+[ground([a,_,c]), failure].
+[ground(foo(a, b, [bar(c,d,e, [f,g]), baz(h,i)])), success].
+[ground(foo(a, b, [bar(c,_,e, [f,g]), baz(h,i)])), failure].
+[ground(foo(a, b, [bar(c,d,e, [f,_]), baz(h,i)])), failure].
+[ground(foo(a, b, [bar(c,d,e, [f,g]), _])), failure].
+[(X = h, ground(foo(a, b, [bar(c,d,e, [f,g]), X]))), [[X <-- h]]].
+[(X = Y, ground(foo(a, b, [bar(c,d,e, [f,g]), X]))), failure].
+
+
+/* end of ground */

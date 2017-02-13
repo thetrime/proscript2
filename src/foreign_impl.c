@@ -2156,6 +2156,30 @@ PREDICATE(nth0, 3, (word n, word list, word item)
    return i == position && TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor && unify(item, ARGOF(list, 0));
 })
 
+PREDICATE(ground, 1, (word a)
+{
+   List list;
+   init_list(&list);
+   list_append(&list, a);
+   while (list_length(&list) > 0)
+   {
+      word w = DEREF(list_pop(&list));
+      if (TAGOF(w) == VARIABLE_TAG)
+      {
+         free_list(&list);
+         return FAIL;
+      }
+      else if (TAGOF(w) == COMPOUND_TAG)
+      {
+         Functor f = getConstant(FUNCTOROF(w), NULL).functor_data;
+         for (int i = 0; i < f->arity; i++)
+            list_append(&list, ARGOF(w, i));
+      }
+   }
+   free_list(&list);
+   return SUCCESS;
+})
+
 PREDICATE(qqq, 0, ()
 {
  qqq();
