@@ -209,9 +209,15 @@ word list_pop(List* list)
    if (new_tail == NULL) // List was a singleton. Tail and head are now null
       list->head = NULL;
    else if (new_tail->prev == NULL) // List had 2 items. Tail and head are the same and the list is a singleton
+   {
       list->head = new_tail;
+      new_tail->next = NULL;
+   }
    else
+   {
       new_tail->prev->next = new_tail; // General case.
+      new_tail->next = NULL;
+   }
    free(list->tail);
    list->tail = new_tail;
    list->length--;
