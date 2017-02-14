@@ -534,6 +534,7 @@ Token lex(Stream s)
    assert(0 && "This should not be reachable");
 }
 
+
 Token token_lookahead[3];
 int token_lookahead_index = 0;
 
@@ -599,7 +600,7 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
    Operator infixOperator;
    int hasOp = token_operator(t0, &prefixOperator, Prefix);
    Token peeked_token = peek_token(s);
-   if (peeked_token == ListCloseToken || peeked_token == ParenCloseToken || peeked_token == CommaToken)
+   if (peeked_token == ListCloseToken || peeked_token == ParenCloseToken || peeked_token == CommaToken || peeked_token == BarToken)
       hasOp = 0;
    if (peeked_token == ParenOpenToken)
    {

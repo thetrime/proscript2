@@ -73,7 +73,8 @@ void initialize_operators()
    add_operator("volatile", 1150, FX);
    add_operator("\\+", 900, FY);
    add_operator("~", 900, FX);
-   add_operator("?", 500, FX);
+   add_operator("?", 250, YFX);
+   add_operator("?", 920, FY);
    add_operator("+", 200, FY);
    add_operator("+", 500, YFX);
    add_operator("-", 200, FY);
@@ -81,7 +82,7 @@ void initialize_operators()
    add_operator("\\", 200, FY);
    add_operator("-->", 1200, XFX);
    add_operator(";", 1100, XFY);
-   add_operator("|", 1100, XFY);
+   add_operator("|", 1105, XFY);
    add_operator("->", 1050, XFY);
    add_operator("*->", 1050, XFY);
    add_operator(",", 1000, XFY);
