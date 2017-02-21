@@ -688,8 +688,10 @@ int apply_choicepoint(Choicepoint c)
    SP = c->SP;
    CP = c->CP;
    TR = c->TR;
-   FR->clause = c->clause;
    currentModule = c->module;
+   // We must not write to anything on FR (including FR->clause) until we have finished reading from the choicepoint, since FR may be on the stack
+   // and is likely to be before the choicepoint, meaning that we will end up corrupting the choicepoint
+   FR->clause = c->clause;
    if (c->type == Head)
    {
       mode = READ;
