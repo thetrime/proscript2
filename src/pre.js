@@ -312,6 +312,11 @@ function _restore_state(a)
     __restore_state(a);
 }
 
+function _hard_reset()
+{
+    __hard_reset();
+}
+
 function _copy_term(a)
 {
     return ___copy_term(a);
@@ -625,6 +630,7 @@ module.exports = {_make_atom: _make_atom,
                   _forEach: forEach,
                   _numeric_value: _numeric_value,
                   _deref: deref,
+                  _hard_reset: _hard_reset,
                   _qqq: qqq,
                   _qqqy: qqqy
                  };

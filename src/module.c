@@ -46,7 +46,8 @@ void free_clauses(Clause c)
 void free_predicate(Predicate p)
 {
    free_clauses(p->firstClause);
-   free_list(&p->clauses);
+   if ((p->flags & PREDICATE_FOREIGN) == 0)
+      free_list(&p->clauses);
    free(p);
 }
 

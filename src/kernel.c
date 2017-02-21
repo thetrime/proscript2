@@ -1057,6 +1057,12 @@ void initialize_kernel()
    FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<system>"), 1);
 }
 
+void hard_reset()
+{
+   destroy_module(userModule);
+   initialize_kernel();
+}
+
 
 RC execute(int resume)
 {

@@ -438,3 +438,9 @@ int _define_foreign_predicate(word moduleName, word functor, int(*func)(), int f
    Module module = find_module(moduleName);
    return define_foreign_predicate_c(module, functor, func, flags);
 }
+
+EMSCRIPTEN_KEEPALIVE
+void _hard_reset()
+{
+   hard_reset();
+}
