@@ -1680,7 +1680,8 @@ NONDET_PREDICATE(between, 3, (word low, word high, word value, word backtrack)
 
 PREDICATE(keysort, 2, (word in, word out)
 {
-   // Lets just use qsort for now
+   // Lets just use qsort for now, but note that qsort is NOT stable (or rather, not necessarily)
+   // To make it stable, we will use a 2-part key: the first arg of the term and then the current position
    if (in == emptyListAtom)
       return unify(out, emptyListAtom);
 
@@ -1694,22 +1695,24 @@ PREDICATE(keysort, 2, (word in, word out)
       list = ARGOF(list,1);
    }
    // Now make an array
-   word* array = malloc(sizeof(word)*i);
+
+   qkey_t* array = malloc(sizeof(qkey_t)*i);
    // And fill it in
    list = in;
    i = 0;
    while (TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor)
    {
-      array[i++] = ARGOF(list, 0);
+      array[i].original_index = i;
+      array[i++].value = ARGOF(list, 0);
       list = ARGOF(list,1);
    }
    // Now sort
-   qsort(array, i, sizeof(word), &qcompare_keys);
+   qsort(array, i, sizeof(qkey_t), &qcompare_keys);
 
    // And now make a new list
    list = emptyListAtom;
    while (--i >= 0)
-      list = MAKE_VCOMPOUND(listFunctor, array[i], list);
+      list = MAKE_VCOMPOUND(listFunctor, array[i].value, list);
    free(array);
    return unify(out, list);
 })

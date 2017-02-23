@@ -218,9 +218,18 @@ void strip_module(word term, word* clause, Module* module)
    }
 }
 
+typedef struct
+{
+   word value;
+   int original_index;
+} qkey_t;
+
 int qcompare_keys(const void * a, const void* b)
 {
-   return term_difference(ARGOF(*((word*)a), 0), ARGOF(*((word*)b), 0));
+   int d = term_difference(ARGOF(((qkey_t*)a)->value, 0), ARGOF(((qkey_t*)b)->value, 0));
+   if (d == 0)
+      return ((qkey_t*)a)->original_index - ((qkey_t*)b)->original_index;
+   return d;
 }
 
 int qcompare_terms(const void * a, const void* b)
