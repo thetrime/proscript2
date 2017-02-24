@@ -228,7 +228,14 @@ word _make_blob_from_index(char* type, int key)
 EMSCRIPTEN_KEEPALIVE
 int _release_blob(char* type, word w)
 {
-   Blob b = getConstant(w, NULL).blob_data;
+   int t;
+   Blob b = getConstant(w, &t).blob_data;
+   if (t != BLOB_TYPE)
+   {
+      printf("Type mismatch: Expecting blob in %u but object passed in is not a blob\n", w);
+      PORTRAY(w);
+      assert(0);
+   }
    if (strcmp(type, b->type) != 0)
    {
       printf("Blob mismatch: Expecting %s but blob passed in is of type %s\n", type, b->type);
