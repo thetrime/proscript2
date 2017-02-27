@@ -379,13 +379,46 @@ int format(word sink, word fmt, word args)
                               k--;
                               source = source / radix;
                            }
-                           append_string(output, strdup(&str[k+1]), strlen(&str[k+1]));
+                           if (is_locale_format)
+                           {
+                              char* str2 = &str[k+1];
+                              int len = strlen(str2);
+                              k = strlen(str2) % 3;
+                              if (k == 0)
+                                 k = 3;
+                              for (int j = 0; j < strlen(str2);)
+                              {
+                                 append_string(output, strdup(&str2[j]), k);
+                                 if (j+3 < strlen(str2))
+                                    append_string_no_copy(output, ",", 1);
+                                 j += k;
+                                 k = 3;
+                              }
+                           }
+                           else
+                              append_string(output, strdup(&str[k+1]), strlen(&str[k+1]));
                            break;
                         }
                         else if (type == BIGINTEGER_TYPE)
                         {
                            char* str = mpz_get_str(NULL, radix, c.biginteger_data->data);
-                           append_string(output, str, strlen(str));
+                           if (is_locale_format)
+                           {
+                              int k = strlen(str) % 3;
+                              if (k == 0)
+                                 k = 3;
+                              for (int j = 0; j < strlen(str);)
+                              {
+                                 append_string(output, strdup(&str[j]), k);
+                                 if (j+3 < strlen(str))
+                                    append_string_no_copy(output, ",", 1);
+                                 j += k;
+                                 k = 3;
+                              }
+                              free(str);
+                           }
+                           else
+                              append_string(output, str, strlen(str));
                            break;
                         }
                      }
