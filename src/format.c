@@ -19,7 +19,6 @@ int format(word sink, word fmt, word args)
 {
    if (!must_be_atom(fmt))
       return ERROR;
-   int a = 0;
    Atom input = getConstant(fmt, NULL).atom_data;
    StringBuilder output = stringBuilder();
    StringBuilder last_output = NULL;
@@ -27,6 +26,7 @@ int format(word sink, word fmt, word args)
    word arg;
    int tab_stop = 0;
    int tab_base = 0;
+   int is_locale_format = 0;
 
    for (int i = 0; i < input->length; i++)
    {
@@ -39,6 +39,7 @@ int format(word sink, word fmt, word args)
          }
          if (input->data[i+1] == '~')
          {
+            is_locale_format = 0;
             append_string_no_copy(output, "~", 1);
             i++;
          }
@@ -145,7 +146,24 @@ int format(word sink, word fmt, word args)
                         // ~f must still print .000 depending on the radix
                         // I think it is easiest just to do it ourselves
                         char* str = mpz_get_str(NULL, 10, n.ii);
-                        append_string(output, str, strlen(str));
+                        if (is_locale_format)
+                        {
+                           // Since there is no way to change the locale, we assume this is always a locale in which:
+                           // Decimal separator is .
+                           // Grouping separator is ,
+                           // Groups are every 3 symbols
+                           int k = strlen(str) % 3;
+                           for (int j = 0; j < strlen(str);)
+                           {
+                              append_string(output, strndup(&str[j], k), k);
+                              if (j+3 < strlen(str))
+                                 append_string_no_copy(output, ",", 1);
+                              j += k;
+                              k = 3;
+                           }
+                        }
+                        else
+                           append_string(output, str, strlen(str));
                         toFloatAndFree(n);
                         if (radix == -1)
                            append_string(output, strdup(".000000"), 7);
@@ -395,6 +413,9 @@ int format(word sink, word fmt, word args)
                      i = (end - input->data);
                      continue;
                   }
+                  case ':':
+                     is_locale_format = 1;
+                     continue;
                   default:
                   {
                      format_error(MAKE_ATOM("No such format character"));
