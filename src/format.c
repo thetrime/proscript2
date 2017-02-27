@@ -78,13 +78,43 @@ int format(word sink, word fmt, word args)
                         {
                            char str[64];
                            sprintf(str, "%ld", c.integer_data);
-                           append_string(output, strdup(str), strlen(str));
+                           if (is_locale_format)
+                           {
+                              int k = strlen(str) % 3;
+                              if (k == 0)
+                                 k = 3;
+                              for (int j = 0; j < strlen(str);)
+                              {
+                                 append_string(output, strndup(&str[j], k), k);
+                                 if (j+3 < strlen(str))
+                                    append_string_no_copy(output, ",", 1);
+                                 j += k;
+                                 k = 3;
+                              }
+                           }
+                           else
+                              append_string(output, strdup(str), strlen(str));
                            break;
                         }
                         else if (type == BIGINTEGER_TYPE)
                         {
                            char* str = mpz_get_str(NULL, 10, c.biginteger_data->data);
-                           append_string(output, str, strlen(str));
+                           if (is_locale_format)
+                           {
+                              int k = strlen(str) % 3;
+                              if (k == 0)
+                                 k = 3;
+                              for (int j = 0; j < strlen(str);)
+                              {
+                                 append_string(output, strndup(&str[j], k), k);
+                                 if (j+3 < strlen(str))
+                                    append_string_no_copy(output, ",", 1);
+                                 j += k;
+                                 k = 3;
+                              }
+                           }
+                           else
+                              append_string(output, str, strlen(str));
                            break;
                         }
                      }
@@ -190,10 +220,50 @@ int format(word sink, word fmt, word args)
                         {
                            char* big_str = malloc(nn+1);
                            gmp_snprintf(big_str, nn+1, fmt, result);
-                           append_string_no_copy(output, big_str, nn);
+                           if (is_locale_format)
+                           {
+                              int m;
+                              for (m = 0; big_str[m] != '.'; m++);
+                              int k = m % 3;
+                              if (k == 0)
+                                 k = 3;
+                              for (int j = 0; j < m;)
+                              {
+                                 append_string(output, strndup(&big_str[j], k), k);
+                                 if (j+3 < m)
+                                    append_string_no_copy(output, ",", 1);
+                                 j += k;
+                                 k = 3;
+                              }
+                              // And now everything else
+                              append_string_no_copy(output, &big_str[m], nn-m);
+                           }
+                           else
+                              append_string_no_copy(output, big_str, nn);
                         }
                         else
-                           append_string(output, strdup(str), strlen(str));
+                        {
+                           if (is_locale_format)
+                           {
+                              int m;
+                              for (m = 0; str[m] != '.'; m++);
+                              int k = m % 3;
+                              if (k == 0)
+                                 k = 3;
+                              for (int j = 0; j < m;)
+                              {
+                                 append_string(output, strndup(&str[j], k), k);
+                                 if (j+3 < m)
+                                    append_string_no_copy(output, ",", 1);
+                                 j += k;
+                                 k = 3;
+                              }
+                              // And now everything else
+                              append_string(output, strdup(&str[m]), strlen(str)-m);
+                           }
+                           else
+                              append_string(output, strdup(str), strlen(str));
+                        }
                         mpf_clear(result);
                         toFloatAndFree(n);
                      }
@@ -415,6 +485,7 @@ int format(word sink, word fmt, word args)
                   }
                   case ':':
                      is_locale_format = 1;
+                     i++;
                      continue;
                   default:
                   {
