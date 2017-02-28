@@ -725,6 +725,10 @@ int backtrack()
       //printf("Backtracking %p\n", CP);
       if (CP == NULL)
       {
+         // Complete failure. Undo all the bindings!
+         printf("Complete failure\n");
+         TR = &TRAIL[0];
+         unwind_trail(oldTR);      
          return 0;
       }
       if (!apply_choicepoint(CP))
@@ -740,9 +744,14 @@ int backtrack_to(Choicepoint c)
    // Undoes to the given choicepoint, undoing everything else in between
    while (CP != c)
    {
-      if (CP == NULL)
-         return 0;
       word* oldTR = TR;
+      if (CP == NULL)
+      {
+         printf("Complete failure\n");
+         TR = &TRAIL[0];
+         unwind_trail(oldTR);
+         return 0;
+      }
       apply_choicepoint(CP); // Modifies CP
       unwind_trail(oldTR);
    }
