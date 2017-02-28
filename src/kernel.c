@@ -726,7 +726,6 @@ int backtrack()
       if (CP == NULL)
       {
          // Complete failure. Undo all the bindings!
-         printf("Complete failure\n");
          TR = &TRAIL[0];
          unwind_trail(oldTR);      
          return 0;
@@ -747,7 +746,6 @@ int backtrack_to(Choicepoint c)
       word* oldTR = TR;
       if (CP == NULL)
       {
-         printf("Complete failure\n");
          TR = &TRAIL[0];
          unwind_trail(oldTR);
          return 0;
