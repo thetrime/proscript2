@@ -939,9 +939,8 @@ void restore_state(Choicepoint state)
    //printf("Popping state from %p\n", state);
    //printf("Restoring state to %p from the current CP of %p\n", state, CP);
    //print_choices();
-   // First though, we must pop off any choicepoints that might be lurking on the stack
-   while (CP != 0)
-      apply_choicepoint(CP);
+   // First though, we must cut any choicepoints that might be lurking on the stack
+   cut_to(0);
    CP = state;
    //printf("Restoring state. from %p. CP is %p, PC is %p, FR is %p, and frame locality is %d\n", CP, CP->CP, CP->PC, CP->FR, CP->FR->is_local);
    apply_choicepoint(CP);
