@@ -428,7 +428,7 @@ int evaluate(word a, number* n)
             mpq_t r0, r1;
             toRationalAndFree(n0, &r0);
             toRationalAndFree(n1, &r1);
-            if (mpq_cmp_ui(n1.r, 0, 1))
+            if (mpq_cmp_ui(r1, 0, 1) == 0)
             {
                mpq_clear(r0);
                mpq_clear(r1);
