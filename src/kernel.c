@@ -378,7 +378,7 @@ word MAKE_INTEGER(long data)
 EMSCRIPTEN_KEEPALIVE
 word MAKE_FLOAT(double data)
 {
-   return intern(FLOAT_TYPE, hash64((uint64_t)data), &data, sizeof(double), allocFloat, NULL);
+   return intern(FLOAT_TYPE, hash64(*((uint64_t*)&data)), &data, sizeof(double), allocFloat, NULL);
 }
 
 
