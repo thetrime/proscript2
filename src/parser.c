@@ -470,6 +470,8 @@ Token lex(Stream s)
                   push_char(sb, '\t');
                else if (c == '\'')
                   push_char(sb, '\'');
+               else if (c == '"')
+                  push_char(sb, '"');
                else if (c == 'u')
                {
                   char hex[5];
