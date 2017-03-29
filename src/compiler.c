@@ -83,11 +83,6 @@ void _print_instruction(void* ignored, instruction_t* i)
    printf("%s\n", instruction_info[i->opcode].name);
 }
 
-void _append_instruction(void* list, instruction_t* i)
-{
-   push_instruction((instruction_list_t*)list, i);
-}
-
 int push_instruction(instruction_list_t* list, instruction_t* i)
 {
    list->count++;
@@ -103,6 +98,11 @@ int push_instruction(instruction_list_t* list, instruction_t* i)
       list->tail = i;
    }
    return i->size;
+}
+
+void _append_instruction(void* list, instruction_t* i)
+{
+   push_instruction((instruction_list_t*)list, i);
 }
 
 
