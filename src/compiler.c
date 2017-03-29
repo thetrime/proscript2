@@ -78,6 +78,16 @@ void instruction_list_apply(instruction_list_t* list, void* data, void(*fn)(void
    }
 }
 
+void _print_instruction(void* ignored, instruction_t* i)
+{
+   printf("%s\n", instruction_info[i->opcode].name);
+}
+
+void _append_instruction(void* list, instruction_t* i)
+{
+   push_instruction((instruction_list_t*)list, i);
+}
+
 int push_instruction(instruction_list_t* list, instruction_t* i)
 {
    list->count++;
@@ -95,15 +105,6 @@ int push_instruction(instruction_list_t* list, instruction_t* i)
    return i->size;
 }
 
-void _print_instruction(void* ignored, instruction_t* i)
-{
-   printf("%s\n", instruction_info[i->opcode].name);
-}
-
-void _append_instruction(void* list, instruction_t* i)
-{
-   push_instruction((instruction_list_t*)list, i);
-}
 
 instruction_t* INSTRUCTION(unsigned char opcode)
 {
@@ -300,72 +301,86 @@ void compile_head(word term, wmap_t variables, instruction_list_t* instructions)
 
 int compile_term_creation(word term, wmap_t variables, instruction_list_t* instructions, int depth, word parent, int isFinalArg)
 {
+   int needs_bpop = 0;
    int size = 0;
-   if (TAGOF(term) == VARIABLE_TAG)
+   do
    {
-      var_info_t* varinfo;
-      assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
-      if (varinfo->fresh)
+      if (TAGOF(term) == VARIABLE_TAG)
       {
-         if (!varinfo->guaranteed_safe)
+         var_info_t* varinfo;
+         assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
+         if (varinfo->fresh)
          {
-            //assert(0);
-            if (depth > 0)
-               size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot)); // I think this is the same as what would otherwise be ARGFIRSTUNSAFEVAR
+            if (!varinfo->guaranteed_safe)
+            {
+               //assert(0);
+               if (depth > 0)
+                  size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot)); // I think this is the same as what would otherwise be ARGFIRSTUNSAFEVAR
+               else
+                  size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTUNSAFEVAR, varinfo->slot));
+               varinfo->guaranteed_safe = 1; // Var is now safe
+            }
             else
-               size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTUNSAFEVAR, varinfo->slot));
-            varinfo->guaranteed_safe = 1; // Var is now safe
-         }
-         else
-         {
-            if (depth > 0)
-               size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot));
-            else
-               size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
-         }
+            {
+               if (depth > 0)
+                  size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot));
+               else
+                  size += push_instruction(instructions, INSTRUCTION_SLOT(B_FIRSTVAR, varinfo->slot));
+            }
             varinfo->fresh = 0;
-      }
-      else if (depth > 0)
-      {
-         size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGVAR, varinfo->slot));
-      }
-      else
-      {
-         if (!varinfo->guaranteed_safe)
+         }
+         else if (depth > 0)
          {
-            size += push_instruction(instructions, INSTRUCTION_SLOT(B_UNSAFEVAR, varinfo->slot));
-            varinfo->guaranteed_safe = 1; // Var is now safe
+            size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGVAR, varinfo->slot));
          }
          else
-            size += push_instruction(instructions, INSTRUCTION_SLOT(B_VAR, varinfo->slot));
+         {
+            if (!varinfo->guaranteed_safe)
+            {
+               size += push_instruction(instructions, INSTRUCTION_SLOT(B_UNSAFEVAR, varinfo->slot));
+               varinfo->guaranteed_safe = 1; // Var is now safe
+            }
+            else
+               size += push_instruction(instructions, INSTRUCTION_SLOT(B_VAR, varinfo->slot));
+         }
+         break;
       }
-   }
-   else if (TAGOF(term) == COMPOUND_TAG)
-   {
-      if (isFinalArg)
-         size += push_instruction(instructions, INSTRUCTION_CONST(B_RFUNCTOR, FUNCTOROF(term)));
+      else if (TAGOF(term) == COMPOUND_TAG)
+      {
+         if (isFinalArg)
+            size += push_instruction(instructions, INSTRUCTION_CONST(B_RFUNCTOR, FUNCTOROF(term)));
+         else
+         {
+            size += push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
+            needs_bpop++;
+         }
+         isFinalArg = 0;
+         Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
+         for (int i = 0; i < f->arity-1; i++)
+            size += compile_term_creation(ARGOF(term, i), variables, instructions, depth+1, term, 0);
+         parent = term;
+         depth++;
+         isFinalArg = 1;
+         term = ARGOF(term, f->arity-1);
+         continue;
+      }
+      else if (TAGOF(term) == CONSTANT_TAG)
+      {
+         size += push_instruction(instructions, INSTRUCTION_CONST(B_ATOM, term));
+         break;
+      }
       else
-         size += push_instruction(instructions, INSTRUCTION_CONST(B_FUNCTOR, FUNCTOROF(term)));
-      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
-      for (int i = 0; i < f->arity; i++)
-         size += compile_term_creation(ARGOF(term, i), variables, instructions, depth+1, term, i+1==f->arity);
-      if (!isFinalArg)
-         size += push_instruction(instructions, INSTRUCTION(B_POP));
-   }
-   else if (TAGOF(term) == CONSTANT_TAG)
-   {
-      size += push_instruction(instructions, INSTRUCTION_CONST(B_ATOM, term));
-   }
-   else
-   {
-      assert(0 && "Illegal tag");
-   }
+      {
+         assert(0 && "Illegal tag");
+      }
+   } while(1);
+   while(needs_bpop--)
+      size += push_instruction(instructions, INSTRUCTION(B_POP));
    return size;
 }
 
 int compile_body(word term, wmap_t variables, instruction_list_t* instructions, int is_tail, int* next_reserved, int local_cut, int* sizep)
 {
-   //printf("Compiling \n"); PORTRAY(term); printf("\n");
    int rc = 1;
    term = DEREF(term);
    int size = 0;
