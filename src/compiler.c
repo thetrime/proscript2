@@ -626,25 +626,31 @@ void find_variables(word term, List* list)
 
 int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_slot, word parent)
 {
-   int rc = 0;
-   if (TAGOF(term) == VARIABLE_TAG)
+   do
    {
-      var_info_t* varinfo;
-      if (whashmap_get(map, term, (any_t)&varinfo) == MAP_MISSING)
+      int rc = 0;
+      if (TAGOF(term) == VARIABLE_TAG)
       {
-         //printf("Allocating slot %d to variable ", *next_slot); PORTRAY(term); printf(" last_term is %08lx): \n", is_head?0:term); PORTRAY(parent); printf("\n");
-         varinfo = VarInfo(term, 1, (*next_slot)++, is_head);
-         whashmap_put(map, term, varinfo);
-         rc++;
+         var_info_t* varinfo;
+         if (whashmap_get(map, term, (any_t)&varinfo) == MAP_MISSING)
+         {
+            //printf("Allocating slot %d to variable ", *next_slot); PORTRAY(term); printf(" last_term is %08lx): \n", is_head?0:term); PORTRAY(parent); printf("\n");
+            varinfo = VarInfo(term, 1, (*next_slot)++, is_head);
+            whashmap_put(map, term, varinfo);
+            rc++;
+         }
       }
-   }
-   else if (TAGOF(term) == COMPOUND_TAG)
-   {
-      Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
-      for (int i = 0; i < f->arity; i++)
-         rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot, term);
-   }
-   return rc;
+      else if (TAGOF(term) == COMPOUND_TAG)
+      {
+         Functor f = getConstant(FUNCTOROF(term), NULL).functor_data;
+         for (int i = 0; i < f->arity-1; i++)
+            rc += analyze_variables(ARGOF(term, i), is_head, depth+1, map, next_slot, term);
+         term = ARGOF(term, f->arity-1);
+         depth++;
+         continue;
+      }
+      return rc;
+   } while(1);
 }
 
 int get_reserved_slots(word t)
