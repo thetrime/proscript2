@@ -805,39 +805,49 @@ int count_compounds(word t)
    return 0;
 }
 
-word make_local_(word t, List* variables, word* heap, int* ptr, int size)
+void make_local_(word t, List* variables, word* heap, int* ptr, int size, word* target)
 {
-   t = DEREF(t);
-   switch(TAGOF(t))
+   // This do-while construct is used to make the COMPOUND_TAG case right-recursive
+   // This means that processing a list uses O(1) C-stack rather than O(n).
+   do
    {
-      case CONSTANT_TAG:
-         return t;
-      case POINTER_TAG:
-         return t;
-      case COMPOUND_TAG:
+      t = DEREF(t);
+      switch(TAGOF(t))
       {
-         word result = (word)(&heap[*ptr]) | COMPOUND_TAG;
-         heap[*ptr] = FUNCTOROF(t);
-         (*ptr)++;
-         int argp = *ptr;
-         Functor f = getConstant(FUNCTOROF(t), NULL).functor_data;
-         (*ptr) += f->arity;
-         for (int i = 0; i < f->arity; i++)
+         case CONSTANT_TAG:
+         case POINTER_TAG:
+            *target = t;
+            return;
+         case COMPOUND_TAG:
          {
-            heap[argp++] = make_local_(ARGOF(t, i), variables, heap, ptr, size);
+            *target = (word)(&heap[*ptr]) | COMPOUND_TAG;
+            heap[*ptr] = FUNCTOROF(t);
+            (*ptr)++;
+            int argp = *ptr;
+            Functor f = getConstant(FUNCTOROF(t), NULL).functor_data;
+            (*ptr) += f->arity;
+            for (int i = 0; i < f->arity-1; i++)
+            {
+               make_local_(ARGOF(t, i), variables, heap, ptr, size, &heap[argp]);
+               argp++;
+            }
+            t = ARGOF(t, f->arity-1);
+            target = &heap[argp];
+            continue;
+            return;
          }
-         return result;
+         case VARIABLE_TAG:
+         {
+            // The variables appear, backwards, at the end of the heap. This is so that
+            // The term we want is also identifiable as (word)heap
+            int i = list_index(variables, t);
+            heap[size-i-1] = (word)&heap[size-i-1];
+            *target = (word)&heap[size-i-1];
+            return;
+         }
       }
-      case VARIABLE_TAG:
-      {
-         // The variables appear, backwards, at the end of the heap. This is so that
-         // The term we want is also identifiable as (word)heap
-         int i = list_index(variables, t);
-         heap[size-i-1] = (word)&heap[size-i-1];
-         return (word)&heap[size-i-1];
-      }
-   }
-   assert(0);
+      assert(0);
+   } while(1);
 }
 
 word copy_local_with_extra_space(word t, word** local, int extra)
@@ -874,7 +884,8 @@ word copy_local_with_extra_space(word t, word** local, int extra)
    *local = localptr;
 
    int ptr = extra + 1;
-   word w = make_local_(t, &variables, localptr, &ptr, i);
+   word w;
+   make_local_(t, &variables, localptr, &ptr, i, &w);
    localptr[extra] = w;
    free_list(&variables);
    return w;
