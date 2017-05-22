@@ -140,6 +140,8 @@ word MAKE_POINTER(void* data);
 void* GET_POINTER(word data);
 Module get_current_module();
 void halt(int code);
+ExecutionCallback current_yield();
+void resume_yield(RC status, ExecutionCallback y);
 
 extern Stream current_input;
 extern Stream current_output;

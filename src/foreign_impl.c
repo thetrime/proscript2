@@ -2194,3 +2194,9 @@ PREDICATE($heap_usage, 1, (word u)
    return unify(MAKE_INTEGER(heap_usage()), u);
 })
 
+PREDICATE($yield, 2, (word key, word ptr)
+{
+   printf("Yielding for "); PORTRAY(key); printf(" at %p\n", current_yield());
+   unify(ptr, MAKE_INTEGER((long)current_yield()));
+   return YIELD;
+})
