@@ -1849,7 +1849,6 @@ ExecutionCallback current_yield()
 EMSCRIPTEN_KEEPALIVE
 void resume_yield(RC status, ExecutionCallback y)
 {
-   printf("Resuming from yield %p\n", y);
    //printf("Resuming from yield: %d\n", status);
    if (status == FAIL)
    {
