@@ -114,10 +114,46 @@ int putch(Stream s, int c)
    {
       return io_error(writeAtom, s->term);
    }
-   s->buffer[s->filled_buffer_size++] = c;
-   if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)))
-      return flush_stream(s);
-   return SUCCESS;
+   if (c <= 0x7f)
+   {
+      s->buffer[s->filled_buffer_size++] = c;
+      if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)))
+         return flush_stream(s);
+      return SUCCESS;
+   }
+   else // unicode
+   {
+      int bytes[4];
+      if (c <= 0x800)
+      {
+         bytes[0] = (c >> 6) | 0xc0;
+         bytes[1] = (c & 0x3f) | 0x80;
+         bytes[2] = -1;
+         bytes[3] = -1;
+      }
+      else if (c < 0xffff)
+      {
+         bytes[0] = (c >> 12) | 0xe0;
+         bytes[1] = ((c >> 6) & 0x3f) | 0x80;
+         bytes[2] = (c & 0x3f) | 0x80;
+         bytes[3] = -1;
+      }
+      else
+      {
+         bytes[0] = 0xf0 | (c >> 18);
+         bytes[1] = 0x80 | ((c >> 12) & 0x3f);
+         bytes[2] = 0x80 | ((c >> 6) & 0x3f);
+         bytes[3] = 0x80 | ((c & 0x3f));
+      }
+      int rc = SUCCESS;
+      for (int i = 0; i < 4 && bytes[i] != -1 && rc == SUCCESS; i++)
+      {
+         s->buffer[s->filled_buffer_size++] = bytes[i];
+         if ((s->filled_buffer_size == STREAM_BUFFER_SIZE || ((s->flags & STREAM_BUFFER) == 0)))
+            rc = flush_stream(s);
+      }
+      return rc;
+   }
 }
 
 int putb(Stream s, char c)
