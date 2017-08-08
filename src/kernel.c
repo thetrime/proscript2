@@ -508,8 +508,6 @@ void PORTRAY(word w)
       printf("Bad tag\n");
 }
 
-
-
 int SET_EXCEPTION(word w)
 {
    current_exception = copy_local(w, &exception_local);

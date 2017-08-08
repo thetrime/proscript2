@@ -317,7 +317,11 @@ Stream fileStream(char* filename, word io_mode, Options* options)
    if (io_mode == readAtom)
    {
       FILE* fd = fopen(filename, "rb");
-      assert(fd != NULL);
+      if (fd == NULL)
+      {
+         existence_error(sourceSinkAtom, MAKE_ATOM(filename));
+         return NULL;
+      }
       return allocStream(file_read,
                          NULL,
                          file_seek,
@@ -330,7 +334,11 @@ Stream fileStream(char* filename, word io_mode, Options* options)
    else if (io_mode == writeAtom)
    {
       FILE* fd = fopen(filename, "wb");
-      assert(fd != NULL);
+      if (fd == NULL)
+      {
+         permission_error(openAtom, sourceSinkAtom, MAKE_ATOM(filename));
+         return NULL;
+      }
       return allocStream(NULL,
                          file_write,
                          file_seek,
@@ -343,7 +351,11 @@ Stream fileStream(char* filename, word io_mode, Options* options)
    else if (io_mode == appendAtom)
    {
       FILE* fd = fopen(filename, "ab");
-      assert(fd != NULL);
+      if (fd == NULL)
+      {
+         permission_error(openAtom, sourceSinkAtom, MAKE_ATOM(filename));
+         return NULL;
+      }
       return allocStream(NULL,
                          file_write,
                          file_seek,

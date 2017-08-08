@@ -218,6 +218,17 @@ void strip_module(word term, word* clause, Module* module)
    }
 }
 
+void PRETTY_PORTRAY(word term)
+{
+   Options _options;
+   init_options(&_options);
+   set_option(&_options, numbervarsAtom, trueAtom);
+   set_option(&_options, quotedAtom, trueAtom);
+   int rc = write_term(current_output, term, &_options);
+   free_options(&_options);
+}
+
+
 typedef struct
 {
    word value;

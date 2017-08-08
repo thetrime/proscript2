@@ -6,6 +6,7 @@
 #include "compiler.h"
 #include "parser.h"
 #include "ctable.h"
+#include "foreign.h"
 #include <string.h>
 #include <unistd.h>
 #ifdef EMSCRIPTEN
@@ -20,7 +21,7 @@ void query_complete3(RC result)
 {
    if (result == ERROR)
    {
-      printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
+      printf("Error reached the top-level: "); PRETTY_PORTRAY(getException()); printf("\n");
    }
    else if (result == FAIL)
    {
@@ -45,7 +46,7 @@ void query_complete(RC result)
    //printf("First goal has exited with %d\n", result);
    if (result == ERROR)
    {
-      printf("Error reached the top-level: "); PORTRAY(getException()); printf("\n");
+      printf("Error reached the top-level: "); PRETTY_PORTRAY(getException()); printf("\n");
    }
    else if (result == FAIL)
    {
