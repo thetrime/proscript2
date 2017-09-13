@@ -1010,7 +1010,14 @@ PREDICATE(atom_length, 2, (word atom, word length)
       return ERROR;
    if (TAGOF(length) == CONSTANT_TAG && !(must_be_positive_integer(length)))
       return ERROR;
-   return unify(length, MAKE_INTEGER(c.atom_data->length));
+   // Count all the bytes which do not have the top two bits set to 0b10
+   int l = 0;
+   for (int i = 0; i < c.atom_data->length; i++)
+   {
+      if ((c.atom_data->data[i] & 0xc0) != 0x80)
+         l++;
+   }
+   return unify(length, MAKE_INTEGER(l));
 })
 
 // 8.1.6.2
@@ -1237,6 +1244,15 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
             return ERROR;
          if (!must_be_character_code(ARGOF(w, 0)))
             return ERROR;
+         int ch = getConstant(ARGOF(w,0), NULL).integer_data;
+         if (ch > 0x7f) // Unicode support
+         {
+            i++;
+            if (ch > 0x7ff)
+               i++;
+            if (ch > 0xfff)
+               i++;
+         }
          w = ARGOF(w, 1);
       }
       if (w != emptyListAtom)
@@ -1246,7 +1262,28 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
       w = codes;
       while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
       {
-         buffer[i++] = (char)getConstant(ARGOF(w,0), NULL).integer_data;
+         int ch = getConstant(ARGOF(w,0), NULL).integer_data;
+         if (ch < 0x80)
+            buffer[i++] = ch;
+         else if (ch < 0x800)
+         {
+            buffer[i++] = (ch >> 6) | 0xc0;
+            buffer[i++] = (ch & 0x3f) | 0x80;
+         }
+         else if (ch < 0xffff)
+         {
+            buffer[i++] = (ch >> 12) | 0xe0;
+            buffer[i++] = ((ch >> 6) & 0x3f) | 0x80;
+            buffer[i++] = (ch & 0x3f) | 0x80;
+         }
+         else
+         {
+            buffer[i++] = (ch >> 18);
+            buffer[i++] = ((ch >> 12) & 0x3f);
+            buffer[i++] = ((ch >> 6) & 0x3f);
+            buffer[i++] = (ch & 0x3f);
+         }
+
          w = ARGOF(w, 1);
       }
       w = MAKE_NATOM(buffer, i);
@@ -1264,7 +1301,50 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
       word w;
       init_list(&list);
       for (int i = 0; i < a->length; i++)
-         list_append(&list, MAKE_INTEGER(a->data[i]));
+      {
+         if ((unsigned int)a->data[i] < 0x7f)
+            list_append(&list, MAKE_INTEGER(a->data[i]));
+         else // Unicode character
+         {
+            unsigned int ch = 0;
+            if ((a->data[i] & 0xE0) == 0xC0)
+            { // 2-byte encoding
+               if (i+1 >= a->length)
+               {
+                  printf("Illegal UTF8 sequence");
+                  break;
+               }
+               ch = (((unsigned char)a->data[i] & 0x1F) << 6) | (unsigned char)a->data[i+1];
+               if (ch < 0x80)
+               {
+                  printf("Illegal UTF8 sequence");
+                  break;
+               }
+               i+=1;
+            }
+            else if ((a->data[i] & 0xf0) == 0xe0)
+            { // 3-byte encoding
+               if (i+2 >= a->length)
+               {
+                  printf("Illegal UTF8 sequence");
+                  break;
+               }
+               ch = (((unsigned char)a->data[i] & 0x0F) << 12) | ((unsigned char)a->data[i+1] << 6) | (unsigned char)a->data[i+2];
+               i+=2;
+            }
+            else if ((a->data[i] & 0xe0) == 0xf0)
+            { // 4-byte encoding
+               if (i+3 >= a->length)
+               {
+                  printf("Illegal UTF8 sequence");
+                  break;
+               }
+               ch = (((unsigned char)a->data[i] & 0x07) << 0x12) | ((unsigned char)a->data[i+1] << 0x0C) | ((unsigned char)a->data[i+2] << 0x06) | (unsigned char)a->data[i+3];
+               i+=3;
+            }
+            list_append(&list, MAKE_INTEGER(ch));
+         }
+      }
       w = term_from_list(&list, emptyListAtom);
       free_list(&list);
       return unify(codes, w);

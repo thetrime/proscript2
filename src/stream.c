@@ -8,11 +8,11 @@
 #include <stdlib.h>
 #include <assert.h>
 
-char get_raw_char(Stream s)
+int get_raw_char(Stream s)
 {
    return _getch(s);
 }
-char peek_raw_char(Stream s)
+int peek_raw_char(Stream s)
 {
    return peekch(s);
 }

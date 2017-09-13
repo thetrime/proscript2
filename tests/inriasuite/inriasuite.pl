@@ -689,6 +689,7 @@ inerror(F) :-
         Y =\= 0.
 
 
+
 %%%%%%%%%
 %
 %   list all the files 
@@ -757,9 +758,9 @@ file('term_gt=').
 file(term_lt).
 file('term_lt=').
 file(true).
+file(unicode).
 file(unify).
 file(univ).
-
 
 %%%%%%%%%%%
 %

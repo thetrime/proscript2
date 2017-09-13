@@ -1,0 +1,9 @@
+/* file unicode */
+
+[atom_codes(A,[ 0'i, 0's, 1000]), [[A <-- 'is\u03e8']]].
+[atom_codes('is\u03e8',Codes), [[Codes <-- [105, 115, 1000]]]].
+[(atom_codes(Atom, [12486, 12473, 12488]), atom_length(Atom,Length)), [[Atom <-- テスト, Length <-- 3]]].
+[(atom_codes(BinaryBlob,[254, 253, 252, 65, 200, 65, 130]), atom_length(BinaryBlob, Length), atom_codes(BinaryBlob, Codes)), [[BinaryBlob <-- 'þýüAÈA\202\', Length <-- 7, Codes <-- [254, 253, 252, 65, 200, 65, 130]]]].
+
+/* end of unicode */
+

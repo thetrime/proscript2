@@ -99,12 +99,12 @@ void freeToken(Token t)
    }
 }
 
-int is_char(c)
+int is_char(int c)
 {
     return ((c >= 'a' && c <= 'z') ||
             (c >= 'A' && c <= 'Z') ||
             (c >= '0' && c <= '9') ||
-            c == '_');
+            c == '_') || c > 0x80;
 }
 
 int is_graphic_char(char c)
@@ -128,13 +128,13 @@ int is_graphic_char(char c)
       c == '\\'; // graphic-token-char is either graphic-char or backslash-char
 }
 
-char lookahead = -1;
+int lookahead = -1;
 void unget_raw_char(int c)
 {
     lookahead = c;
 }
 
-char get_raw_char_with_conversion(Stream s)
+int get_raw_char_with_conversion(Stream s)
 {
     if (lookahead != -1)
     {
@@ -154,7 +154,7 @@ char get_raw_char_with_conversion(Stream s)
         return tt;
 }
 
-char peek_raw_char_with_conversion(Stream s)
+int peek_raw_char_with_conversion(Stream s)
 {
     if (lookahead != -1)
     {
@@ -429,7 +429,7 @@ Token lex(Stream s)
          return FloatToken(d);
       }
    }
-   else
+   else // escaped AtomToken
    {
       int is_escape = 0;
       if (c == '\'' || c == '"')
@@ -480,7 +480,35 @@ Token lex(Stream s)
                   hex[2] = get_raw_char_with_conversion(s);
                   hex[3] = get_raw_char_with_conversion(s);
                   hex[4] = '\0';
-                  push_char(sb, strtol(hex, NULL, 16));
+                  int code = strtol(hex, NULL, 16);
+                  push_code(sb, code);
+                  // Allow for closing-escape sequence
+                  if (peek_raw_char_with_conversion(s) == '\\')
+                     get_raw_char_with_conversion(s);
+               }
+               else if (c >= '0' && c <= '7')
+               {
+                  // Octal representation (maybe non-ISO?)
+                  char oct[5];
+                  oct[0] = c;
+                  oct[1] = peek_raw_char_with_conversion(s);
+                  if (oct[1] < '0' || oct[1] > '7')
+                     oct[1] = '\0';
+                  else
+                  {
+                     get_raw_char_with_conversion(s);
+                     oct[2] = peek_raw_char_with_conversion(s);
+                     if (oct[2] < '0' || oct[2] > '7')
+                        oct[2] = '\0';
+                     else
+                     {
+                        get_raw_char_with_conversion(s);
+                        oct[3] = '\0';
+                     }
+                  }
+                  int code = strtol(oct, NULL, 8);
+                  push_code(sb, code);
+                  // Allow for closing-escape sequence
                   if (peek_raw_char_with_conversion(s) == '\\')
                      get_raw_char_with_conversion(s);
                }
@@ -497,7 +525,7 @@ Token lex(Stream s)
                else
                   break;
             }
-            push_char(sb, c);
+            push_code(sb, c);
          }
          int length = char_buffer_length(sb);
          char *data = finalize_char_buffer(sb);
@@ -506,10 +534,10 @@ Token lex(Stream s)
          else
             return AtomToken(data, length);
       }
-      else
+      else // ordinary AtomToken
       {
          CharBuffer sb = charBuffer();
-         push_char(sb, c);
+         push_code(sb, c);
          int char_atom = is_char(c);
          int punctuation_atom = is_graphic_char(c);
          while (1)
@@ -519,11 +547,11 @@ Token lex(Stream s)
                break;
             if (char_atom && is_char(c))
             {
-               push_char(sb, get_raw_char_with_conversion(s));
+               push_code(sb, get_raw_char_with_conversion(s));
             }
             else if (punctuation_atom && is_graphic_char(c))
             {
-               push_char(sb, get_raw_char_with_conversion(s));
+               push_code(sb, get_raw_char_with_conversion(s));
             }
             else
                break;

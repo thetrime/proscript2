@@ -21,6 +21,7 @@ typedef charbuffer* CharBuffer;
 
 CharBuffer charBuffer();
 void push_char(CharBuffer cb, int c);
+void push_code(CharBuffer cb, int code);
 int char_buffer_length(CharBuffer buffer);
 void free_char_buffer(CharBuffer buffer);
 char* finalize_char_buffer(CharBuffer buffer);

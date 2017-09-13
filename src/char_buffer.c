@@ -30,6 +30,30 @@ void push_char(CharBuffer cb, int c)
    }
 }
 
+void push_code(CharBuffer cb, int code)
+{
+   if (code <= 0x7f)
+      push_char(cb, code);
+   else if (code <= 0x800)
+   {
+      push_char(cb, (code >> 6) | 0xc0);
+      push_char(cb, (code & 0x3f) | 0x80);
+   }
+   else if (code < 0xffff)
+   {
+      push_char(cb, (code >> 12) | 0xe0);
+      push_char(cb, ((code >> 6) & 0x3f) | 0x80);
+      push_char(cb, (code & 0x3f) | 0x80);
+   }
+   else
+   {
+      push_char(cb, 0xf0 | (code >> 18));
+      push_char(cb, 0x80 | ((code >> 12) & 0x3f));
+      push_char(cb, 0x80 | ((code >> 6) & 0x3f));
+      push_char(cb, 0x80 | ((code & 0x3f)));
+   }
+}
+
 int char_buffer_length(CharBuffer buffer)
 {
    return buffer->length;
