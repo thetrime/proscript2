@@ -989,6 +989,6 @@ int read_term(Stream stream, Options* options, word* t)
    any_t tmp;
    hashmap_iterate(vars, free_key, &tmp);
    hashmap_free(vars);
-   //printf("Read term: "); PORTRAY(t); printf("\n");
+   //printf("Read term: "); PORTRAY(*t); printf("\n");
    return rc;
 }

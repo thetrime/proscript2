@@ -1,3 +1,5 @@
+// FIXME: writeStringToMemory is unsafe and anywhere it is used there is a chance our unicode support is wrong!
+
 /* This comprises the Javascript end of the FLI */
 var NodeXMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 
@@ -557,9 +559,10 @@ function portray(t)
 // WARNING: This may return 0 in the event of a parse error!
 function string_to_local_term(str)
 {
-    var ptr = _cmalloc(str.length+1);
-    writeStringToMemory(str, ptr);
-    var result = __string_to_local_term(ptr, str.length);
+    var requiredSpace = lengthBytesUTF8(str);
+    var ptr = _cmalloc(requiredSpace+1); // Plus a NUL added by stringToUTF8
+    stringToUTF8(str, ptr, requiredSpace+1); // Have to include space for the NUL here too or our output gets truncated by it
+    var result = __string_to_local_term(ptr, requiredSpace);
     _cfree(ptr);
     return result;
 }
