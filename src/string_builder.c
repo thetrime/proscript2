@@ -80,7 +80,7 @@ int lastChar(StringBuilder b)
 void finalize_buffer(StringBuilder b, char** text, int* length)
 {
    *length = b->length;
-   *text = malloc(*length);
+   *text = malloc(*length + 1); // One extra byte for the NUL at the end
    string_cell_t* cell = b->head;
    int i = 0;
    while (cell != NULL)
@@ -94,6 +94,7 @@ void finalize_buffer(StringBuilder b, char** text, int* length)
       cell = tmp;
    }
    free(b);
+   (*text)[*length] = '\0';
 }
 
 void freeStringBuilder(StringBuilder b)
