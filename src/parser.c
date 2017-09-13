@@ -482,9 +482,7 @@ Token lex(Stream s)
                   hex[4] = '\0';
                   int code = strtol(hex, NULL, 16);
                   push_code(sb, code);
-                  // Allow for closing-escape sequence
-                  if (peek_raw_char_with_conversion(s) == '\\')
-                     get_raw_char_with_conversion(s);
+                  // NB: \u does NOT allow for a closing-escape sequence!
                }
                else if (c >= '0' && c <= '7')
                {
