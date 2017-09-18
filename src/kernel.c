@@ -234,7 +234,8 @@ word make_backtrace(List* list)
 void* allocAtom(void* data, int length)
 {
    Atom a = malloc(sizeof(atom));
-   a->data = strndup(data, length);
+   a->data = malloc(length);
+   memcpy(a->data, data, length);
    a->length = length;
    return a;
 }
