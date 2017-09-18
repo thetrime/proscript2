@@ -234,8 +234,15 @@ word make_backtrace(List* list)
 void* allocAtom(void* data, int length)
 {
    Atom a = malloc(sizeof(atom));
-   a->data = malloc(length);
+   // We add a NULL here because a lot of code expects to be able to
+   // refer to the atom data as a string. For example, open/3 expects
+   // to be able to pass the file specification to fopen() without
+   // having to copy it, but in reality it is not null-terminated when
+   // passed to allocAtom. Originally, this code used strndup which added
+   // a null, but that didn't allow for embedded nulls.
+   a->data = malloc(length+1);
    memcpy(a->data, data, length);
+   a->data[length] = '\0';
    a->length = length;
    return a;
 }
