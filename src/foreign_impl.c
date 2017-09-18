@@ -1278,12 +1278,12 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
          }
          else
          {
-            buffer[i++] = (ch >> 18);
-            buffer[i++] = ((ch >> 12) & 0x3f);
-            buffer[i++] = ((ch >> 6) & 0x3f);
-            buffer[i++] = (ch & 0x3f);
+            buffer[i++] = (ch >> 18) | 0xf0;
+            buffer[i++] = ((ch >> 12) & 0x3f) | 0x80;
+            buffer[i++] = ((ch >> 6) & 0x3f) | 0x80;
+            buffer[i++] = (ch & 0x3f) | 0x80;
+            //printf("Encoding %d as %x %x %x %x\n", ch, (unsigned char)buffer[i-4], (unsigned char)buffer[i-3], (unsigned char)buffer[i-2], (unsigned char)buffer[i-1]);
          }
-
          w = ARGOF(w, 1);
       }
       w = MAKE_NATOM(buffer, i);
@@ -1303,7 +1303,9 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
       for (int i = 0; i < a->length; i++)
       {
          if ((unsigned int)a->data[i] <= 0x7f)
+         {
             list_append(&list, MAKE_INTEGER(a->data[i]));
+         }
          else // Unicode character
          {
             unsigned int ch = 0;
@@ -1314,7 +1316,7 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
                   printf("Illegal UTF8 sequence");
                   break;
                }
-               ch = (((unsigned char)a->data[i] & 0x1F) << 6) | (unsigned char)a->data[i+1];
+               ch = (((unsigned char)a->data[i] & 0x1F) << 6) | ((unsigned char)a->data[i+1] & 0x3f);
                if (ch < 0x80)
                {
                   printf("Illegal UTF8 sequence");
@@ -1329,17 +1331,17 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
                   printf("Illegal UTF8 sequence");
                   break;
                }
-               ch = (((unsigned char)a->data[i] & 0x0F) << 12) | ((unsigned char)a->data[i+1] << 6) | (unsigned char)a->data[i+2];
+               ch = (((unsigned char)a->data[i] & 0x0F) << 12) | (((unsigned char)a->data[i+1] & 0x3f) << 6) | ((unsigned char)a->data[i+2] & 0x3f);
                i+=2;
             }
-            else if ((a->data[i] & 0xe0) == 0xf0)
+            else if ((a->data[i] & 0xf8) == 0xf0)
             { // 4-byte encoding
                if (i+3 >= a->length)
                {
                   printf("Illegal UTF8 sequence");
                   break;
                }
-               ch = (((unsigned char)a->data[i] & 0x07) << 0x12) | ((unsigned char)a->data[i+1] << 0x0C) | ((unsigned char)a->data[i+2] << 0x06) | (unsigned char)a->data[i+3];
+               ch = (((unsigned char)a->data[i] & 0x07) << 18) | (((unsigned char)a->data[i+1] & 0x3f) << 12) | (((unsigned char)a->data[i+2] & 0x3f) << 6) | ((unsigned char)a->data[i+3] & 0x3f);
                i+=3;
             }
             list_append(&list, MAKE_INTEGER(ch));
