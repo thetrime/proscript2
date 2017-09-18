@@ -510,6 +510,17 @@ Token lex(Stream s)
                   if (peek_raw_char_with_conversion(s) == '\\')
                      get_raw_char_with_conversion(s);
                }
+               else if (c == 'a')
+                  push_char(sb, '\a');
+               else if (c == 'b')
+                  push_char(sb, '\b');
+               else if (c == 'v')
+                  push_char(sb, '\v');
+               else if (c == 'f')
+                  push_char(sb, '\f');
+               else if (c == 'r')
+                  push_char(sb, '\r');
+
                else
                   printf("Unexpected escape code %d\n", c);
                is_escape = 0;
