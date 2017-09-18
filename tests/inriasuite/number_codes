@@ -15,5 +15,6 @@
 [number_codes(A,L), instantiation_error].
 [number_codes(a,L), type_error(number,a)].
 [number_codes(A,4), type_error(list,4)].
-[number_codes(A,[ 0'1, 0'2, 65536]), representation_error(character_code)]. % 65536 not a code
+[number_codes(A,[ 0'1, 0'2, 65536]), syntax_error('illegal number')]. % 65536 IS a code, but it is not part of a number
+[number_codes(A,[ 0'1, 0'2, 0x110000]), representation_error(character_code)]. % 0x10FFF is the largest allowed unicode point
 /* end of file number_codes */

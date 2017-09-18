@@ -12,5 +12,6 @@
 [atom_codes(A, 0'x), type_error(list,0'x)].
 [atom_codes(A,[ 0'i, 0's, 1000]), [[A <-- 'is\u03e8']]].
 [atom_codes(A,[ 0'i, 0's, -1]), representation_error(character_code)].    % -1 not a code
+[atom_codes(A,[ 0'i, 0's, 0x110000]), representation_error(character_code)].    % 0x10ffff is the largest legal unicode point
 
 /* end of file atom_codes */
