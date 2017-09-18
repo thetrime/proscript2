@@ -1302,7 +1302,7 @@ PREDICATE(atom_codes, 2, (word atom, word codes)
       init_list(&list);
       for (int i = 0; i < a->length; i++)
       {
-         if ((unsigned int)a->data[i] < 0x7f)
+         if ((unsigned int)a->data[i] <= 0x7f)
             list_append(&list, MAKE_INTEGER(a->data[i]));
          else // Unicode character
          {
