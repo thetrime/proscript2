@@ -19,6 +19,30 @@ void quote_string(StringBuilder sb, Atom a)
    append_string_no_copy(sb, "'", 1);
    for (int i = 0; i < a->length; i++)
    {
+      if ((unsigned char)a->data[i] < 32 || ((unsigned char)a->data[i] & 0xe0) == 0xc0 || a->data[i] == 127)
+      {
+         unsigned int j = a->data[i];
+         if ((j & 0xe0) == 0xc0)
+         {
+            // 2-byte unicode sequence
+            j = ((j & 0x1f) << 6) | (((unsigned char)a->data[i+1]) & 0x3f);
+            i++;
+         }
+         if (j < 32 || (j >= 127 && j <= 160))
+         {
+            char* oct = malloc(6);
+            oct[0] = '\\';
+            oct[1] = (unsigned char)a->data[i] / 64 + '0';
+            oct[2] = ((unsigned char)a->data[i] % 64) / 8 + '0';
+            oct[3] = (((unsigned char)a->data[i] % 64) % 8) + '0';
+            oct[4] = '\\';
+            oct[5] = '\0';
+            append_string(sb, oct, 5);
+            continue;
+         }
+         i--;
+         // Else fall-through for j > 160 encoded as UTF-8
+      }
       switch(a->data[i])
       {
          case '\'':
