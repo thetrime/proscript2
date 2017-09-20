@@ -1203,6 +1203,12 @@ int evaluate(word a, number* n)
          if (rand_init == 0)
          {
             gmp_randinit_mt(rand_state);
+            // Seed the random state with the current time
+            // Note that this is not secure: you shouldnt use proscript to generate cryptographic keys!
+            // If you remove or comment the next line, then proscript will be deterministic in terms of
+            // random number generation (ie the first random(1000) number will always be 116, then 331, then 303,
+            // then 963 then 456.
+            gmp_randseed_ui(rand_state, time(NULL));
             rand_init = 1;
          }
          toBigIntegerAndFree(na, &ii);
