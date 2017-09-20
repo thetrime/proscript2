@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <gmp.h>
+#include <time.h>
 #include "arithmetic.h"
 
 int is_unbounded = 1;
