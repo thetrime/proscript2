@@ -1166,7 +1166,7 @@ NONDET_PREDICATE(sub_atom, 5, (word atom, word before, word length, word after, 
          }
       }
    }
-   make_foreign_choicepoint(MAKE_VCOMPOUND(subAtomContextFunctor, MAKE_INTEGER(_start), MAKE_INTEGER(fixed_start), MAKE_INTEGER(_length), MAKE_INTEGER(fixed_length), MAKE_INTEGER(_remaining), MAKE_INTEGER(fixed_remaining)));
+   make_foreign_choicepoint_v(subAtomContextFunctor, MAKE_INTEGER(_start), MAKE_INTEGER(fixed_start), MAKE_INTEGER(_length), MAKE_INTEGER(fixed_length), MAKE_INTEGER(_remaining), MAKE_INTEGER(fixed_remaining));
    return unify(after, MAKE_INTEGER(input->length - _start - _length)) &&
       unify(before, MAKE_INTEGER(_start)) &&
       unify(length, MAKE_INTEGER(_length)) &&

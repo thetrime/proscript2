@@ -18,6 +18,7 @@ typedef struct
    int fresh;
    int slot;
    int guaranteed_safe;
+   int is_singleton;
 } var_info_t;
 
 struct instruction_t
@@ -186,12 +187,13 @@ int instruction_count(instruction_list_t* list)
    return list->count;
 }
 
-var_info_t* VarInfo(word variable, int fresh, int slot, int guaranteed_safe)
+var_info_t* VarInfo(word variable, int fresh, int slot, int guaranteed_safe, int is_singleton)
 {
    var_info_t* v = malloc(sizeof(var_info_t));
    v->variable = variable;
    v->fresh = fresh;
    v->slot = slot;
+   v->is_singleton = is_singleton;
    v->guaranteed_safe = guaranteed_safe;
    return v;
 }
@@ -206,7 +208,7 @@ int free_varinfo(any_t ignored, word key, any_t value)
 any_t _copy_varinfo(any_t varinfo)
 {
    var_info_t* v = (var_info_t*)varinfo;
-   return VarInfo(v->variable, v->fresh, v->slot, v->guaranteed_safe);
+   return VarInfo(v->variable, v->fresh, v->slot, v->guaranteed_safe, v->is_singleton);
 }
 
 int _make_cvars(any_t cx, word variable, any_t vi)
@@ -309,11 +311,14 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
       {
          var_info_t* varinfo;
          assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
-         if (varinfo->fresh)
+         if (varinfo->is_singleton)
+         {
+            size += push_instruction(instructions, INSTRUCTION_SLOT(B_VOID, varinfo->slot));
+         }
+         else if (varinfo->fresh)
          {
             if (!varinfo->guaranteed_safe)
             {
-               //assert(0);
                if (depth > 0)
                   size += push_instruction(instructions, INSTRUCTION_SLOT(B_ARGFIRSTVAR, varinfo->slot)); // I think this is the same as what would otherwise be ARGFIRSTUNSAFEVAR
                else
@@ -650,9 +655,14 @@ int analyze_variables(word term, int is_head, int depth, wmap_t map, int* next_s
          if (whashmap_get(map, term, (any_t)&varinfo) == MAP_MISSING)
          {
             //printf("Allocating slot %d to variable ", *next_slot); PORTRAY(term); printf(" last_term is %08lx): \n", is_head?0:term); PORTRAY(parent); printf("\n");
-            varinfo = VarInfo(term, 1, (*next_slot)++, is_head);
+            varinfo = VarInfo(term, 1, (*next_slot)++, is_head, 1); // Everything starts out as a singleton
             whashmap_put(map, term, varinfo);
             rc++;
+         }
+         else
+         {
+            // If we have seen it before, it is not a singleton
+            varinfo->is_singleton = 0;
          }
       }
       else if (TAGOF(term) == COMPOUND_TAG)
@@ -773,10 +783,10 @@ Clause assemble(instruction_list_t* instructions)
    instruction_list_apply(instructions, &context, build_asm_context);
    context.clause->code = malloc(context.size);
    context.clause->constants = malloc(context.constant_count * sizeof(word));
-#ifdef DEBUG
+   //#ifdef DEBUG
    context.clause->code_size = context.size;
    context.clause->constant_size = context.constant_count;
-#endif
+   //#endif
    instruction_list_apply(instructions, &context, _assemble);
    assert(context.codep == context.size);
    assert(context.consp == context.constant_count);

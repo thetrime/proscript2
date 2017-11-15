@@ -1588,6 +1588,16 @@ RC execute(int resume)
             PC+=3;
             continue;
          }
+         case B_VOID:
+         {
+            // B_VOID is a singleton variable.
+            unsigned int slot = CODE16(PC+1);
+            // The slot is going to be uninitialized. That doesnt matter since we will never read it back
+            FR->slots[slot] = (word)&FR->slots[slot];
+            *(ARGP++) = FR->slots[slot];
+            PC+=3;
+            continue;
+         }
          case B_FIRSTUNSAFEVAR:
          {
             // B_FIRSTUNSAFEVAR is a variable that we are seeing for the first time but is unsafe (ie this is also the last time we are
@@ -2196,9 +2206,9 @@ void print_instruction()
 }
 
 // Note that this is not tested and may not work very well!
-void make_foreign_cleanup_choicepoint(word w, void (*fn)(int, word), int arg)
+void make_foreign_cleanup_choicepoint_h(word* h, word w, void (*fn)(int, word), int arg)
 {
-   //printf("Saving foreign pointer to %p\n", &FR->slots[CODE16(PC+1+sizeof(word))]);
+      //printf("Saving foreign pointer to %p\n", &FR->slots[CODE16(PC+1+sizeof(word))]);
    FR->slots[CODE16(PC+1+sizeof(word))] = w;
    //printf("Allocating a foreign choicepoint at %p (top = %p, bottom = %p)\n", SP, STOP, STACK);
    Choicepoint c = (Choicepoint)SP;
@@ -2211,7 +2221,7 @@ void make_foreign_cleanup_choicepoint(word w, void (*fn)(int, word), int arg)
 //      printf("%d: ", i); PORTRAY(ARGS[i]); printf("\n");
       c->args[i] = ARGS[i];
    }
-   c->H = H;
+   c->H = h;
    c->type = Head;
    c->foreign_cleanup.fn = fn;
    c->foreign_cleanup.arg = arg;
@@ -2228,9 +2238,23 @@ void make_foreign_cleanup_choicepoint(word w, void (*fn)(int, word), int arg)
    assert(FR->slots[CODE16(PC+1+sizeof(word))] == w);
 }
 
+void make_foreign_cleanup_choicepoint(word w, void (*fn)(int, word), int arg)
+{
+   make_foreign_cleanup_choicepoint_h(H, w, fn, arg);
+}
+
+// This saves several things in a term with the expectation that they will be reset when backtracking
+void make_foreign_choicepoint_v(word functor, ...)
+{
+   word* savedH = H;
+   va_list argp;
+   va_start(argp, functor);
+   make_foreign_cleanup_choicepoint_h(savedH, MAKE_VACOMPOUND(functor, argp), NULL, 0);
+}
+
 void make_foreign_choicepoint(word w)
 {
-   make_foreign_cleanup_choicepoint(w, NULL, 0);
+   make_foreign_cleanup_choicepoint_h(H, w, NULL, 0);
 }
 
 int head_functor(word head, Module* module, word* functor)
@@ -2316,10 +2340,10 @@ EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
    debugging = 0;
-   //print_memory_info();
-   //printf("Heap: H=%p(%"PRIpd" slots used)\n", H, H-HEAP);
-   //   print_choices();
-   //ctable_check();
+   print_memory_info();
+   printf("Heap: H=%p(%"PRIpd" slots used)\n", H, H-HEAP);
+   print_choices();
+   ctable_check();
 }
 
 EMSCRIPTEN_KEEPALIVE
