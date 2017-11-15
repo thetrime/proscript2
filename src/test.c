@@ -69,16 +69,18 @@ void query_complete(RC result)
 EMSCRIPTEN_KEEPALIVE
 void do_test(int argc, char** argv)
 {
-   printf("Consulting...\n");
    int do_inria = 0;
    int do_yield = 0;
-   for (int i = 0; i < argc; i++)
+   char* test_file = "test.pl";
+   for (int i = 1; i < argc; i++)
    {
       if (strcmp(argv[i], "--inria") == 0)
          do_inria = 1;
-      if (strcmp(argv[i], "--yield") == 0)
+      else if (strcmp(argv[i], "--yield") == 0)
          do_yield = 1;
+      else test_file = argv[i];
    }
+   printf("Consulting...\n");
    if (do_inria)
    {
       consult_file("tests/inriasuite/inriasuite.pl");
@@ -86,10 +88,10 @@ void do_test(int argc, char** argv)
    }
    else
    {
-      if (consult_file("test.pl"))
-         printf("Consulted test.pl\n");
+      if (consult_file(test_file))
+         printf("Consulted %s\n", test_file);
       else
-         printf("Failed to load test.pl\n");
+         printf("Failed to load %s\n", test_file);
    }
    printf("Consulted. Running tests...\n");
    if (do_yield)
