@@ -311,7 +311,7 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
       {
          var_info_t* varinfo;
          assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
-         if (varinfo->is_singleton)
+         if (varinfo->is_singleton && 0)
          {
             size += push_instruction(instructions, INSTRUCTION_SLOT(B_VOID, varinfo->slot));
          }
