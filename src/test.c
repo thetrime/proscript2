@@ -71,27 +71,34 @@ void do_test(int argc, char** argv)
 {
    int do_inria = 0;
    int do_yield = 0;
-   char* test_file = "test.pl";
+   int explicit_test = 0;
    for (int i = 1; i < argc; i++)
    {
       if (strcmp(argv[i], "--inria") == 0)
          do_inria = 1;
       else if (strcmp(argv[i], "--yield") == 0)
          do_yield = 1;
-      else test_file = argv[i];
+      else
+      {
+         printf("Consulting %s\n", argv[i]);
+         if (consult_file(argv[i]))
+            printf("Consulted %s\n", argv[i]);
+         else
+            printf("Failed to load %s\n", argv[i]);
+         explicit_test = 1;
+      }
    }
-   printf("Consulting...\n");
    if (do_inria)
    {
       consult_file("tests/inriasuite/inriasuite.pl");
       chdir("tests/inriasuite");
    }
-   else
+   else if (!explicit_test)
    {
-      if (consult_file(test_file))
-         printf("Consulted %s\n", test_file);
+      if (consult_file("test.pl"))
+         printf("Consulted test.pl\n");
       else
-         printf("Failed to load %s\n", test_file);
+         printf("Failed to load test.pl\n");
    }
    printf("Consulted. Running tests...\n");
    if (do_yield)
