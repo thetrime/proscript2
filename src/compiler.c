@@ -311,7 +311,7 @@ int compile_term_creation(word term, wmap_t variables, instruction_list_t* instr
       {
          var_info_t* varinfo;
          assert(whashmap_get(variables, term, (any_t)&varinfo) == MAP_OK);
-         if (varinfo->is_singleton)
+         if (varinfo->is_singleton && 0)
          {
             size += push_instruction(instructions, INSTRUCTION_SLOT(B_VOID, varinfo->slot));
          }
@@ -707,15 +707,22 @@ typedef struct
    int constant_count;
    Clause clause;
    int ip;
-   int consp;
    int codep;
+   List constants;
 } compile_context_t;
 
 void build_asm_context(void* c, instruction_t* i)
 {
    compile_context_t* context = ((compile_context_t*)c);
    context->size += i->size;
-   context->constant_count += i->constant_count;
+   for (int j = 0; j < i->constant_count; j++)
+   {
+      if (!list_contains(&context->constants, i->constant))
+      {
+         list_append(&context->constants, i->constant);
+         context->constant_count++;
+      }
+   }
 }
 
 void _assemble(void *p, instruction_t* i)
@@ -724,8 +731,8 @@ void _assemble(void *p, instruction_t* i)
    context->clause->code[context->codep++] = i->opcode;
    if (i->constant_count != 0)
    {
-      int index = context->consp++;
-      assert(index < (1 << 16));
+      int index = list_index(&context->constants, i->constant);
+      assert(index < (1 << 16) && "Too many constants in clause!");
       context->clause->constants[index] = i->constant;
       context->clause->code[context->codep++] = (index >> 8) & 0xff;
       context->clause->code[context->codep++] = (index >> 0) & 0xff;
@@ -779,6 +786,7 @@ Clause allocClause()
 Clause assemble(instruction_list_t* instructions)
 {
    compile_context_t context = {0, 0, NULL, 0, 0, 0};
+   init_list(&context.constants);
    context.clause = allocClause();
    instruction_list_apply(instructions, &context, build_asm_context);
    context.clause->code = malloc(context.size);
@@ -788,8 +796,8 @@ Clause assemble(instruction_list_t* instructions)
    context.clause->constant_size = context.constant_count;
    //#endif
    instruction_list_apply(instructions, &context, _assemble);
+   free_list(&context.constants);
    assert(context.codep == context.size);
-   assert(context.consp == context.constant_count);
 
    return context.clause;
 }
