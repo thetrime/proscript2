@@ -708,18 +708,19 @@ typedef struct
    Clause clause;
    int ip;
    int codep;
-   List constants;
+   wmap_t constants;
 } compile_context_t;
 
 void build_asm_context(void* c, instruction_t* i)
 {
    compile_context_t* context = ((compile_context_t*)c);
    context->size += i->size;
-   for (int j = 0; j < i->constant_count; j++)
+   any_t tmp;
+   for (long j = 0; j < i->constant_count; j++)
    {
-      if (!list_contains(&context->constants, i->constant))
+      if (whashmap_get(context->constants, i->constant, &tmp) == MAP_MISSING)
       {
-         list_append(&context->constants, i->constant);
+         whashmap_put(context->constants, i->constant, (void*)context->constant_count);
          context->constant_count++;
       }
    }
@@ -731,7 +732,8 @@ void _assemble(void *p, instruction_t* i)
    context->clause->code[context->codep++] = i->opcode;
    if (i->constant_count != 0)
    {
-      int index = list_index(&context->constants, i->constant);
+      long index;
+      assert(whashmap_get(context->constants, i->constant, (void*)&index) == MAP_OK);
       assert(index < (1 << 16) && "Too many constants in clause!");
       context->clause->constants[index] = i->constant;
       context->clause->code[context->codep++] = (index >> 8) & 0xff;
@@ -786,7 +788,7 @@ Clause allocClause()
 Clause assemble(instruction_list_t* instructions)
 {
    compile_context_t context = {0, 0, NULL, 0, 0, 0};
-   init_list(&context.constants);
+   context.constants = whashmap_new();
    context.clause = allocClause();
    instruction_list_apply(instructions, &context, build_asm_context);
    context.clause->code = malloc(context.size);
@@ -796,7 +798,7 @@ Clause assemble(instruction_list_t* instructions)
    context.clause->constant_size = context.constant_count;
    //#endif
    instruction_list_apply(instructions, &context, _assemble);
-   free_list(&context.constants);
+   whashmap_free(context.constants);
    assert(context.codep == context.size);
 
    return context.clause;
