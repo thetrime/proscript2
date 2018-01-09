@@ -238,6 +238,10 @@ length(List, Length) :-
           length1(List, Length)
         ).
 
+% Deterministic base case for proper lists.
+length(Tail, Length, Length):-
+        Tail == [], !.
+% Nondetermnistic base case. Leaves a choice point so we can try other lists
 length([], Length, Length).
 length([_|L], N, Length) :-
         N1 is N+1,
