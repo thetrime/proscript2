@@ -2282,3 +2282,19 @@ PREDICATE($yield, 2, (word key, word ptr)
    unify(ptr, MAKE_INTEGER((long)current_yield()));
    return YIELD;
 })
+
+PREDICATE(memberchk, 2, (word elem, word list)
+{
+   while (1)
+   {
+      if (TAGOF(list) == VARIABLE_TAG)
+         return unify(list, MAKE_VCOMPOUND(listFunctor, elem, MAKE_VAR()));
+      if (!(TAGOF(list) == COMPOUND_TAG && FUNCTOROF(list) == listFunctor))
+         return FAIL;
+      word head = ARGOF(list, 0);
+      word tail = ARGOF(list, 1);
+      if (unify_or_undo(elem, head))
+         return SUCCESS;
+      list = tail;
+   }
+})

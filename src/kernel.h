@@ -125,6 +125,7 @@ void consult_stream(Stream);
 void print_clause(Clause);
 void initialize_kernel();
 int unify(word a, word b);
+int unify_or_undo(word a, word b);
 int safe_unify(word a, word b); // Handles a or b being local copies
 word copy_term(word term);
 #define NON_DETERMINISTIC 1
