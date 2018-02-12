@@ -2,7 +2,8 @@
 ARCH?=js
 
 FLAGS=
-#WASM=-s WASM=1
+WASM=-s WASM=1 -s SINGLE_FILE=1
+#WASM=-s WASM=1 --closure 1
 
 STRICT_ISO?=no
 ifeq ($(STRICT_ISO),yes)

@@ -642,7 +642,9 @@ module.exports = {_make_atom: _make_atom,
 var Module = Module || {};
 
 if (typeof proscriptPrefixURL !== 'undefined')
+{
     Module.memoryInitializerPrefixURL = proscriptPrefixURL;
+}
 
 Module.onRuntimeInitialized = function()
 {
