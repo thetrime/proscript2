@@ -11,7 +11,7 @@ Proscript can be built either as a native (C) interpreter or a Javascript librar
 
    * To build as a native executable (./proscript): make ARCH=c
    * To build as a javascript library (./proscript.js): make ARCH=js
-      * You must also obtain and build gmpjs from https://github.com/thetrime/githubjs. The build process expects to find this in ./node_modules/gmpjs
+      * You must also obtain and build gmpjs from https://github.com/thetrime/gmpjs. The build process expects to find this in ./node_modules/gmpjs
       * Alternatively, if you have npm installed, you can just run `npm install`. This *should* take care of the dependencies as well. Note that you still need emscripten set up in your shell.
 
 Design
