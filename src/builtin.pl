@@ -276,8 +276,19 @@ reverse([], A, A, []).
 reverse([B|A], C, D, [_|E]) :-
         reverse(A, [B|C], D, E).
 
+:-meta_predicate phrase(2,?,?).
+
 phrase(Rule, Input):-
         phrase(Rule, Input, []).
+
+% Without goal expansion, we have to implement predicates for lists and , so that things like
+% phrase((foo, [65], bar), Codes)
+% will work.
+'[]'(Tail, Tail).
+'.'(Head, Tail, [Head|Input], Output):- call(Tail, Input, Output).
+','(Goal1, Goal2, Input, Output):-
+        call(Goal1, Input, Intermediate),
+        call(Goal2, Intermediate, Output).
 
 phrase(Rule, Input, Tail):-
         ( Rule = Module:InGoal->

@@ -425,7 +425,16 @@ int format(word sink, word fmt, word args)
                      type_error(integerAtom, arg);
                      BAD_FORMAT;
                   }
-                  case 's': // string
+                  case 's': // string of codes. This is pretty inefficient since it declares a whole load of 1-byte chars.
+                            // It might be much better to count the space first and then
+                  {
+                     NEXT_FORMAT_ARG;
+                     char* buffer;
+                     size_t len;
+                     if (get_string_from_codes(arg, &buffer, &len) != SUCCESS) BAD_FORMAT;
+                     append_string(output, buffer, len);
+                     break;
+                  }
                   case '@': // execute
                      assert(0 && "Not implemented");
                   case '|': // reset-tab-stop
