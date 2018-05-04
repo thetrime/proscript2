@@ -248,6 +248,65 @@ int qcompare_terms(const void * a, const void* b)
    return term_difference(*((word*)a), *((word*)b));
 }
 
+// The caller must free buffer if a non-zero value is returned
+// buffer will be in UTF-8 encoding.
+RC get_string_from_codes(word codes, char** buffer, size_t* length)
+{
+// We have to traverse this twice to determine how big a buffer to allocate
+   int i = 0;
+   word w = codes;
+   while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
+   {
+      i++;
+      if (!must_be_bound(ARGOF(w, 0)))
+         return ERROR;
+      if (!must_be_character_code(ARGOF(w, 0)))
+         return ERROR;
+      int ch = getConstant(ARGOF(w,0), NULL).integer_data;
+      if (ch > 0x7f) // Unicode support
+      {
+         i++;
+         if (ch > 0x7ff)
+            i++;
+         if (ch > 0xffff)
+            i++;
+      }
+      w = ARGOF(w, 1);
+   }
+   if (w != emptyListAtom)
+      return type_error(listAtom, codes);
+   *buffer = malloc(i);
+   *length = i;
+   i = 0;
+   w = codes;
+   while (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == listFunctor)
+   {
+      int ch = getConstant(ARGOF(w,0), NULL).integer_data;
+      if (ch < 0x80)
+         (*buffer)[i++] = ch;
+      else if (ch < 0x800)
+      {
+         (*buffer)[i++] = (ch >> 6) | 0xc0;
+         (*buffer)[i++] = (ch & 0x3f) | 0x80;
+      }
+      else if (ch < 0xffff)
+      {
+         (*buffer)[i++] = (ch >> 12) | 0xe0;
+         (*buffer)[i++] = ((ch >> 6) & 0x3f) | 0x80;
+         (*buffer)[i++] = (ch & 0x3f) | 0x80;
+      }
+      else
+      {
+         (*buffer)[i++] = (ch >> 18) | 0xf0;
+         (*buffer)[i++] = ((ch >> 12) & 0x3f) | 0x80;
+         (*buffer)[i++] = ((ch >> 6) & 0x3f) | 0x80;
+         (*buffer)[i++] = (ch & 0x3f) | 0x80;
+         //printf("Encoding %d as %x %x %x %x\n", ch, (unsigned char)(*buffer)[i-4], (unsigned char)(*buffer)[i-3], (unsigned char)(*buffer)[i-2], (unsigned char)(*buffer)[i-1]);
+      }
+      w = ARGOF(w, 1);
+   }
+   return SUCCESS;
+}
 
 #define TOKENPASTE(x, y) x ## y
 #define TOKENPASTE2(x, y) TOKENPASTE(x, y)
