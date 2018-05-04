@@ -259,7 +259,7 @@ member_([C|A], B, _) :-
         member_(A, B, C).
 
 
-memberchk(A, B):- member(A, B), !.
+%memberchk(A, B):- member(A, B), !.
 
 is_list(Var):- var(Var), !, fail.
 is_list([]):- !.

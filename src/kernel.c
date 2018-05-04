@@ -580,7 +580,6 @@ int unify(word a, word b)
    return 0;
 }
 
-
 void unwind_trail(word* from)
 {
    for (word* T = TR; T < from; T++)
@@ -590,6 +589,18 @@ void unwind_trail(word* from)
    }
 }
 
+// This is the same as unify() except that if unification fails, all the bindings are undone
+// Useful for foreign code that tries several unifications (such as memberchk) which might
+// otherwise leave things partially instantiated since they dont actually /backtrack/ on failure
+// (for performance reasons)
+int unify_or_undo(word a, word b)
+{
+   word* oldTR = TR;
+   int rc = unify(a, b);
+   if (!rc)
+      unwind_trail(oldTR);
+   return rc;
+}
 
 // After executing, cut_to(X), we ensure that X is the current choicepoint.
 int cut_to(Choicepoint point)
