@@ -1,0 +1,11 @@
+/* file operators. This was added to test the some edge cases in operator handling */
+
+% \+ (a,b) equivalent to \+((a,b)) - the \+ has one argument
+['\\=='( (\+ (foo, bar)), (\+(foo, bar))), success].
+['=='( \+ (foo, bar), (\+((foo, bar)))), success].
+
+% - (a,b) equivalent to -((a,b)) and not a-b
+['\\=='( - (foo, bar), (-(foo, bar))), success].
+['=='( - (foo, bar), (-((foo, bar)))), success].
+% -(a,b) is equivalent to a-b however
+['=='( -(foo, bar), foo-bar), success].

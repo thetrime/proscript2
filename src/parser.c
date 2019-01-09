@@ -638,10 +638,15 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
    Operator prefixOperator;
    Operator infixOperator;
    int hasOp = token_operator(t0, &prefixOperator, Prefix);
+   int hasSpace = (peek_raw_char_with_conversion(s) == ' ');
    Token peeked_token = peek_token(s);
    if (peeked_token == ListCloseToken || peeked_token == ParenCloseToken || peeked_token == CommaToken || peeked_token == BarToken)
       hasOp = 0;
-   if (peeked_token == ParenOpenToken)
+   // We must take care here. We have started reading a functor if we read a token and then a ( but only if there is no space in between the two
+   // That is, "foo (bar)" is not the same as "foo(bar)".
+   // This is critical when it comes to constructs like \+ (foo, bar) since this is NOT the same as \+(foo,bar) - the former has arity 1, the latter has arity 2.
+   // The lexxer will just ignore whitespace, which makes this complicated.
+   if (peeked_token == ParenOpenToken && !hasSpace)
    {
       read_token(s); // Dont need to free this - guaranteed to be constant
       Token pp = peek_token(s);
