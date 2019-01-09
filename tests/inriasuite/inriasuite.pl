@@ -744,6 +744,7 @@ file(number).
 file(number_chars).
 file(number_codes).
 file(once).
+file(operators).
 file(or).
 file(rdiv).
 file(repeat).
