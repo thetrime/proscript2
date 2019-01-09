@@ -343,7 +343,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          word head = ARGOF(term, 0);
          while (TAGOF(head) == COMPOUND_TAG && FUNCTOROF(head) == conjunctionFunctor)
          {
-            format_term(sb, options, 1200, ARGOF(head,0));
+            format_term(sb, options, 1000, ARGOF(head,0));
             append_string_no_copy(sb, ",", 1);
             head = ARGOF(head, 1);
          }
