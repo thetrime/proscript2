@@ -155,18 +155,25 @@ Operator get_op(word functor, Options* options)
       return NULL;
 }
 
+int is_graphic_char_or_comma(int c)
+{
+   if (c == ',')
+      return 1;
+   return is_graphic_char(c);
+}
+
 void glue_atoms(StringBuilder target, StringBuilder left, StringBuilder right)
 {
    char* lc, * rc;
    int ll, rl;
    finalize_buffer(left, &lc, &ll);
    finalize_buffer(right, &rc, &rl);
-   if (is_graphic_char(lc[ll-1]) && !is_graphic_char(rc[0]))
+   if (is_graphic_char_or_comma(lc[ll-1]) && !is_graphic_char_or_comma(rc[0]))
    {
       append_string(target, lc, ll);
       append_string(target, rc, rl);
    }
-   else if (!is_graphic_char(lc[ll-1]) && is_graphic_char(rc[0]))
+   else if (!is_graphic_char_or_comma(lc[ll-1]) && is_graphic_char_or_comma(rc[0]))
    {
       append_string(target, lc, ll);
       append_string(target, rc, rl);
@@ -365,12 +372,16 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          {
             // comma has to be handled a bit differently since it is sort of overloaded to also act as the separator between arguments in a compound
             // That is, foo(a,b) is different to foo(','(a,b)). The latter is also equivalent to foo((a,b))
-            //op_precedence = 1300;
+            op_precedence = 1300;
 
          }
          Functor f = getConstant(functor, NULL).functor_data;
          StringBuilder sb1 = stringBuilder();
-         if (op_precedence > precedence)
+         // In the case of ,/2 if we are not inside a term (ie precedence 1000) then the correct thing seems to be to print a space
+         // This gives \+((foo, bar)) as \+ (foo, bar)
+         if (functor == conjunctionFunctor && precedence < 999)
+            append_string_no_copy(sb1, " (", 2);
+         else if (op_precedence > precedence)
             append_string_no_copy(sb1, "(", 1);
          switch(op->fixity)
          {
