@@ -163,9 +163,9 @@ function read_string(ptr, length)
             var chunk_length = chunk_size;
             if (chunk_length + i > length)
                 chunk_length = length - i;
-            c.push(String.fromCharCode.apply(null, HEAP8.subarray(ptr+i, ptr+i+chunk_length)));
+            chunks.push(String.fromCharCode.apply(null, HEAP8.subarray(ptr+i, ptr+i+chunk_length)));
         }
-        return c.join("");
+        return chunks.join("");
     }
     return String.fromCharCode.apply(null, HEAP8.subarray(ptr, ptr+length));
 }
