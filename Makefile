@@ -2,7 +2,7 @@
 ARCH?=js
 
 FLAGS=
-#WASM=-s WASM=1
+WASM=-s WASM=0 -Wno-unknown-warning-option -Wno-almost-asm
 
 STRICT_ISO?=no
 ifeq ($(STRICT_ISO),yes)
