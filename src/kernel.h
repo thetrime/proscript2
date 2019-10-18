@@ -17,21 +17,25 @@
 #define CODE32(t) ((*(t) << 24) | ((*(t+1)) << 16) | ((*(t+2)) << 8) | (*(t+3)))
 #define CODE64(t) ((((word)*(t)) << 56)| (((word)*(t+1)) << 48)| (((word)*(t+2)) << 40)| (((word)*(t+3)) << 32)| (((word)*(t+4)) << 24)| (((word)*(t+5)) << 16)| (((word)*(t+6)) <<  8)| (((word)*(t+7)) <<  0))
 
+#ifdef __EMSCRIPTEN__
+// From version 1.38.48 emscripten changed the type of uintptr_t from unsigned int -> unsigned long
+// But sadly they did not change the PRI_PTR macros. In the PR at https://github.com/emscripten-core/emscripten/pull/5916
+// they suggest using the z prefix to silence the warnings.
+#define PRIwx "z" PRIxPTR
+#define PRIwd "z" PRIdPTR
+#define PRIpd "z" PRIuPTR
+#else
+#define PRIwx PRIxPTR
+#define PRIwd PRIdPTR
+#define PRIpd PRIuPTR
+#endif
+
 #if UINTPTR_MAX == 0xffffffffffffffff
 #define CODEPTR(t) CODE64(t)
-#define PRIwx "lx"
-#define PRIwd "ld"
-#define PRIpd "lu"
 #elif UINTPTR_MAX == 0xffffffff
 #define CODEPTR(t) CODE32(t)
-#define PRIwx "x"
-#define PRIwd "d"
-#define PRIpd "u"
 #elif UINTPTR_MAX == 0xffff
 #define CODEPTR(t) CODE16(t)
-#define PRIwx "x"
-#define PRIwd "d"
-#define PRIpd "u"
 #endif
 
 #define FUNCTOR_VALUE(t) ((Functor)CTable[t])

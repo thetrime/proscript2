@@ -457,9 +457,9 @@ void PORTRAY(word w)
    if (TAGOF(w) == VARIABLE_TAG)
    {
       if (w > (word)STACK)
-         printf("_L%" PRIuPTR, (w - (word)STACK));
+         printf("_L%" PRIpd, (w - (word)STACK));
       else
-         printf("_G%" PRIuPTR, (w - (word)HEAP));
+         printf("_G%" PRIpd, (w - (word)HEAP));
    }
    else if (TAGOF(w) == CONSTANT_TAG)
    {
@@ -2179,7 +2179,7 @@ void print_clause(Clause clause)
       {
          uintptr_t address = CODEPTR(&clause->code[i+1]);
          i+=sizeof(word);
-         printf("%" PRIuPTR " ", address);
+         printf("%" PRIpd " ", address);
       }
       if (flags & HAS_SLOT)
       {
@@ -2205,7 +2205,7 @@ void print_instruction()
    {
       uintptr_t address = CODEPTR(ptr);
       ptr+=sizeof(word);
-      printf("%"PRIuPTR" ", address);
+      printf("%"PRIpd" ", address);
    }
    if (instruction_info[*PC].flags & HAS_SLOT)
    {
