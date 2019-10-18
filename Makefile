@@ -28,7 +28,7 @@ else
 CC=gcc
 TARGET=proscript
 CFLAGS=-g -I/opt/local/include $(FLAGS)
-LDFLAGS=-L/opt/local/lib -lgmp
+LDFLAGS=-L/opt/local/lib -lgmp -lm
 BOOTFILE=main.o
 BOOT=main.o
 endif
