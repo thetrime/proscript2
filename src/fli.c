@@ -233,7 +233,7 @@ int _release_blob(char* type, word w)
    Blob b = getConstant(w, &t).blob_data;
    if (t != BLOB_TYPE)
    {
-      printf("Type mismatch: Expecting blob in %" PRIuPTR " but object passed in is not a blob\n", w);
+      printf("Type mismatch: Expecting blob in %" PRIpd " but object passed in is not a blob\n", w);
       PORTRAY(w);
       assert(0);
    }

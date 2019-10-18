@@ -193,7 +193,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
    if (TAGOF(term) == VARIABLE_TAG)
    {
       char buffer[64];
-      sprintf((char*)buffer, "_G%" PRIuPTR, (term - (word)HEAP));
+      sprintf((char*)buffer, "_G%" PRIpd, (term - (word)HEAP));
       append_string(sb, strdup(buffer), strlen(buffer));
       return 1;
    }
@@ -282,7 +282,7 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
          mpz_clear(num);
          return 1;
       }
-      printf("Cannot write type: %d from %08" PRIXPTR "\n", type, term);
+      printf("Cannot write type: %d from %08" PRIwx "\n", type, term);
       assert(0 && "Unhandled constant type");
    }
    else if (get_option(options, numbervarsAtom, falseAtom) == trueAtom && TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == numberedVarFunctor && TAGOF(ARGOF(term,0)) == CONSTANT_TAG && getConstantType(ARGOF(term,0)) == INTEGER_TYPE)
