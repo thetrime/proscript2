@@ -2224,6 +2224,13 @@ PREDICATE(qqq, 0, ()
  return SUCCESS;
 })
 
+PREDICATE(toggle_trace, 0, ()
+{
+ toggle_trace();
+ return SUCCESS;
+})
+
+
 PREDICATE($heap_usage, 1, (word u)
 {
    return unify(MAKE_INTEGER(heap_usage()), u);

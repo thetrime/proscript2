@@ -2348,6 +2348,13 @@ long heap_usage() // Returns heap usage in bytes
 }
 
 EMSCRIPTEN_KEEPALIVE
+void toggle_trace()
+{
+   debugging = !debugging;
+}
+
+
+EMSCRIPTEN_KEEPALIVE
 void qqq()
 {
    debugging = 0;

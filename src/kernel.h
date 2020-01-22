@@ -161,4 +161,5 @@ Choicepoint push_state();
 void restore_state(Choicepoint state);
 void hard_reset();
 void qqq();
+void toggle_trace();
 long heap_usage();
