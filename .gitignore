@@ -4,6 +4,7 @@ build/*
 node_modules
 *.o
 proscript
+proscript_standalone.js
 proscript.js
 proscript.js.mem
 proscript.dSYM

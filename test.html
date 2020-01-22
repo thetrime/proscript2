@@ -1,8 +1,16 @@
 <html>
   <head>
     <title>Proscript2 Test Page</title>
-    <script type="text/javascript" src="build/proscript.js"></script>
-    <script type="text/javascript" src="src/test.js"></script>
+    <script type="text/javascript">
+      onPrologReady = function(Prolog)
+      {
+      console.log("Running tests");
+      Prolog._do_test();
+      console.log("Done");
+      }
+    </script>
+    <script type="text/javascript" src="proscript_standalone.js"></script>
+
   </head>
   <body>
     Hello, World!

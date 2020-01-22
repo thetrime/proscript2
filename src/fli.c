@@ -459,3 +459,19 @@ void _hard_reset()
 {
    hard_reset();
 }
+
+// Code to run tests in the browser
+
+extern void query_complete3(RC result);
+extern void query_complete(RC result);
+
+EMSCRIPTEN_KEEPALIVE
+void _do_test()
+{
+   if (consult_file("test.pl"))
+      printf("Consulted test.pl\n");
+   else
+      printf("Failed to load test.pl\n");
+   word w = MAKE_ATOM("run_all_tests");
+   execute_query(w, query_complete);
+}
