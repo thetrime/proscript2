@@ -6,6 +6,7 @@ node_modules
 proscript
 proscript_standalone.js
 proscript.js
+proscript.wasm
 proscript.js.mem
 proscript.dSYM
 test.pl
