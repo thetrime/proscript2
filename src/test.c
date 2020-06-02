@@ -9,6 +9,7 @@
 #include "foreign.h"
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #ifdef EMSCRIPTEN
 #include <emscripten.h>
 #else
@@ -40,6 +41,7 @@ void query_complete2(RC result)
    backtrack_query(query_complete3);
 }
 
+time_t start;
 
 void query_complete(RC result)
 {
@@ -58,12 +60,12 @@ void query_complete(RC result)
       //qxz = push_state();
       //word w = MAKE_ATOM("run_all_tests");
       //execute_query(w, query_complete2);
+      printf("Time taken for first solution: %lu milliseconds\n", (clock() - start) * 1000 / CLOCKS_PER_SEC);
       backtrack_query(query_complete3);
    }
    else if (result == SUCCESS)
       printf("Success!\n");
 }
-
 
 
 EMSCRIPTEN_KEEPALIVE
@@ -128,6 +130,7 @@ void do_test(int argc, char** argv)
    else
    {
       word w = MAKE_ATOM("run_all_tests");
+      start = clock();
       execute_query(w, query_complete);
    }
 }

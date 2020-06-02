@@ -31,12 +31,6 @@ function define_foreign(name, fn)
                                  pointer);
 };
 
-function badger(a,b,c)
-{
-    console.log("BADGERS: " + term_to_string(a) + "," + term_to_string(b) + "," + term_to_string(c) + "(" + this + ")\n");
-    return SUCCESS;
-}
-
 var YIELD = 3;
 var FAIL = 0;
 var SUCCESS = 1;
@@ -54,18 +48,6 @@ function yield_resumption()
         _resume_yield(p, ptr);
     };
 }
-
-function sleep(duration)
-{
-    duration = _integer_data(duration);
-    //var resume = yield_resumption();
-    console.log("Goodnight: " + duration * 1000);
-    setTimeout(function()
-               {
-                   _resume_yield(SUCCESS);
-               }, duration * 1000);
-    return YIELD;
-};
 
 
 function _foreign_call(backtrack, name, arity, argp)
@@ -425,6 +407,14 @@ function _jscallback(result)
     environments[--eTop] = null;
 }
 
+function _call(context, goal)
+{
+    environments[eTop++] = context;
+    var result = _calljs(goal);
+    environments[--eTop] = null;
+    return result;
+}
+
 function _execute(context, goal, callback)
 {
     var pointer = cTop;
@@ -498,7 +488,7 @@ function _format_term(options, priority, term)
     }
     __format_term(options, priority, term, strptr, lenptr);
     var ptr = getValue(strptr, '*');
-    var result = Pointer_stringify(ptr, getValue(lenptr, '*'));
+    var result = UTF8ToString(ptr, getValue(lenptr, '*'));
     _cfree(ptr);
     _cfree(lenptr);
     _cfree(strptr);
@@ -546,17 +536,6 @@ function free_local(t)
     return _cfree(t);
 }
 
-function qqq()
-{
-    _qqq();
-}
-
-function qqqy()
-{
-    _qqqy();
-}
-
-
 function portray(t)
 {
     return _format_term(null, 1200, t);
@@ -591,58 +570,56 @@ function forEach(t, i, e)
         e(list);
 }
 
-module.exports = {_make_atom: _make_atom,
-                  _make_functor: _make_functor,
-                  _make_variable: _make_variable,
-                  _make_compound: _make_compound,
-                  _make_choicepoint: _make_choicepoint,
-                  _make_choicepoint_with_cleanup: _make_choicepoint_with_cleanup,
-                  _make_integer: _make_integer,
-                  _make_float: _make_float,
-                  _make_blob: _make_blob,
-                  _release_blob: _release_blob,
-                  _is_constant: _is_constant,
-                  _is_functor: _is_functor,
-                  _is_variable: _is_variable,
-                  _is_compound: _is_compound,
-                  _is_integer: _is_integer,
-                  _is_float: _is_float,
-                  _is_atom: _is_atom,
-                  _is_blob: _is_blob,
-                  _atom_chars: _atom_chars,
-                  _get_blob: _get_blob,
-                  _term_functor: _term_functor,
-                  _term_functor_arity: _term_functor_arity,
-                  _term_functor_name: _term_functor_name,
-                  _term_arg: _term_arg,
-                  _consult_url: _consult_url,
-                  _consult_string: _consult_string,
-                  _exists_predicate: _exists_predicate,
-                  _get_exception: _get_exception,
-                  _clear_exception: _clear_exception,
-                  _set_exception: _set_exception,
+module.exports = {make_atom: _make_atom,
+                  make_functor: _make_functor,
+                  make_variable: _make_variable,
+                  make_compound: _make_compound,
+                  make_choicepoint: _make_choicepoint,
+                  make_choicepoint_with_cleanup: _make_choicepoint_with_cleanup,
+                  make_integer: _make_integer,
+                  make_float: _make_float,
+                  make_blob: _make_blob,
+                  release_blob: _release_blob,
+                  is_constant: _is_constant,
+                  is_functor: _is_functor,
+                  is_variable: _is_variable,
+                  is_compound: _is_compound,
+                  is_integer: _is_integer,
+                  is_float: _is_float,
+                  is_atom: _is_atom,
+                  is_blob: _is_blob,
+                  atom_chars: _atom_chars,
+                  get_blob: _get_blob,
+                  term_functor: _term_functor,
+                  term_functor_arity: _term_functor_arity,
+                  term_functor_name: _term_functor_name,
+                  term_arg: _term_arg,
+                  consult_url: _consult_url,
+                  consult_string: _consult_string,
+                  exists_predicate: _exists_predicate,
+                  get_exception: _get_exception,
+                  clear_exception: _clear_exception,
+                  set_exception: _set_exception,
                   define_foreign: define_foreign,
-                  _save_state: _save_state,
-                  _restore_state: _restore_state,
-                  _execute: _execute,
-                  _unify: xunify,
-                  _format_term: _format_term,
-                  _create_options: _create_options,
-                  _set_option: _set_option,
-                  _free_options: _free_options,
+                  save_state: _save_state,
+                  restore_state: _restore_state,
+                  execute: _execute,
+                  call: _call,
+                  unify: xunify,
+                  format_term: _format_term,
+                  create_options: _create_options,
+                  set_option: _set_option,
+                  free_options: _free_options,
                   _yield: yield_resumption,
-                  _make_local: make_local,
-                  _copy_term: _copy_term,
-                  _free_local: free_local,
-                  _string_to_local_term: string_to_local_term,
-                  _portray: portray,
-                  _forEach: forEach,
-                  _numeric_value: _numeric_value,
-                  _deref: deref,
-                  _hard_reset: _hard_reset,
-                  _do_test: _do_test,
-                  _qqq: qqq,
-                  _qqqy: qqqy
+                  make_local: make_local,
+                  copy_term: _copy_term,
+                  free_local: free_local,
+                  string_to_local_term: string_to_local_term,
+                  portray: portray,
+                  forEach: forEach,
+                  numeric_value: _numeric_value,
+                  deref: deref,
+                  hard_reset: _hard_reset
                  };
 
 /* This is the ACTUAL preamble */
@@ -659,14 +636,4 @@ Module.onRuntimeInitialized = function()
 	onPrologReady(module.exports);
     else
 	console.log("Prolog is ready but no one is interested :(");
-    /*
-    define_foreign("badger", badger);
-    define_foreign("sleep", sleep);
-
-
-    var d0 = new Date().getTime();
-    Module._do_test(); // foobar was exported
-    var d1 = new Date().getTime();
-    console.log("Execution time: " + (d1-d0) + "ms");
-    */
 };

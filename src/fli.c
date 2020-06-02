@@ -300,6 +300,15 @@ void executejs(word goal, int callback_ref)
 {
    execute_query(goal, jscall);
 }
+
+EMSCRIPTEN_KEEPALIVE
+RC calljs(word goal)
+{
+   printf("Goal to run:"); PORTRAY(goal); printf("\n");
+   return execute_query_sync(goal);
+}
+
+
 #else
 
 void _execute(word goal, void(*callback)(RC))
@@ -307,6 +316,7 @@ void _execute(word goal, void(*callback)(RC))
 //    PORTRAY(goal); printf("\n");
    execute_query(goal, callback);
 }
+
 #endif
 
 EMSCRIPTEN_KEEPALIVE

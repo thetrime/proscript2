@@ -118,6 +118,7 @@ typedef enum
 typedef void(*ExecutionCallback)(RC);
 
 void execute_query(word, ExecutionCallback);
+RC execute_query_sync(word);
 void backtrack_query(ExecutionCallback);
 word getException();
 
