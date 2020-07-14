@@ -1,7 +1,8 @@
 // FIXME: writeStringToMemory is unsafe and anywhere it is used there is a chance our unicode support is wrong!
 
 /* This comprises the Javascript end of the FLI */
-var NodeXMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
+//var NodeXMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
+var NodeXMLHttpRequest = XMLHttpRequest;
 
 var functions = [];
 var fTop = 0;
@@ -14,7 +15,6 @@ var next_cleanup = 0;
 
 var environments = [];
 var eTop = 0;
-
 
 // FIXME: This assumes 32 bit. Currently asm.js is definitely 32 bit, but maybe not one day? We could get this at startup by calling a C function to get sizeof(uintptr_t)
 var SIZE_OF_WORD = 4;
@@ -64,7 +64,6 @@ function _foreign_call(backtrack, name, arity, argp)
     {
         console.log("Cannot find function for " + name);
         console.log("fTop is " + fTop);
-        _qqqz();
     }
     return functions[name].apply(context, args);
 }
@@ -623,7 +622,7 @@ module.exports = {make_atom: _make_atom,
                  };
 
 /* This is the ACTUAL preamble */
-var Module = Module || {};
+//var Module = Module || {};
 
 if (typeof proscriptPrefixURL !== 'undefined')
     Module.memoryInitializerPrefixURL = proscriptPrefixURL;
@@ -633,7 +632,7 @@ Module.onRuntimeInitialized = function()
     Module._init_prolog();
     //console.log("Hello from an initialized system!");
     if (typeof onPrologReady == 'function')
-	onPrologReady(module.exports);
+        onPrologReady(module.exports);
     else
 	console.log("Prolog is ready but no one is interested :(");
 };

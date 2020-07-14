@@ -304,7 +304,6 @@ void executejs(word goal, int callback_ref)
 EMSCRIPTEN_KEEPALIVE
 RC calljs(word goal)
 {
-   printf("Goal to run:"); PORTRAY(goal); printf("\n");
    return execute_query_sync(goal);
 }
 
