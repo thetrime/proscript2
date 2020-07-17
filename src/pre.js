@@ -633,6 +633,5 @@ Module.onRuntimeInitialized = function()
     //console.log("Hello from an initialized system!");
     if (typeof onPrologReady == 'function')
         onPrologReady(module.exports);
-    else
-	console.log("Prolog is ready but no one is interested :(");
+    prologReady = true;
 };
