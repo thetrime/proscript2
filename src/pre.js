@@ -1,5 +1,3 @@
-// FIXME: writeStringToMemory is unsafe and anywhere it is used there is a chance our unicode support is wrong!
-
 /* This comprises the Javascript end of the FLI */
 //var NodeXMLHttpRequest = require('xmlhttprequest').XMLHttpRequest;
 var NodeXMLHttpRequest = XMLHttpRequest;
@@ -187,13 +185,22 @@ function _is_float(a)
     return (a & TAG_MASK) == CONSTANT_TAG && _term_type(a) == 4;
 }
 
+function make_c_string(string)
+{
+    var byteCount = lengthBytesUTF8(string);
+    // stringToUTF8 will add a null-terminator, so we need to allocate 1 extra byte
+    var ptr = _cmalloc(byteCount+1);
+    // And we need to set the maximum length as byteCount+1 or the last char will be dropped to fit the NULL
+    stringToUTF8(string, ptr, byteCount+1);
+    return ptr;
+}
+
 function _is_blob(a, type)
 {
     a = _DEREF(a);
     if ((a & TAG_MASK) == CONSTANT_TAG)
     {
-        var ptr = _cmalloc(type.length+1);
-        writeStringToMemory(type, ptr);
+        var ptr = make_c_string(type);
         var result = __is_blob(a, ptr);
         _cfree(ptr);
         return result;
@@ -218,9 +225,7 @@ function portray_js_blob(typeptr, typelen, index, options, precedence, lenptr)
         return 0;
     var data = b.portray(options, precedence)
     setValue(lenptr, data.length, '*');
-    var ptr = _cmalloc(data.length+1);
-    writeStringToMemory(data, ptr);
-    return ptr;
+    return make_c_string(data);
 }
 
 function _make_blob(type, object)
@@ -245,8 +250,7 @@ function _make_blob(type, object)
         blobs[type].push(object);
         key = blobs[type].length-1;
     }
-    var ptr = _cmalloc(type.length+1);
-    writeStringToMemory(type, ptr);
+    var ptr = make_c_string(type);
     var result = __make_blob_from_index(ptr, key);
  //   console.log("Created blob at location " + key + " of type " + type + " with prolog handle " + result);
     _cfree(ptr);
@@ -256,8 +260,7 @@ function _make_blob(type, object)
 function _release_blob(type, w)
 {
     w = _DEREF(w);
-    var ptr = _cmalloc(type.length+1);
-    writeStringToMemory(type, ptr);
+    var ptr = make_c_string(type);
     var key = __release_blob(ptr, w);
     _cfree(ptr);
     // Finally, excise the blob from the blobs structure
@@ -314,8 +317,7 @@ function _copy_term(a)
 function _get_blob(type, w)
 {
     w = _DEREF(w);
-    var ptr = _cmalloc(type.length+1);
-    writeStringToMemory(type, ptr);
+    var ptr = make_c_string(type);
     var key = __get_blob(ptr, w);
     _cfree(ptr);
     //console.log("Blob " + w + " of type " + w + " should be at location " + key);
@@ -324,9 +326,8 @@ function _get_blob(type, w)
 
 function _make_atom(a)
 {
-    var ptr = _cmalloc(a.length+1);
-    writeStringToMemory(a, ptr);
-    var atom = __make_atom(ptr, a.length);
+    var ptr = make_c_string(a);
+    var atom = __make_atom(ptr, lengthBytesUTF8(a));
     _cfree(ptr);
     return atom;
 }
@@ -350,8 +351,7 @@ function _make_variable(a)
 
 function _consult_string(a)
 {
-    var ptr = _cmalloc(a.length+1);
-    writeStringToMemory(a, ptr);
+    var ptr = make_c_string(a);
     __consult_string(ptr);
     _cfree(ptr);
 }
