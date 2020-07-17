@@ -60,6 +60,8 @@ node_modules/gmpjs:
 
 clean:
 		rm -f *.o
+		rm -f proscript.js
+		rm -f proscript.wasm
 
 check: 	$(TARGET)
 	$(CHECK)
