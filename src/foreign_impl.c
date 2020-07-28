@@ -2258,3 +2258,89 @@ PREDICATE(memberchk, 2, (word elem, word list)
       list = tail;
    }
 })
+
+PREDICATE(., 3, (word dict, word key, word value)
+{
+   if (TAGOF(dict) == COMPOUND_TAG && FUNCTOROF(dict) == dictFunctor)
+   {
+      word terms = ARGOF(dict, 1);
+      if (TAGOF(terms) == COMPOUND_TAG && FUNCTOROF(terms) == curlyFunctor)
+         terms = ARGOF(terms, 0);
+      else
+         return type_error(dictAtom, dict);
+      while (TAGOF(terms) == COMPOUND_TAG && FUNCTOROF(terms) == conjunctionFunctor)
+      {
+         word head = ARGOF(terms, 0);
+         if (TAGOF(head) == COMPOUND_TAG && FUNCTOROF(head) == dictPairFunctor)
+         {
+            if (unify_or_undo(ARGOF(head, 0), key))
+               return unify(value, ARGOF(head, 1));
+         }
+         terms = ARGOF(terms, 1);
+      }
+      if (TAGOF(terms) == COMPOUND_TAG && FUNCTOROF(terms) == dictPairFunctor)
+      {
+         if (unify_or_undo(ARGOF(terms, 0), key))
+            return unify(value, ARGOF(terms, 1));
+      }
+      return FAIL;
+   }
+   else
+      return type_error(dictAtom, dict);
+})
+
+PREDICATE(dict_pairs, 3, (word dict, word tag, word pairs)
+{
+   if (TAGOF(dict) == COMPOUND_TAG && FUNCTOROF(dict) == dictFunctor)
+   {
+      // Decompose dict -> pairs
+      if (!unify(tag, ARGOF(dict,0)))
+         return FAIL;
+
+      List list;
+      word w;
+      word terms = ARGOF(dict, 1);
+      if (TAGOF(terms) == COMPOUND_TAG && FUNCTOROF(terms) == curlyFunctor)
+         terms = ARGOF(terms, 0);
+      else
+         return type_error(dictAtom, dict);
+
+      init_list(&list);
+      while (TAGOF(terms) == COMPOUND_TAG && FUNCTOROF(terms) == conjunctionFunctor)
+      {
+         word head = ARGOF(terms, 0);
+         if (TAGOF(head) == COMPOUND_TAG && FUNCTOROF(head) == dictPairFunctor)
+            list_append(&list, MAKE_VCOMPOUND(hyphenPairFunctor, ARGOF(head, 0), ARGOF(head, 1)));
+         terms = ARGOF(terms, 1);
+      }
+      if (TAGOF(terms) == COMPOUND_TAG && FUNCTOROF(terms) == dictPairFunctor)
+      {
+         list_append(&list, MAKE_VCOMPOUND(hyphenPairFunctor, ARGOF(terms, 0), ARGOF(terms, 1)));
+      }
+      w = term_from_list(&list, emptyListAtom);
+      free_list(&list);
+      return unify(pairs, w);
+   }
+   else
+   {
+      // Construct pairs -> dict
+      List list;
+      word l = pairs;
+      init_list(&list);
+      while (TAGOF(l) == COMPOUND_TAG && FUNCTOROF(l) == listFunctor)
+      {
+         word head = ARGOF(l, 0);
+         if (TAGOF(head) == COMPOUND_TAG && FUNCTOROF(head) == hyphenPairFunctor)
+            list_append(&list, MAKE_VCOMPOUND(dictPairFunctor, ARGOF(head, 0), ARGOF(head, 1)));
+         else
+            return type_error(dictPairAtom, head);
+         l = ARGOF(l, 1);
+      }
+      if (l != emptyListAtom)
+         return type_error(listAtom, pairs);
+      l = curly_from_list(&list);
+      free_list(&list);
+
+      return unify(dict, MAKE_VCOMPOUND(dictFunctor, tag, l));
+   }
+ })

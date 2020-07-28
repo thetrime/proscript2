@@ -30,6 +30,7 @@ int list_length(List* list);
 int list_contains(List* list, word);
 int list_index(List* list, word);
 word term_from_list(List* list, word tail);
+word curly_from_list(List* list);
 word list_shift(List* list);
 word list_pop(List* list);
 word list_delete_first(List* list, word w);

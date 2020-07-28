@@ -118,6 +118,14 @@ word _term_arg(word a, int i)
 }
 
 EMSCRIPTEN_KEEPALIVE
+word _dict_tag(word a)
+{
+   assert(TAGOF(a) == COMPOUND_TAG && FUNCTOROF(a) == dictFunctor);
+   return ARGOF(a, 0);
+}
+
+
+EMSCRIPTEN_KEEPALIVE
 word _make_atom(char* a, int l)
 {
    return MAKE_NATOM(a, l);
@@ -154,6 +162,13 @@ word _make_compound(word functor, word* args)
 {
    return MAKE_ACOMPOUND(functor, args);
 }
+
+EMSCRIPTEN_KEEPALIVE
+word _make_dict(word tag, word data)
+{
+   return MAKE_VCOMPOUND(dictFunctor, tag, data);
+}
+
 
 word _make_vcompound(word functor, ...)
 {
@@ -400,10 +415,18 @@ word list_tail(word w)
 }
 
 EMSCRIPTEN_KEEPALIVE
+word _is_dict(word w)
+{
+   w = DEREF(w);
+   return (TAGOF(w) == COMPOUND_TAG && FUNCTOROF(w) == dictFunctor);
+}
+
+EMSCRIPTEN_KEEPALIVE
 word is_empty_list(word w)
 {
    return DEREF(w) == emptyListAtom;
 }
+
 
 EMSCRIPTEN_KEEPALIVE
 word _deref(word w)

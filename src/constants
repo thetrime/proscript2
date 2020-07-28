@@ -1,5 +1,6 @@
 FUNCTOR(error, "error", 2)
 FUNCTOR(crossModuleCall, ":", 2)
+FUNCTOR(dictPair, ":", 2)
 FUNCTOR(list, ".", 2)
 FUNCTOR(curly, "{}", 1)
 FUNCTOR(conjunction, ",", 2)
@@ -65,6 +66,8 @@ FUNCTOR(paren, "paren", 1);
 FUNCTOR(min, "min", 2);
 FUNCTOR(max, "max", 2);
 FUNCTOR(random, "random", 1);
+FUNCTOR(dict, "$dict", 2);
+FUNCTOR(hyphenPair, "-", 2)
 
 ATOM(instantiationError, "instantiation_error")
 ATOM(cut, "!")
@@ -165,3 +168,5 @@ ATOM(white, "white")
 ATOM(charType, "char_type")
 ATOM(sourceSink, "source_sink")
 ATOM(open, "open")
+ATOM(dict, "dict")
+ATOM(dictPair, "dict_pair")

@@ -850,6 +850,20 @@ int read_expression(Stream s, int precedence, int isArg, int isList, map_t vars,
          else
             unread_token(s, AtomToken(strdup("+"), 1));
       }
+      else if (t1 == CurlyOpenToken)
+      {
+         // reading a dict. This is the same as a term, effectively, except the 'functor name' may be a var and we always generate
+         // '$dict'(DictName, Term)
+         // Where Term is a {}
+         word Term;
+         if (!read_expression(s, 1201, 1, 0, vars, &Term))
+         {
+            // FIXME:
+         }
+         lhs = MAKE_VCOMPOUND(dictFunctor, lhs, Term);
+         // Now, where were we?
+         t1 = peek_token(s);
+      }
       else if (t1 == ParenOpenToken)
       {
          // Reading a term. lhs is the name of the functor

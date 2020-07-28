@@ -304,6 +304,36 @@ int format_term(StringBuilder sb, Options* options, int precedence, word term)
       append_string(sb, strdup(buffer), strlen(buffer));
       return 1;
    }
+   else if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == dictFunctor)
+   {
+      // This is a slightly special case. We store dicts as '$dict'/2 internally, but when writing them out we always write them as actual dicts, even if using ~q or ~k. In the future we might add an option to the formatter to control this
+      word name = ARGOF(term, 0);
+      word values = ARGOF(term, 1);
+      format_term(sb, options, 1200, name);
+      // Then print out the dict as if we were printing with ignoreOps = false
+      append_string_no_copy(sb, "{", 1);
+      if (TAGOF(values) == COMPOUND_TAG)
+      {
+         word head = ARGOF(values, 0);
+         while (TAGOF(head) == COMPOUND_TAG && FUNCTOROF(head) == conjunctionFunctor)
+         {
+            // We have to print the arguments with precedence of 1000 or we risk getting the precedence of the , separating the terms wrong
+            format_term(sb, options, 1000, ARGOF(head,0));
+            append_string_no_copy(sb, ",", 1);
+            head = ARGOF(head, 1);
+         }
+         format_term(sb, options, 1000, head);
+      }
+      else if (values == curlyAtom)
+      {
+      }
+      else
+      {
+         // FIXME: This is a type error? like trying to print '$dict'(foo, bar)
+      }
+      append_string_no_copy(sb, "}", 1);
+      return 1;
+   }
    else if (TAGOF(term) == COMPOUND_TAG)
    {
       word functor = FUNCTOROF(term);

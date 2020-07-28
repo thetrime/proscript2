@@ -288,6 +288,18 @@ function _make_compound(functor, args)
     return w;
 }
 
+function _make_dict(tag, data)
+{
+    return __make_dict(tag, data);
+}
+
+function _dict_tag(dict)
+{
+    dict = _DEREF(dict);
+    return _DEREF(__dict_tag(dict));
+}
+
+
 function _save_state()
 {
     return __push_state();
@@ -302,6 +314,12 @@ function _hard_reset()
 {
     __hard_reset();
 }
+
+function _is_dict(w)
+{
+    return __is_dict(w);
+}
+
 
 function _do_test()
 {
@@ -578,15 +596,19 @@ module.exports = {make_atom: _make_atom,
                   make_integer: _make_integer,
                   make_float: _make_float,
                   make_blob: _make_blob,
+                  make_dict: _make_dict,
                   release_blob: _release_blob,
                   is_constant: _is_constant,
                   is_functor: _is_functor,
                   is_variable: _is_variable,
                   is_compound: _is_compound,
+                  is_dict: _is_dict,
                   is_integer: _is_integer,
                   is_float: _is_float,
                   is_atom: _is_atom,
                   is_blob: _is_blob,
+                  is_dict: _is_dict,
+                  dict_tag: _dict_tag,
                   atom_chars: _atom_chars,
                   get_blob: _get_blob,
                   term_functor: _term_functor,
@@ -635,3 +657,5 @@ Module.onRuntimeInitialized = function()
         onPrologReady(module.exports);
     prologReady = true;
 };
+
+

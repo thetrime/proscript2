@@ -179,6 +179,22 @@ void cons(word cell, void* result)
    *r = MAKE_VCOMPOUND(listFunctor, DEREF(cell), *r);
 }
 
+void curl_cons(word cell, void* result)
+{
+   word* r = (word*)result;
+   *r = MAKE_VCOMPOUND(conjunctionFunctor, DEREF(cell), *r);
+}
+
+word curly_from_list(List* list)
+{
+   if (list->length == 0)
+      return curlyAtom;
+   word result = list_pop(list);
+   list_apply_reverse(list, &result, curl_cons);
+   return MAKE_VCOMPOUND(curlyFunctor, result);
+ 
+}
+
 word term_from_list(List* list, word tail)
 {
    word result = tail;
