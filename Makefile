@@ -9,10 +9,6 @@ ifeq ($(STRICT_ISO),yes)
 	FLAGS+=-DSTRICT_ISO
 endif
 
-
-BASIC_FILESYSTEM=--embed-file src/builtin.pl
-TESTING_FILESYSTEM=--embed-file src/builtin.pl --embed-file test.pl --embed-file tests
-
 ifeq ($(ARCH),js)
 CC=emcc
 TARGET=proscript.js
@@ -24,6 +20,8 @@ LDFLAGS=$(OPT_LEVEL) --llvm-lto 1 -s ASM_JS=1 $(MEMORY_REQUIRED) -s ASSERTIONS=2
 BOOT=--pre-js $(BOOTFILE)
 BOOTFILE=src/pre.js
 CHECK=node test.js
+BASIC_FILESYSTEM=--embed-file src/builtin.pl
+TESTING_FILESYSTEM=--embed-file src/builtin.pl --embed-file test.pl --embed-file tests
 else
 CC=gcc
 TARGET=proscript
