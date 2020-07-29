@@ -598,7 +598,11 @@ int unify_or_undo(word a, word b)
    word* oldTR = TR;
    int rc = unify(a, b);
    if (!rc)
-      unwind_trail(oldTR);
+   {
+      word* newTR = TR;
+      TR = oldTR;
+      unwind_trail(newTR);
+   }
    return rc;
 }
 
