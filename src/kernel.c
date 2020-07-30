@@ -525,7 +525,7 @@ int SET_EXCEPTION(word w)
 
 void CLEAR_EXCEPTION()
 {
-   if (exception_local != NULL)
+   if (exception_local != NULL && TAGOF((word)exception_local) != CONSTANT_TAG)
       free(exception_local);
    exception_local = NULL;
    current_exception = 0;
