@@ -221,7 +221,7 @@ word intern_blob(const char* type, void* ptr, char* (*portray)(char*, void*, Opt
    return w;
 }
 
-void delete_constant(word w, int type)
+void delete_constant(word w)
 {
    int index = w >> CONSTANT_BITS;
    constant c = CTable[index];
