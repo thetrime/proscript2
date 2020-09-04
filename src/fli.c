@@ -363,13 +363,13 @@ void _free_options(Options* options)
 
 
 EMSCRIPTEN_KEEPALIVE
-Choicepoint _push_state()
+State _push_state()
 {
    return push_state();
 }
 
 EMSCRIPTEN_KEEPALIVE
-void _restore_state(Choicepoint w)
+void _restore_state(State w)
 {
    restore_state(w);
 }

@@ -954,26 +954,29 @@ void create_choicepoint(unsigned char* address, Clause clause, int type)
 }
 
 
-Choicepoint push_state()
+State push_state()
 {
    //printf("Pushing state. CP is %p, PC is %p, FR is %p, and frame locality is %d, ", CP, PC, FR, FR->is_local);
    create_choicepoint(PC, FR->clause, Body);
    assert(FR->is_local >= 0 && FR->is_local <= 1);
-   Choicepoint state = CP;
+   State s = malloc(sizeof(state));
+   s->choicepoint = CP;
+   s->constant_state = save_constant_state();
    //printf("you can get back here by restoring %p\n", state);
    CP = 0;
    //printf("State is now %p\n", state);
-   return state;
+   return s;
 }
 
-void restore_state(Choicepoint state)
+void restore_state(State state)
 {
    //printf("Popping state from %p\n", state);
    //printf("Restoring state to %p from the current CP of %p\n", state, CP);
    //print_choices();
    // First though, we must cut any choicepoints that might be lurking on the stack
    cut_to(0);
-   CP = state;
+   CP = state->choicepoint;
+   restore_constant_state(state->constant_state);
    //printf("Restoring state. from %p. CP is %p, PC is %p, FR is %p, and frame locality is %d\n", CP, CP->CP, CP->PC, CP->FR, CP->FR->is_local);
    apply_choicepoint(CP);
    assert(FR->is_local >= 0 && FR->is_local <= 1);

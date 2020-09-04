@@ -10,13 +10,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <assert.h>
 #ifdef EMSCRIPTEN
 #include <emscripten.h>
 #else
 #define EMSCRIPTEN_KEEPALIVE
 #endif
 
-Choicepoint qxz = NULL;
+State qxz = NULL;
 
 void query_complete3(RC result)
 {
@@ -73,6 +74,7 @@ void do_test(int argc, char** argv)
 {
    int do_inria = 0;
    int do_yield = 0;
+   int do_agc = 0;
    int explicit_test = 0;
    for (int i = 1; i < argc; i++)
    {
@@ -80,6 +82,8 @@ void do_test(int argc, char** argv)
          do_inria = 1;
       else if (strcmp(argv[i], "--yield") == 0)
          do_yield = 1;
+      else if (strcmp(argv[i], "--agc") == 0)
+         do_agc = 1;
       else
       {
          printf("Consulting %s\n", argv[i]);
@@ -94,6 +98,10 @@ void do_test(int argc, char** argv)
    {
       consult_file("tests/inriasuite/inriasuite.pl");
       chdir("tests/inriasuite");
+   }
+   else if (do_agc)
+   {
+      consult_file("tests/agc.pl");
    }
    else if (!explicit_test)
    {
@@ -113,7 +121,7 @@ void do_test(int argc, char** argv)
       printf("yield pointer is %p\n", cb1);
 
       // Now start a second goal that also yields
-      Choicepoint saved = push_state();
+      State saved = push_state();
 
       word ptr2 = MAKE_VAR();
       word goal2 = MAKE_VCOMPOUND(MAKE_FUNCTOR(MAKE_ATOM("yield_test"), 2), MAKE_ATOM("second_goal"), ptr2);
@@ -126,6 +134,23 @@ void do_test(int argc, char** argv)
       restore_state(saved);
 
       resume_yield(SUCCESS, cb1);
+   }
+   else if (do_agc)
+   {
+      int initial_atoms = save_constant_state()-1;
+      printf("Initial atom count: %d\n", initial_atoms);
+      for (int i = 0; i < 1000; i++)
+      {
+         State saved = push_state();
+         word w = MAKE_ATOM("run_agc_test");
+         start = clock();
+         execute_query(w, query_complete);
+         printf("Atoms after test: %d\n", save_constant_state()-1);
+         restore_state(saved);
+         printf("Atoms after restore: %d\n", save_constant_state()-1);
+         assert(initial_atoms == save_constant_state()-1);
+      }
+      assert(initial_atoms == save_constant_state()-1);
    }
    else
    {

@@ -146,6 +146,14 @@ struct choicepoint
 typedef struct choicepoint choicepoint;
 typedef choicepoint* Choicepoint;
 
+struct state
+{
+   Choicepoint choicepoint;
+   int constant_state;
+};
+typedef struct state state;
+typedef state* State;
+
 struct frame
 {
    struct frame* parent;

@@ -143,6 +143,8 @@ int allocate_ctable_index(int type)
       int index = next_free_index;
       next_free_index = CTable[index].data.tombstone_data;
       //printf("Reusing index %d for a %d. Next free is %d\n", index, type, next_free_index);
+      if (CNext < index+1)
+         CNext = index+1;
       return index;
    }
    else if (CTableSize == CNext)
@@ -187,8 +189,6 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
    }
    if (isNew != NULL)
       *isNew = 1;
-//   if (type == INTEGER_TYPE)
-//      printf("Interning %ld as %08lx (%ld)\n", *((long*)key1), w, (long)created);
    bihashmap_put(map[type], hashcode, created, w);
    return w;
 }
@@ -225,15 +225,75 @@ void delete_constant(word w)
 {
    int index = w >> CONSTANT_BITS;
    constant c = CTable[index];
+   switch(c.type)
+   {
+      case ATOM_TYPE:
+      {
+         Atom a = c.data.atom_data;
+         bihashmap_remove(map[ATOM_TYPE], uint32_hash((unsigned char*)a->data, a->length), a->data, a->length);
+         free(a->data);
+         free(a);
+         break;
+      }
+      case FUNCTOR_TYPE:
+      {
+         Functor f = c.data.functor_data;
+         Atom name = getConstant(f->name, NULL).atom_data;
+         bihashmap_remove(map[FUNCTOR_TYPE], uint32_hash((unsigned char*)name->data, name->length) + f->arity, &f->name, f->arity);
+         free(f);
+      }
+      case INTEGER_TYPE:
+      {
+         long i = c.data.integer_data;
+         bihashmap_remove(map[INTEGER_TYPE], long_hash(i), &i, sizeof(long));
+         break;
+      }
+      case FLOAT_TYPE:
+      {
+         Float f = c.data.float_data;
+         bihashmap_remove(map[FLOAT_TYPE], hash64(*((uint64_t*)&f->data)), &f->data, sizeof(double));
+         free(f);
+      }
+      case BIGINTEGER_TYPE:
+      {
+         BigInteger bi = c.data.biginteger_data;
+         bihashmap_remove(map[BIGINTEGER_TYPE], hashmpz(bi), bi, 77);
+         free(bi);
+      }
+      case RATIONAL_TYPE:
+      {
+         Rational r = c.data.rational_data;
+         bihashmap_remove(map[RATIONAL_TYPE], hashmpq(r), r, 0);
+         free(r);
+      }
+      case BLOB_TYPE:
+         // We do not have a bihashmap for blobs since they never unify
+         freeBlob(c.data.blob_data);
+         break;
+      default:
+         assert(0);
+   }
+   // Now delete the reference in the table
    CTable[index].type = TOMBSTONE_TYPE;
    CTable[index].data.tombstone_data = next_free_index;
    next_free_index = index;
-   switch(c.type)
-   {
-      case BLOB_TYPE: freeBlob(c.data.blob_data); break;
-      default: // Currently only freeing blobs is supported
-         assert(0);
-   }
-   // FIXME: Also delete from the appropriate map, assuming type is not BLOB_TYPE
+
 }
 
+int save_constant_state()
+{
+   return CNext;
+}
+
+void restore_constant_state(int to)
+{
+   // We have to free these in reverse order, since creating a functor involves first creating an atom, and then a functor referencing it. If we free
+   // them from CNext->to rather than to->CNext, then the atom gets freed first and the functor contains a dangling reference
+   for (int i = CNext-1; i >=to; i--)
+   {
+      if (CTable[i].type == TOMBSTONE_TYPE)
+         continue;
+      delete_constant((word)((i << CONSTANT_BITS) | CONSTANT_TAG));
+   }
+   CNext = to;
+}
