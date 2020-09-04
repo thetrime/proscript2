@@ -720,7 +720,7 @@ void build_asm_context(void* c, instruction_t* i)
    {
       if (whashmap_get(context->constants, i->constant, &tmp) == MAP_MISSING)
       {
-         whashmap_put(context->constants, i->constant, (void*)context->constant_count);
+         whashmap_put(context->constants, i->constant, (void*)(intptr_t)context->constant_count);
          context->constant_count++;
       }
    }
