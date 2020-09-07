@@ -254,8 +254,8 @@ void delete_constant(int index)
             printf("Deleting functor atom %lu: ", f->name); PORTRAY(f->name); printf("\n");
             delete_constant(f->name >> CONSTANT_BITS);
          }
-
          free(f);
+         break;
       }
       case INTEGER_TYPE:
       {
@@ -268,18 +268,21 @@ void delete_constant(int index)
          Float f = c.data.float_data;
          bihashmap_remove(map[FLOAT_TYPE], hash64(*((uint64_t*)&f->data)), &f->data, sizeof(double));
          free(f);
+         break;
       }
       case BIGINTEGER_TYPE:
       {
          BigInteger bi = c.data.biginteger_data;
-         bihashmap_remove(map[BIGINTEGER_TYPE], hashmpz(bi), bi, 77);
+         bihashmap_remove(map[BIGINTEGER_TYPE], hashmpz(bi->data), bi->data, 77);
          free(bi);
+         break;
       }
       case RATIONAL_TYPE:
       {
          Rational r = c.data.rational_data;
-         bihashmap_remove(map[RATIONAL_TYPE], hashmpq(r), r, 0);
+         bihashmap_remove(map[RATIONAL_TYPE], hashmpq(r->data), r->data, 0);
          free(r);
+         break;
       }
       case BLOB_TYPE:
          // We do not have a bihashmap for blobs since they never unify
