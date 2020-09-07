@@ -266,6 +266,7 @@ is_list([]):- !.
 is_list([_|B]):- is_list(B).
 
 
+:-meta_predicate(forall(0, 0)).
 forall(A, B):-
         \+((A, \+B)).
 
