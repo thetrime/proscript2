@@ -32,7 +32,7 @@ BOOT=main.o
 CHECK=./proscript
 endif
 
-OBJECTS=kernel.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o format.o arithmetic.o options.o char_conversion.o term_writer.o record.o string_builder.o fli.o char_buffer.o global.o
+OBJECTS=kernel.o hash.o parser.o constants.o ctable.o stream.o hashmap.o test.o compiler.o bihashmap.o crc.o list.o operators.o prolog_flag.o errors.o whashmap.o module.o init.o foreign.o format.o arithmetic.o options.o char_conversion.o term_writer.o record.o string_builder.o fli.o char_buffer.o global.o
 
 $(TARGET):	$(OBJECTS) $(BOOTFILE) $(GMP)
 		$(CC) $(OBJECTS) $(BOOT) $(BASIC_FILESYSTEM) $(LDFLAGS) -o $@

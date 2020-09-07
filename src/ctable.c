@@ -1,6 +1,7 @@
 #include "global.h"
 #include "types.h"
 #include "kernel.h"
+#include "hash.h"
 #include "ctable.h"
 #include "constants.h"
 #include "options.h"
@@ -250,7 +251,7 @@ void delete_constant(int index)
          // Step E of AGC
          if (CTable[f->name >> CONSTANT_BITS].references == 0)
          {
-            printf("Deleting functor atom %d: ", f->name); PORTRAY(f->name); printf("\n");
+            printf("Deleting functor atom %lu: ", f->name); PORTRAY(f->name); printf("\n");
             delete_constant(f->name >> CONSTANT_BITS);
          }
 

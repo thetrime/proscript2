@@ -1,4 +1,5 @@
 #include "types.h"
+#include "ctable.h"
 
 #undef ATOM
 #undef FUNCTOR
@@ -9,3 +10,4 @@
 #undef ATOM
 
 void initialize_constants();
+

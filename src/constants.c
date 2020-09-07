@@ -1,6 +1,7 @@
 #include "global.h"
 #include "types.h"
 #include "kernel.h"
+#include "ctable.h"
 
 #undef ATOM
 #undef FUNCTOR
