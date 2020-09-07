@@ -68,7 +68,7 @@ FUNCTOR(max, "max", 2);
 FUNCTOR(random, "random", 1);
 FUNCTOR(dict, "$dict", 2);
 FUNCTOR(hyphenPair, "-", 2)
-FUNCTOR(metaCall, "<meta-call>", 0)
+FUNCTOR(metaCall, "<meta-call>", 1)
 FUNCTOR(system, "<system>", 1)
 FUNCTOR(top, "<top>", 1)
 FUNCTOR(query, "<query>", 1)
