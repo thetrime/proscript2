@@ -17,6 +17,8 @@ cdata getConstant(word t, int* type);
 void deleteConstant(word t, int* type);
 int getConstantType(word t);
 void ctable_check();
-void delete_constant(word w);
-int save_constant_state();
-void restore_constant_state(int to);
+int get_constant_count();
+
+word acquire_constant(word w);
+void release_constant(word w);
+void garbage_collect_constants();

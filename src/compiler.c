@@ -736,6 +736,8 @@ void _assemble(void *p, instruction_t* i)
       assert(whashmap_get(context->constants, i->constant, (void*)&index) == MAP_OK);
       assert(index < (1 << 16) && "Too many constants in clause!");
       context->clause->constants[index] = i->constant;
+      //printf("compilation: ");
+      //acquire_constant(i->constant);
       context->clause->code[context->codep++] = (index >> 8) & 0xff;
       context->clause->code[context->codep++] = (index >> 0) & 0xff;
    }
@@ -893,6 +895,7 @@ Query compile_query(word term)
 void free_query(Query q)
 {
    free(q->variables);
+//   free_clause(q->clause); AGC: Why can we not free this?
    free(q);
 }
 

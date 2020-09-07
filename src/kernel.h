@@ -153,6 +153,7 @@ void resume_yield(RC status, ExecutionCallback y);
 extern Stream current_input;
 extern Stream current_output;
 extern word HEAP[];
+extern word* H;
 #endif
 
 word copy_local_with_extra_space(word t, word** local, int extra);

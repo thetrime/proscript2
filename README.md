@@ -42,9 +42,11 @@ Constants are accessed via the interface in ctable.h. They're stored in an array
 
 Each constant should only appear once in the table. To facilitate this, there is a structure called a bihashmap that can look up an entry based on a 3-part key, where the first part is a void* and the second an int, and the third a hashcode. It also uses a customizable comparison function (which differs for each constant type) to confirm whether a hash collision is indeed a match. (In fact we need two such comparison functions to enable us to rehash the data easily. The 3-part key is designed to minimize object churn - if we already have the atom in the table, it's a waste of effort to create a new Atom object, duplicate the atom data, pass it in to the hashtable for lookup, determine we already have it, then free all the structures we just created. This is especially true for very large atoms, since atom lookup is a frequent operation in the foreign interface, and it would make using constants prohibitively slow).
 
-Blobs are not stored in the bihashmap, and are currently the only kind of constants that can ever be released. It's assumed that if you call MAKE_BLOB() that you know this is a new blob; creating two blobs for the same underlying object means that they won't unify, even though they point to the same thing.
+Note that creating two blobs for the same underlying object means that they won't unify, even though they point to the same thing.
 
-Currently there is no constant garbage collection. Augmenting each constant with a reference count could help, but there are a LOT of places that we would have to make sure that we cleaned them up from (aside from the obvious places like predicate definitions and stack frames, there are also local copies of structures and foreign code)
+Constants can be cleaned up by running garbage_collect_constants(). This will free constants which are not accessible to the engine anymore. Constants referred to in local copies of terms or on the global heap will not be collected. If you call MAKE_ATOM() and then garbage_collect_constants() the atom should be freed, and your reference will be invalid. Attemtping to use such a reference will result in undefined behaviour. If you need to hold on to a constant for longer, you can call acquire_constant(word), but rememebr to call release_constant(word) when you are finished with it, or it will never be cleaned up.
+
+When creating a blob, it is implied that it is aquired (at least, for now). You need to explicitly release_blob() when you are done with it. (This may change in a later version!)
 
 Local Terms
 -----------
@@ -66,8 +68,6 @@ Foreign language Interface (FLI)
 There are two FLIs in Proscript. C and Javascript (the latter is only available if transpiling with emscripten). You can install foreign C predicates using define_foreign_predicate_c(), indicating in the flags whether the predicate is deterministic or not. If nondeterministic, you must pass a function pointer taking the same number of (word) arguments as the functor you are defining a predicate for. If nondeterministic, there will be one extra word passed in at the end. This will be a pointer to whatever word was created when make_foreign_choicepoint() was called, or if this is the first call into the predicate, the argument will be (word)0. Note that it is not (yet) possible to get notification of when your predicate has been cut, so it is not a good idea to store a pointer to an allocated object in the backtrack pointer as you may not get a chance to clean it up.
 
 There's an equivalent define_foreign_predicate_js to define foreign Javascript predicates, which are /always/ nondeterministic. The backtrack pointer is accessible as `this.backtrack`.
-
-
 
 
 

@@ -14,8 +14,8 @@ void initialize_constants()
 {
 #undef ATOM
 #undef FUNCTOR
-#define FUNCTOR(a,b,c) a##Functor = MAKE_FUNCTOR(MAKE_ATOM(b), c);
-#define ATOM(a,b) a##Atom = MAKE_ATOM(b);
+#define FUNCTOR(a,b,c) a##Functor = acquire_constant(MAKE_FUNCTOR(MAKE_ATOM(b), c));
+#define ATOM(a,b) a##Atom = acquire_constant(MAKE_ATOM(b));
 #include "constants"
 #undef FUNCTOR
 #undef ATOM

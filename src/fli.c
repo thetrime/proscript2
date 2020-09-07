@@ -258,7 +258,7 @@ int _release_blob(char* type, word w)
       assert(0);
    }
    int i = (int)b->ptr;
-   delete_constant(w);
+   release_constant(w);
    return i;
 }
 

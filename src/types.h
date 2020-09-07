@@ -110,6 +110,7 @@ struct constant
 {
    int type;
    cdata data;
+   int references;
 };
 typedef struct constant constant;
 typedef constant* Constant;
@@ -149,7 +150,6 @@ typedef choicepoint* Choicepoint;
 struct state
 {
    Choicepoint choicepoint;
-   int constant_state;
 };
 typedef struct state state;
 typedef state* State;

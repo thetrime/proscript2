@@ -29,7 +29,14 @@ void free_clause(Clause c)
    if (c->code != NULL)
       free(c->code);
    if (c->constants != NULL)
+   {
+      for (int i = 0; i < c->constant_size; i++)
+      {
+         // FIXME: AGC: Not actually freeing the constant here
+         //printf("freeing clause, so releasing constant: "); release_constant(c->constants[i]);
+      }
       free(c->constants);
+   }
    free(c);
 }
 

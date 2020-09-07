@@ -836,6 +836,7 @@ void make_local_(word t, List* variables, word* heap, int* ptr, int size, word* 
       switch(TAGOF(t))
       {
          case CONSTANT_TAG:
+            //printf("make_local: "); acquire_constant(t);
          case POINTER_TAG:
             *target = t;
             return;
@@ -961,7 +962,6 @@ State push_state()
    assert(FR->is_local >= 0 && FR->is_local <= 1);
    State s = malloc(sizeof(state));
    s->choicepoint = CP;
-   s->constant_state = save_constant_state();
    //printf("you can get back here by restoring %p\n", state);
    CP = 0;
    //printf("State is now %p\n", state);
@@ -976,7 +976,6 @@ void restore_state(State state)
    // First though, we must cut any choicepoints that might be lurking on the stack
    cut_to(0);
    CP = state->choicepoint;
-   restore_constant_state(state->constant_state);
    //printf("Restoring state. from %p. CP is %p, PC is %p, FR is %p, and frame locality is %d\n", CP, CP->CP, CP->PC, CP->FR, CP->FR->is_local);
    apply_choicepoint(CP);
    assert(FR->is_local >= 0 && FR->is_local <= 1);
@@ -2138,6 +2137,7 @@ void consult_stream(Stream s)
    currentModule = userModule;
    // Restore H and SP
    H = savedH;
+   // AGC: release any constants between H and savedH
    SP = savedSP;
 
 }

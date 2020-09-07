@@ -4,7 +4,7 @@ run_agc_test:-
         Low is random(1000000),
         High is Low + T,
         forall(between(Low, High, X),
-               writeln(X)).
+               X \== 0).
 
 foo(X):-
         bar(x(X)).
@@ -65,5 +65,8 @@ When we make a local term, we aqcuire all the constants in the term.
 When we move H down, we can release all constants directly on the heap between H and the new value.
 We can release all constants in a clause when the clause is deleted
 We can release all constants in a local term when it is freed
+
+Notes:
+   * Atoms are also inside functors. We probably want to acquire/release inside ctable when making/freeing functors
 
 */
