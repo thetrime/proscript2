@@ -176,7 +176,8 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
    int index = allocate_ctable_index(type);
    w = (word)((index << CONSTANT_BITS) | CONSTANT_TAG);
    CTable[index].type = type;
-   CTable[index].references = 1;
+   CTable[index].references = 0;
+   CTable[index].marked = 0;
    void* created = create(key1, key2);
    switch(type)
    {
@@ -221,6 +222,7 @@ word intern_blob(const char* type, void* ptr, char* (*portray)(char*, void*, Opt
    Blob b = allocBlob(type, ptr, portray);
    CTable[index].type = BLOB_TYPE;
    CTable[index].references = 2;
+   CTable[index].marked = 0;
    CTable[index].data.blob_data = b;
    constant_count++;
    return w;
@@ -245,6 +247,13 @@ void delete_constant(int index)
          Atom name = getConstant(f->name, NULL).atom_data;
          bihashmap_remove(map[FUNCTOR_TYPE], uint32_hash((unsigned char*)name->data, name->length) + f->arity, &f->name, f->arity);
          release_constant(f->name);
+         // Step E of AGC
+         if (CTable[f->name >> CONSTANT_BITS].references == 0)
+         {
+            printf("Deleting functor atom %d: ", f->name); PORTRAY(f->name); printf("\n");
+            delete_constant(f->name >> CONSTANT_BITS);
+         }
+
          free(f);
       }
       case INTEGER_TYPE:
@@ -290,7 +299,7 @@ word acquire_constant(word w)
 {
    assert(TAGOF(w) == CONSTANT_TAG);
    CTable[w >> CONSTANT_BITS].references++;
-   printf("Acquiring constant "); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
+   //printf("Acquiring constant %d: ", w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
    // This return value makes it easier to chain things together. You can do something like
    //   return acquire_constant(MAKE_ATOM("foo"))
    return w;
@@ -300,13 +309,7 @@ void release_constant(word w)
 {
    assert(TAGOF(w) == CONSTANT_TAG);
    CTable[w >> CONSTANT_BITS].references--;
-   printf("Releasing constant "); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
-   // Step E of AGC
-   if (CTable[w >> CONSTANT_BITS].references == 0)
-   {
-      printf("Deleting constant "); PORTRAY(w); printf("\n");
-      delete_constant(w >> CONSTANT_BITS);
-   }
+   //printf("Releasing constant %d, ", w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
 }
 
 int get_constant_count()
@@ -326,11 +329,15 @@ void garbage_collect_constants()
      5) Whenever a local term is freed, constants in the local term has its reference count reduced by 1
      6) Whenever a functor is freed, the atom representing its name has its reference count reduced by 1
      7) garbage_collect_constants() can be called at any time to collect unused constants. It proceeds as follows:
-        A) Seeep through all constants in ctable. For all non-tombstone references, reduce their reference count by 1.
-        B) Sweep through ARGS, incrementing the references of all constants found by 1. Do not follow pointers.
-        C) Sweep from HEAP to H, incrementing the references of all constants found by 1. Do not follow pointers.
-        D) Sweep through all constants in ctable. For all non-tombstone references with a reference count of 0, delete the constant.
-        E) *Except* in the initial sweep in step A, whenever we reduce the reference count of a constant, if it becomes zero, we can free it.
+        A) Seeep through all constants in ctable. For all non-tombstone references with a reference_count of 0, set them to 'marked'
+        B) Sweep through ARGS, unmarking any constants found. Do not follow pointers.
+        C) Sweep from HEAP to H, unmarking any constants found. Do not follow pointers.
+        D) Sweep through all constants in ctable. For all constants still marked, delete the constant.
+        E) If deleting a functor, release the atom representing its name. If it reaches zero, delete it too (this saves a second sweep)
+
+
+    This doesnt work. If we have an externally locked atom, like something from constants.c, then we start out with refs=2, but we never see it on the stack, so
+    we slowly eat away at the refs until we (prematurely) free it.
 
     Because functors increment the reference count of their atom, we will not try and free an atom that is used by a functor until after the functor itself is freed.
     It might be simpler to just wait until the next pass to clean these atoms up, but I think this approach is still safe.
@@ -339,28 +346,46 @@ void garbage_collect_constants()
    // Step A
    for (int i = 0; i < CNext; i++)
    {
-      if (CTable[i].type != TOMBSTONE_TYPE)
-         CTable[i].references--;
+      if (CTable[i].type != TOMBSTONE_TYPE && CTable[i].references == 0)
+      {
+         //printf("Marking possible garbage constant %d: ", i);  PORTRAY((word)((i << CONSTANT_BITS) | CONSTANT_TAG)); printf(" (refs=%d)\n", CTable[i].references);
+         CTable[i].marked = 1;
+      }
    }
 
-   // Step B (FIXME: currently skipped. I dont know how to determine which ARGS slots are in use)
+   // Step B. Actually we dont really need to do this. At any point we might call garbage_collect_constants(), ARGP should equal ARGS, and the argument stack should
+   // therefore be empty
+   assert_no_args();
 
    // Step C
    for (word* i = HEAP; i < H; i++)
    {
       if (TAGOF(*i) == CONSTANT_TAG)
-         acquire_constant(*i);
+      {
+         //printf("constant %d is NOT garbage: ", i);  PORTRAY((word)((*i << CONSTANT_BITS) | CONSTANT_TAG)); printf(" (refs=%d)\n", CTable[*i >> CONSTANT_BITS].references);
+         CTable[*i >> CONSTANT_BITS].marked = 0;
+      }
    }
 
    // Step D
    for (int i = 0; i < CNext; i++)
    {
-      if (CTable[i].type != TOMBSTONE_TYPE && CTable[i].references == 0)
+      if (CTable[i].type != TOMBSTONE_TYPE && CTable[i].marked)
       {
-         printf("Constant %d is garbage: \n"); PORTRAY((word)((i << CONSTANT_BITS) | CONSTANT_TAG));
+         //printf("Constant %d is garbage: ", i); PORTRAY((word)((i << CONSTANT_BITS) | CONSTANT_TAG)); printf("\n");
          delete_constant(i);
       }
    }
+
+
+/* Problem:
+   We only compile actual clauses on demand. This means that when we load a file, the parser will generates constants with reference_count = 0. If the predicates are never
+   called, and the clauses are never compiled, then when do AGC, we will free those references to functors and atoms.
+
+   We could analyse them at parse-time, but how would we know which ones need to be freed?
+*/
+
+
 
 
 }

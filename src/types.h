@@ -111,6 +111,7 @@ struct constant
    int type;
    cdata data;
    int references;
+   char marked;
 };
 typedef struct constant constant;
 typedef constant* Constant;

@@ -118,6 +118,11 @@ void print_choices()
 
 }
 
+void assert_no_args()
+{
+   assert(ARGP == ARGS);
+}
+
 void print_instruction();
 void fatal(char* string)
 {
@@ -407,7 +412,10 @@ EMSCRIPTEN_KEEPALIVE
 word MAKE_FUNCTOR(word name, int arity)
 {
    Atom n = getConstant(name, NULL).atom_data;
-   word w =  intern(FUNCTOR_TYPE, uint32_hash((unsigned char*)n->data, n->length) + arity, &name, arity, allocFunctor, NULL);
+   int is_new;
+   word w =  intern(FUNCTOR_TYPE, uint32_hash((unsigned char*)n->data, n->length) + arity, &name, arity, allocFunctor, &is_new);
+   if (is_new)
+      acquire_constant(name);
    return w;
 }
 
@@ -1083,7 +1091,7 @@ Frame allocFrame(Frame parent)
 
 void initialize_kernel()
 {
-   userModule = create_module(MAKE_ATOM("user"));
+   userModule = create_module(userAtom);
    currentModule = userModule;
    current_input = nullStream();
    current_output = consoleOuputStream();
@@ -1094,7 +1102,7 @@ void initialize_kernel()
    // Allocate a dummy-frame at the very top of the stack. This allows us to call push_state() if desired even when there is
    // no current frame.
    FR = allocFrame(NULL);
-   FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<system>"), 1);
+   FR->functor = systemFunctor;
 }
 
 void hard_reset()
@@ -1451,7 +1459,7 @@ RC execute(int resume)
             NFR = (Frame)SP;
             assert(NFR != FR);
             NFR->parent = FR;
-            NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<meta-call>"), 1);
+            NFR->functor = metaCallFunctor;
             NFR->clause = query->clause;
             //printf("Allocated frame %p with local clause %p\n", NFR, NFR->clause);
             NFR->contextModule = NULL; // CHECKME: Is this right?
@@ -1919,13 +1927,13 @@ RC prepare_query(word goal)
    }
 
    FR = allocFrame(NULL);
-   FR->functor = MAKE_FUNCTOR(MAKE_ATOM("<top>"), 1);
+   FR->functor = topFunctor;
    FR->returnPC = PC;
    FR->clause = &exitQueryClause;
    FR->choicepoint = CP;
 
    NFR = allocFrame(FR);
-   NFR->functor = MAKE_FUNCTOR(MAKE_ATOM("<query>"), 1);
+   NFR->functor = queryFunctor;
    NFR->returnPC = FR->clause->code;
    NFR->is_local = 1;
    NFR->clause = query->clause;
@@ -2057,7 +2065,7 @@ void consult_stream(Stream s)
                if (oldModule == currentModule)
                   currentModule = userModule;
                if (oldModule == userModule)
-                  userModule = create_module(MAKE_ATOM("user"));
+                  userModule = create_module(userAtom);
             }
             currentModule = create_module(ARGOF(directive, 0));
          }

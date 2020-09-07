@@ -139,10 +139,10 @@ void do_test(int argc, char** argv)
    {
       int initial_atoms = get_constant_count();
       printf("Initial atom count: %d\n", initial_atoms);
-      for (int i = 0; i < 10; i++)
+      word w = acquire_constant(MAKE_ATOM("run_agc_test"));
+      for (int i = 0; i < 100; i++)
       {
          State saved = push_state();
-         word w = MAKE_ATOM("run_agc_test");
          start = clock();
          execute_query(w, query_complete);
          printf("Atoms after test %d: %d\n", i, get_constant_count());
@@ -150,6 +150,7 @@ void do_test(int argc, char** argv)
          garbage_collect_constants();
          printf("Atoms after AGC: %d\n", get_constant_count());
       }
+      printf("Initial atoms: %d, atoms now: %d\n", initial_atoms, get_constant_count());
    }
    else
    {

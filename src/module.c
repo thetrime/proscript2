@@ -30,11 +30,14 @@ void free_clause(Clause c)
       free(c->code);
    if (c->constants != NULL)
    {
+      /*
+        printf("Freeing clause, which will release %d constants\n", c->constant_size);
       for (int i = 0; i < c->constant_size; i++)
       {
-         // FIXME: AGC: Not actually freeing the constant here
-         //printf("freeing clause, so releasing constant: "); release_constant(c->constants[i]);
+         printf("   Constant %d: ", i); release_constant(c->constants[i]);
       }
+      printf("Done\n");
+      */
       free(c->constants);
    }
    free(c);
@@ -68,6 +71,7 @@ int define_foreign_predicate_c(Module module, word functor, int(*func)(), int fl
    p->meta = NULL;
    p->flags = PREDICATE_FOREIGN;
    p->firstClause = foreign_predicate_c(func, getConstant(functor, NULL).functor_data->arity, flags);
+   acquire_constant(functor);
    whashmap_put(module->predicates, functor, p);
    return 1;
 }
@@ -86,6 +90,7 @@ int define_foreign_predicate_js(Module module, word functor, word func)
    p->flags = PREDICATE_FOREIGN;
    Functor f = getConstant(functor, NULL).functor_data;
    p->firstClause = foreign_predicate_js(func, f->arity, NON_DETERMINISTIC);
+   acquire_constant(functor);
    whashmap_put(module->predicates, functor, p);
    return 1;
 }
@@ -151,6 +156,7 @@ int set_meta(Module module, word functor, char* meta)
       p->flags = 0;
       p->meta = meta;
       p->firstClause = NULL;
+      acquire_constant(functor);
       whashmap_put(module->predicates, functor, p);
    }
    return 1;
@@ -170,14 +176,35 @@ int set_dynamic(Module module, word functor)
       p->flags = PREDICATE_DYNAMIC;
       p->meta = NULL;
       p->firstClause = NULL;
+      acquire_constant(functor);
       whashmap_put(module->predicates, functor, p);
    }
    return 1;
 }
 
+void acquire_clause_constants(word clause)
+{
+   //printf("Acquiring clause constants: "); PORTRAY(clause); printf("\n");
+   clause = DEREF(clause);
+   if (TAGOF(clause) == CONSTANT_TAG)
+   {
+      acquire_constant(clause);
+   }
+   else if (TAGOF(clause) == COMPOUND_TAG)
+   {
+      acquire_constant(FUNCTOROF(clause));
+      Functor functor = getConstant(FUNCTOROF(clause), NULL).functor_data;
+      for (int i = 0; i < functor->arity; i++)
+      {
+         acquire_clause_constants(ARGOF(clause, i));
+      }
+   }
+}
+
 void add_clause(Module module, word functor, word clause)
 {
    Predicate p;
+   //printf("Adding clause to "); PORTRAY(functor); printf("\n");
    // See asserta for an explanaton of what is going on here.
    word* local;
    copy_local(clause, &local);
@@ -188,6 +215,8 @@ void add_clause(Module module, word functor, word clause)
    // in the predicate. To fix this, we now keep a local copy of every clause. This means
    // that if you ever want to unconsult (or reconsult) a file, you must remember to free
    // the old references or you'll leak memory.
+
+   acquire_clause_constants(clause);
 
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
@@ -207,6 +236,7 @@ void add_clause(Module module, word functor, word clause)
       p->flags = 0;
       p->meta = NULL;
       p->firstClause = NULL;
+      acquire_constant(functor);
       whashmap_put(module->predicates, functor, p);
    }
 }
@@ -250,6 +280,7 @@ int asserta(Module module, word clause)
       cell = list_unshift(&p->clauses, clause);
       p->meta = NULL;
       p->firstClause = NULL;
+      acquire_constant(functor);
       whashmap_put(module->predicates, functor, p);
    }
    free_clauses(p->firstClause);
@@ -295,6 +326,7 @@ int assertz(Module module, word clause)
       cell = list_append(&p->clauses, clause);
       p->meta = NULL;
       p->firstClause = NULL;
+      acquire_constant(functor);
       whashmap_put(module->predicates, functor, p);
    }
    free_clauses(p->firstClause);

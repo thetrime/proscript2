@@ -68,6 +68,10 @@ FUNCTOR(max, "max", 2);
 FUNCTOR(random, "random", 1);
 FUNCTOR(dict, "$dict", 2);
 FUNCTOR(hyphenPair, "-", 2)
+FUNCTOR(metaCall, "<meta-call>", 0)
+FUNCTOR(system, "<system>", 1)
+FUNCTOR(top, "<top>", 1)
+FUNCTOR(query, "<query>", 1)
 
 ATOM(instantiationError, "instantiation_error")
 ATOM(cut, "!")
@@ -170,3 +174,4 @@ ATOM(sourceSink, "source_sink")
 ATOM(open, "open")
 ATOM(dict, "dict")
 ATOM(dictPair, "dict_pair")
+ATOM(user, "user");

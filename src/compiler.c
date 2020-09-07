@@ -426,7 +426,8 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       cdata c = getConstant(term, &type);
       if (type == ATOM_TYPE)
       {
-         size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, MAKE_FUNCTOR(term, 0)));
+         // AGC: FIXME: We need to acquire the /0 functor here, but where do we release it?
+         size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, acquire_constant(MAKE_FUNCTOR(term, 0))));
       }
       else
       {
@@ -736,8 +737,7 @@ void _assemble(void *p, instruction_t* i)
       assert(whashmap_get(context->constants, i->constant, (void*)&index) == MAP_OK);
       assert(index < (1 << 16) && "Too many constants in clause!");
       context->clause->constants[index] = i->constant;
-      //printf("compilation: ");
-      //acquire_constant(i->constant);
+      //printf("compilation: "); acquire_constant(i->constant);
       context->clause->code[context->codep++] = (index >> 8) & 0xff;
       context->clause->code[context->codep++] = (index >> 0) & 0xff;
    }
@@ -809,7 +809,7 @@ Clause assemble(instruction_list_t* instructions)
 
 int compile_clause(word term, instruction_list_t* instructions, int* slot_count)
 {
-         //printf("Compiling "); PORTRAY(term); printf("\n");
+   //printf("Compiling "); PORTRAY(term); printf("\n");
    int arg_slots = 0; // Number of slots that will be used for passing the args of the predicate
    wmap_t variables = whashmap_new();
    if (TAGOF(term) == COMPOUND_TAG && FUNCTOROF(term) == clauseFunctor)
@@ -869,6 +869,7 @@ void set_variables(word variable, void* query)
 
 Query compile_query(word term)
 {
+   //printf("Compiling query: "); PORTRAY(term); printf("\n");
    instruction_list_t instructions;
    List variables;
    init_list(&variables);
