@@ -4,6 +4,7 @@
 #include "errors.h"
 #include "assert.h"
 #include "constants.h"
+#include "local.h"
 
 void init_list(List* list)
 {
@@ -59,7 +60,7 @@ word list_delete_first(List* list, word w)
    {
       // FIXME: This actually generates trailing which we dont really need
       word* local;
-      word copy = copy_local(cell->data, &local);
+      word copy = copy_local_with_extra_space(cell->data, &local, 0, 0); // Do not acquire constants - we are about to delete this anyway
       if (unify(copy, w))
       {
          word data = cell->data;

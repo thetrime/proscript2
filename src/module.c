@@ -14,6 +14,7 @@
 #include "ctable.h"
 #include "compiler.h"
 #include "checks.h"
+#include "local.h"
 #include <stdio.h>
 #include <assert.h>
 
@@ -30,14 +31,8 @@ void free_clause(Clause c)
       free(c->code);
    if (c->constants != NULL)
    {
-      /*
-        printf("Freeing clause, which will release %d constants\n", c->constant_size);
       for (int i = 0; i < c->constant_size; i++)
-      {
-         printf("   Constant %d: ", i); release_constant(c->constants[i]);
-      }
-      printf("Done\n");
-      */
+         release_constant(c->constants[i]);
       free(c->constants);
    }
    free(c);
@@ -182,25 +177,9 @@ int set_dynamic(Module module, word functor)
    return 1;
 }
 
-void forall_clause_constants(word w, word (fn)(word))
-{
-   w = DEREF(w);
-   if (TAGOF(w) == CONSTANT_TAG)
-   {
-      fn(w);
-   }
-   else if (TAGOF(w) == COMPOUND_TAG)
-   {
-      acquire_constant(FUNCTOROF(w));
-      Functor functor = getConstant(FUNCTOROF(w), NULL).functor_data;
-      for (int i = 0; i < functor->arity; i++)
-         forall_clause_constants(ARGOF(w, i), fn);
-   }
-}
-
 void _release_uncompiled_constants(word w, void* ignored)
 {
-   forall_clause_constants(w, release_constant);
+   forall_term_constants(w, release_constant);
 }
 
 void release_uncompiled_constants(Predicate p)
@@ -229,14 +208,14 @@ void add_clause(Module module, word functor, word clause)
    // contain references to deleted constants.
    // To fix this, we acquire every constant in the clause right away, and release them
    // once we compile the clauses
-   forall_clause_constants(clause, acquire_constant);
+   forall_term_constants(clause, acquire_constant);
 
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
       if ((p->flags & PREDICATE_FOREIGN) != 0)
       {
          printf("Warning: Attempt to redefine foreign predicate "); PORTRAY(functor); printf(" with prolog version. Ignoring Prolog\n");
-         free(local);
+         free_local((word)local);
          return;
       }
       list_append(&p->clauses, clause);
@@ -267,7 +246,8 @@ int asserta(Module module, word clause)
    // even in the event of backtracking mucking up the global stack. However, we now have 2 things to keep track of - the (copied)
    // clause and the memory that we must free. Fortunately, there is a trick here - because variables in Prolog are just pointers
    // if we cast local to a word, then we have a variable that is pre-bound to the copied term
-   // This means that DEREF(local) will be clause, but we can still free(local) later.
+   // This means that DEREF(local) will be a clause, but we can still free_local(local) later.
+   // Also note that while you can just free(local), the constant references in the copy will not be freed
    // Note that this ONLY applies for copy_local, and not copy_local_with_extra_space!
    copy_local(clause, &local);
    clause = (word)local;
@@ -278,7 +258,7 @@ int asserta(Module module, word clause)
       //printf("Assert has found a clause for "); PORTRAY(functor); printf(" already exists\n");
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
       {
-         free(local);
+         free_local((word)local);
          return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(functor));
       }
       // Existing predicate. Put the new clause at the start
@@ -302,7 +282,7 @@ int asserta(Module module, word clause)
    if (p->firstClause == NULL)
    {
       // Compilation failed. Scrub out that clause
-      free(local);
+      free_local((word)local);
       list_splice(&p->clauses, cell);
       return ERROR;
    }
@@ -324,7 +304,7 @@ int assertz(Module module, word clause)
    {
       if ((p->flags & PREDICATE_DYNAMIC) == 0)
       {
-         free(local);
+         free_local((word)local);
          return permission_error(modifyAtom, staticProcedureAtom, predicate_indicator(functor));
       }
       // Existing predicate. Put the new clause at the start
@@ -347,7 +327,7 @@ int assertz(Module module, word clause)
    if (p->firstClause == NULL)
    {
       // Compilation failed. Scrub out that clause
-      free(local);
+      free_local((word)local);
       list_splice(&p->clauses, cell);
       return ERROR;
    }

@@ -7,6 +7,7 @@
 #include "constants.h"
 #include "kernel.h"
 #include "compiler.h"
+#include "local.h"
 #include <assert.h>
 #include <stdio.h>
 
@@ -30,7 +31,7 @@ void initialize_database()
 
 word make_dbref(word t, word** local, word** slot)
 {
-   word w = copy_local_with_extra_space(t, local, 3);
+   word w = copy_local_with_extra_space(t, local, 3, 1);
    // Write the functor
    (*local)[0] = dbCellFunctor;
    (*local)[1] = w;

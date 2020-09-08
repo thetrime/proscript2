@@ -381,16 +381,27 @@ void garbage_collect_constants()
          delete_constant(i);
       }
    }
+}
 
+void forall_term_constants(word w, word (fn)(word))
+{
+   w = DEREF(w);
+   if (TAGOF(w) == CONSTANT_TAG)
+   {
+      fn(w);
+   }
+   else if (TAGOF(w) == COMPOUND_TAG)
+   {
+      fn(FUNCTOROF(w));
+      Functor functor = getConstant(FUNCTOROF(w), NULL).functor_data;
+      for (int i = 0; i < functor->arity; i++)
+         forall_term_constants(ARGOF(w, i), fn);
+   }
+}
 
-/* Problem:
+/* Note:
    We only compile actual clauses on demand. This means that when we load a file, the parser will generates constants with reference_count = 0. If the predicates are never
    called, and the clauses are never compiled, then when do AGC, we will free those references to functors and atoms.
 
    We could analyse them at parse-time, but how would we know which ones need to be freed?
 */
-
-
-
-
-}

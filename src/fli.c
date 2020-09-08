@@ -19,6 +19,7 @@
 #include "string_builder.h"
 #include "term_writer.h"
 #include "parser.h"
+#include "local.h"
 
 EMSCRIPTEN_KEEPALIVE
 int _atom_length(word a)
@@ -476,8 +477,11 @@ word _make_local(word t)
 void _free_local(word t)
 {
    if ((DEREF(t) & TAG_MASK) == CONSTANT_TAG)
+   {
+      release_constant(t);
       return;
-   free((void*)t);
+   }
+   free_local(t);
 }
 
 int _define_foreign_predicate(word moduleName, word functor, int(*func)(), int flags)

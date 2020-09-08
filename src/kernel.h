@@ -156,8 +156,6 @@ extern word HEAP[];
 extern word* H;
 #endif
 
-word copy_local_with_extra_space(word t, word** local, int extra);
-word copy_local(word t, word** local);
 word get_choicepoint_depth();
 State push_state();
 void restore_state(State state);
