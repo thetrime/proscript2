@@ -182,23 +182,30 @@ int set_dynamic(Module module, word functor)
    return 1;
 }
 
-void acquire_clause_constants(word clause)
+void forall_clause_constants(word w, word (fn)(word))
 {
-   //printf("Acquiring clause constants: "); PORTRAY(clause); printf("\n");
-   clause = DEREF(clause);
-   if (TAGOF(clause) == CONSTANT_TAG)
+   w = DEREF(w);
+   if (TAGOF(w) == CONSTANT_TAG)
    {
-      acquire_constant(clause);
+      fn(w);
    }
-   else if (TAGOF(clause) == COMPOUND_TAG)
+   else if (TAGOF(w) == COMPOUND_TAG)
    {
-      acquire_constant(FUNCTOROF(clause));
-      Functor functor = getConstant(FUNCTOROF(clause), NULL).functor_data;
+      acquire_constant(FUNCTOROF(w));
+      Functor functor = getConstant(FUNCTOROF(w), NULL).functor_data;
       for (int i = 0; i < functor->arity; i++)
-      {
-         acquire_clause_constants(ARGOF(clause, i));
-      }
+         forall_clause_constants(ARGOF(w, i), fn);
    }
+}
+
+void _release_uncompiled_constants(word w, void* ignored)
+{
+   forall_clause_constants(w, release_constant);
+}
+
+void release_uncompiled_constants(Predicate p)
+{
+   list_apply(&p->clauses, NULL, _release_uncompiled_constants);
 }
 
 void add_clause(Module module, word functor, word clause)
@@ -216,7 +223,13 @@ void add_clause(Module module, word functor, word clause)
    // that if you ever want to unconsult (or reconsult) a file, you must remember to free
    // the old references or you'll leak memory.
 
-   acquire_clause_constants(clause);
+   // When we add a clause, we do not actually compile it - instead we wait until it is needed.
+   // This means that if you consult a file, then run AGC, we will think all the constants
+   // the parser found are garbage and free them. Then, when the code is executed, it will
+   // contain references to deleted constants.
+   // To fix this, we acquire every constant in the clause right away, and release them
+   // once we compile the clauses
+   forall_clause_constants(clause, acquire_constant);
 
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {

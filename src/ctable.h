@@ -20,5 +20,5 @@ void ctable_check();
 int get_constant_count();
 
 word acquire_constant(word w);
-void release_constant(word w);
+word release_constant(word w);
 void garbage_collect_constants();

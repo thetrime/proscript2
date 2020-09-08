@@ -155,8 +155,13 @@ void do_test(int argc, char** argv)
    else
    {
       word w = MAKE_ATOM("run_all_tests");
+      int initial_atoms = get_constant_count();
       start = clock();
       execute_query(w, query_complete);
+      printf("Atoms before AGC: %d\n", get_constant_count());
+      garbage_collect_constants();
+      printf("Atoms after AGC: %d\n", get_constant_count());
+      printf("Initial atoms: %d\n", initial_atoms);
    }
 }
 

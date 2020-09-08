@@ -943,7 +943,10 @@ clause exitQueryClause = {NULL, &exitQueryOp, NULL, 1, 0};
 Clause get_predicate_code(Predicate p)
 {
    if (p->firstClause == NULL)
+   {
       p->firstClause = compile_predicate(p);
+      release_uncompiled_constants(p);
+   }
    return p->firstClause;
 }
 

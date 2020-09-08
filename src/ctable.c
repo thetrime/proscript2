@@ -309,10 +309,11 @@ word acquire_constant(word w)
    return w;
 }
 
-void release_constant(word w)
+word release_constant(word w)
 {
    assert(TAGOF(w) == CONSTANT_TAG);
    CTable[w >> CONSTANT_BITS].references--;
+   return 0;
    //printf("Releasing constant %d, ", w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
 }
 

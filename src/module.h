@@ -27,6 +27,6 @@ int asserta(Module, word);
 int assertz(Module, word);
 int abolish(Module, word);
 void retract(Module, word);
-
+void release_uncompiled_constants(Predicate p);
 
 #endif
