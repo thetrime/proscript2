@@ -259,7 +259,7 @@ int _release_blob(char* type, word w)
       assert(0);
    }
    int i = (int)b->ptr;
-   release_constant(w);
+   release_constant("blob", w);
    return i;
 }
 
@@ -478,7 +478,7 @@ void _free_local(word t)
 {
    if ((DEREF(t) & TAG_MASK) == CONSTANT_TAG)
    {
-      release_constant(t);
+      release_constant("shortcut FLI local", t);
       return;
    }
    free_local(t);

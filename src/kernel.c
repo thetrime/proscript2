@@ -359,7 +359,7 @@ word MAKE_FUNCTOR(word name, int arity)
    int is_new;
    word w =  intern(FUNCTOR_TYPE, uint32_hash((unsigned char*)n->data, n->length) + arity, &name, arity, allocFunctor, &is_new);
    if (is_new)
-      acquire_constant(name);
+      acquire_constant("name of functor", name);
    return w;
 }
 

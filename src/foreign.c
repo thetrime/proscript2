@@ -319,8 +319,8 @@ RC get_string_from_codes(word codes, char** buffer, size_t* length)
 void initialize_foreign()
 {
  Module m = find_module(userAtom);
-#define PREDICATE(name, arity, body) define_foreign_predicate_c(m, acquire_constant(MAKE_FUNCTOR(MAKE_ATOM(#name), arity)), TOKENPASTE2(PRED_, __LINE__), 0);
-#define NONDET_PREDICATE(name, arity, body) define_foreign_predicate_c(m, acquire_constant(MAKE_FUNCTOR(MAKE_ATOM(#name), arity)), TOKENPASTE2(PRED_, __LINE__), NON_DETERMINISTIC);
+#define PREDICATE(name, arity, body) define_foreign_predicate_c(m, acquire_constant("C predicate", MAKE_FUNCTOR(MAKE_ATOM(#name), arity)), TOKENPASTE2(PRED_, __LINE__), 0);
+#define NONDET_PREDICATE(name, arity, body) define_foreign_predicate_c(m, acquire_constant("C predicate", MAKE_FUNCTOR(MAKE_ATOM(#name), arity)), TOKENPASTE2(PRED_, __LINE__), NON_DETERMINISTIC);
 #include "foreign_impl.c"
 #undef PREDICATE
 #undef NONDET_PREDICATE

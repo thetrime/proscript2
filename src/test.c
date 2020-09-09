@@ -139,7 +139,7 @@ void do_test(int argc, char** argv)
    {
       int initial_atoms = get_constant_count();
       printf("Initial atom count: %d\n", initial_atoms);
-      word w = acquire_constant(MAKE_ATOM("run_agc_test"));
+      word w = acquire_constant("test", MAKE_ATOM("run_agc_test"));
       for (int i = 0; i < 100; i++)
       {
          State saved = push_state();

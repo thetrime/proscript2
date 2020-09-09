@@ -427,7 +427,7 @@ int compile_body(word term, wmap_t variables, instruction_list_t* instructions, 
       if (type == ATOM_TYPE)
       {
          // AGC: FIXME: We need to acquire the /0 functor here, but where do we release it?
-         size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, acquire_constant(MAKE_FUNCTOR(term, 0))));
+         size += push_instruction(instructions, INSTRUCTION_CONST(is_tail?I_DEPART:I_CALL, acquire_constant("compiled functor", MAKE_FUNCTOR(term, 0))));
       }
       else
       {
@@ -890,6 +890,7 @@ Query compile_query(word term)
    q->clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
    free_list(&variables);
+   forall_term_constants(term, "query", acquire_constant);
    return q;
 }
 
@@ -899,8 +900,6 @@ void free_query(Query q)
 //   free_clause(q->clause); AGC: Why can we not free this?
    free(q);
 }
-
-int qqqc = 0;
 
 Clause compile_predicate_clause(word term, int with_choicepoint, char* meta)
 {

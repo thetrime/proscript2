@@ -31,9 +31,11 @@ void free_clause(Clause c)
       free(c->code);
    if (c->constants != NULL)
    {
+      printf("Releasing constants from freed clause\n");
       for (int i = 0; i < c->constant_size; i++)
-         release_constant(c->constants[i]);
+         release_constant("freed clause constant", c->constants[i]);
       free(c->constants);
+      printf("... done\n");
    }
    free(c);
 }
@@ -66,7 +68,7 @@ int define_foreign_predicate_c(Module module, word functor, int(*func)(), int fl
    p->meta = NULL;
    p->flags = PREDICATE_FOREIGN;
    p->firstClause = foreign_predicate_c(func, getConstant(functor, NULL).functor_data->arity, flags);
-   acquire_constant(functor);
+   acquire_constant("predicate name", functor);
    whashmap_put(module->predicates, functor, p);
    return 1;
 }
@@ -85,7 +87,7 @@ int define_foreign_predicate_js(Module module, word functor, word func)
    p->flags = PREDICATE_FOREIGN;
    Functor f = getConstant(functor, NULL).functor_data;
    p->firstClause = foreign_predicate_js(func, f->arity, NON_DETERMINISTIC);
-   acquire_constant(functor);
+   acquire_constant("predicate name", functor);
    whashmap_put(module->predicates, functor, p);
    return 1;
 }
@@ -151,7 +153,7 @@ int set_meta(Module module, word functor, char* meta)
       p->flags = 0;
       p->meta = meta;
       p->firstClause = NULL;
-      acquire_constant(functor);
+      acquire_constant("predicate name", functor);
       whashmap_put(module->predicates, functor, p);
    }
    return 1;
@@ -171,7 +173,7 @@ int set_dynamic(Module module, word functor)
       p->flags = PREDICATE_DYNAMIC;
       p->meta = NULL;
       p->firstClause = NULL;
-      acquire_constant(functor);
+      acquire_constant("predicate name", functor);
       whashmap_put(module->predicates, functor, p);
    }
    return 1;
@@ -179,9 +181,10 @@ int set_dynamic(Module module, word functor)
 
 void _release_uncompiled_constants(word w, void* ignored)
 {
-   forall_term_constants(w, release_constant);
+   forall_term_constants(w, "uncompiled constant", release_constant);
 }
 
+// FIXME: This is a bad idea. We should only do this when the predicate (or clause) is deleted!
 void release_uncompiled_constants(Predicate p)
 {
    list_apply(&p->clauses, NULL, _release_uncompiled_constants);
@@ -190,7 +193,7 @@ void release_uncompiled_constants(Predicate p)
 void add_clause(Module module, word functor, word clause)
 {
    Predicate p;
-   //printf("Adding clause to "); PORTRAY(functor); printf("\n");
+   printf("Adding clause to "); PORTRAY(functor); printf("\n");
    // See asserta for an explanaton of what is going on here.
    word* local;
    copy_local(clause, &local);
@@ -208,7 +211,7 @@ void add_clause(Module module, word functor, word clause)
    // contain references to deleted constants.
    // To fix this, we acquire every constant in the clause right away, and release them
    // once we compile the clauses
-   forall_term_constants(clause, acquire_constant);
+   forall_term_constants(clause, "uncompiled clause", acquire_constant);
 
    if (whashmap_get(module->predicates, functor, (any_t)&p) == MAP_OK)
    {
@@ -228,7 +231,7 @@ void add_clause(Module module, word functor, word clause)
       p->flags = 0;
       p->meta = NULL;
       p->firstClause = NULL;
-      acquire_constant(functor);
+      acquire_constant("predicate name", functor);
       whashmap_put(module->predicates, functor, p);
    }
 }
@@ -273,7 +276,7 @@ int asserta(Module module, word clause)
       cell = list_unshift(&p->clauses, clause);
       p->meta = NULL;
       p->firstClause = NULL;
-      acquire_constant(functor);
+      acquire_constant("predicate name", functor);
       whashmap_put(module->predicates, functor, p);
    }
    free_clauses(p->firstClause);
@@ -319,7 +322,7 @@ int assertz(Module module, word clause)
       cell = list_append(&p->clauses, clause);
       p->meta = NULL;
       p->firstClause = NULL;
-      acquire_constant(functor);
+      acquire_constant("predicate name", functor);
       whashmap_put(module->predicates, functor, p);
    }
    free_clauses(p->firstClause);

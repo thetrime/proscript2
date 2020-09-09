@@ -19,7 +19,7 @@ int getConstantType(word t);
 void ctable_check();
 int get_constant_count();
 
-word acquire_constant(word w);
-word release_constant(word w);
+word acquire_constant(char* context, word w);
+word release_constant(char* context, word w);
 void garbage_collect_constants();
-void forall_term_constants(word w, word (fn)(word));
+void forall_term_constants(word w, char* context, word (fn)(char*, word));

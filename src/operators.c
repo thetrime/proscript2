@@ -44,7 +44,7 @@ void add_operator(char* name, int precedence, Fixity fixity)
       {
          if ((*cell)->op[position] != NULL)
             freeOperator((*cell)->op[position]);
-         (*cell)->op[position] = allocOperator(acquire_constant(MAKE_FUNCTOR(MAKE_ATOM(name), arity)), precedence, fixity);
+         (*cell)->op[position] = allocOperator(acquire_constant("operator", MAKE_FUNCTOR(MAKE_ATOM(name), arity)), precedence, fixity);
          return;
       }
       cell = &((*cell)->next);
@@ -55,7 +55,7 @@ void add_operator(char* name, int precedence, Fixity fixity)
    (*cell)->op[Prefix] = NULL;
    (*cell)->op[Infix] = NULL;
    (*cell)->op[Postfix] = NULL;
-   (*cell)->op[position] = allocOperator(acquire_constant(MAKE_FUNCTOR(MAKE_ATOM(name), arity)), precedence, fixity);
+   (*cell)->op[position] = allocOperator(acquire_constant("operator", MAKE_FUNCTOR(MAKE_ATOM(name), arity)), precedence, fixity);
 }
 
 void initialize_operators()

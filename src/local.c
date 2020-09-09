@@ -34,7 +34,7 @@ void make_local_(word t, List* variables, word* heap, int* ptr, int size, word* 
       {
          case CONSTANT_TAG:
             if (mark_constants)
-               acquire_constant(t);
+               acquire_constant("constant in local copy", t);
          case POINTER_TAG:
             *target = t;
             return;
@@ -45,7 +45,7 @@ void make_local_(word t, List* variables, word* heap, int* ptr, int size, word* 
             (*ptr)++;
             int argp = *ptr;
             if (mark_constants)
-               acquire_constant(FUNCTOROF(t));
+               acquire_constant("functor in local copy", FUNCTOROF(t));
             Functor f = getConstant(FUNCTOROF(t), NULL).functor_data;
             (*ptr) += f->arity;
             for (int i = 0; i < f->arity-1; i++)
@@ -74,7 +74,7 @@ void make_local_(word t, List* variables, word* heap, int* ptr, int size, word* 
 
 void free_local(word w)
 {
-   forall_term_constants(w, release_constant);
+   forall_term_constants(w, "constant in local copy", release_constant);
    free((void*)w);
 }
 
@@ -87,7 +87,7 @@ word copy_local_with_extra_space(word t, word** local, int extra, int mark_const
       if (TAGOF(t) == CONSTANT_TAG || TAGOF(t) == POINTER_TAG)
       {
          if (TAGOF(t) == CONSTANT_TAG && mark_constants)
-            acquire_constant(t);
+            acquire_constant("simple constant in local copy", t);
          *local = (word*)t;
          return t;
       }

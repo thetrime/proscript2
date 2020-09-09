@@ -195,6 +195,7 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
       *isNew = 1;
    constant_count++;
    bihashmap_put(map[type], hashcode, created, w);
+   printf("Created constant word %lu: ", w); PORTRAY(((word)((index << CONSTANT_BITS) | CONSTANT_TAG))); printf("\n");
    return w;
 }
 
@@ -232,6 +233,7 @@ word intern_blob(const char* type, void* ptr, char* (*portray)(char*, void*, Opt
 void delete_constant(int index)
 {
    constant c = CTable[index];
+   printf("Deleting constant %d: ", index); PORTRAY(((word)((index << CONSTANT_BITS) | CONSTANT_TAG))); printf("\n");
    switch(c.type)
    {
       case ATOM_TYPE:
@@ -247,11 +249,10 @@ void delete_constant(int index)
          Functor f = c.data.functor_data;
          Atom name = getConstant(f->name, NULL).atom_data;
          bihashmap_remove(map[FUNCTOR_TYPE], uint32_hash((unsigned char*)name->data, name->length) + f->arity, &f->name, f->arity);
-         release_constant(f->name);
+         release_constant("name of freed functor", f->name);
          // Step E of AGC
          if (CTable[f->name >> CONSTANT_BITS].references == 0)
          {
-            printf("Deleting functor atom %lu: ", f->name); PORTRAY(f->name); printf("\n");
             delete_constant(f->name >> CONSTANT_BITS);
          }
          free(f);
@@ -299,22 +300,23 @@ void delete_constant(int index)
 
 }
 
-word acquire_constant(word w)
+word acquire_constant(char* context, word w)
 {
    assert(TAGOF(w) == CONSTANT_TAG);
    CTable[w >> CONSTANT_BITS].references++;
-   //printf("Acquiring constant %d: ", w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
+   printf("(%s) Acquiring constant %lu: ", context, w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
    // This return value makes it easier to chain things together. You can do something like
    //   return acquire_constant(MAKE_ATOM("foo"))
    return w;
 }
 
-word release_constant(word w)
+word release_constant(char* context, word w)
 {
    assert(TAGOF(w) == CONSTANT_TAG);
    CTable[w >> CONSTANT_BITS].references--;
+   printf("(%s) Releasing constant %lu, ", context, w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
+   assert (CTable[w >> CONSTANT_BITS].references >= 0);
    return 0;
-   //printf("Releasing constant %d, ", w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
 }
 
 int get_constant_count()
@@ -353,7 +355,7 @@ void garbage_collect_constants()
    {
       if (CTable[i].type != TOMBSTONE_TYPE && CTable[i].references == 0)
       {
-         //printf("Marking possible garbage constant %d: ", i);  PORTRAY((word)((i << CONSTANT_BITS) | CONSTANT_TAG)); printf(" (refs=%d)\n", CTable[i].references);
+         printf("Marking possible garbage constant %d: ", i);  PORTRAY((word)((i << CONSTANT_BITS) | CONSTANT_TAG)); printf(" (refs=%d)\n", CTable[i].references);
          CTable[i].marked = 1;
       }
    }
@@ -383,19 +385,19 @@ void garbage_collect_constants()
    }
 }
 
-void forall_term_constants(word w, word (fn)(word))
+void forall_term_constants(word w, char* context, word (fn)(char*, word))
 {
    w = DEREF(w);
    if (TAGOF(w) == CONSTANT_TAG)
    {
-      fn(w);
+      fn(context, w);
    }
    else if (TAGOF(w) == COMPOUND_TAG)
    {
-      fn(FUNCTOROF(w));
+      fn(context, FUNCTOROF(w));
       Functor functor = getConstant(FUNCTOROF(w), NULL).functor_data;
       for (int i = 0; i < functor->arity; i++)
-         forall_term_constants(ARGOF(w, i), fn);
+         forall_term_constants(ARGOF(w, i), context, fn);
    }
 }
 
