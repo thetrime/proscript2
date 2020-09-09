@@ -50,8 +50,15 @@ void free_clauses(Clause c)
    }
 }
 
+void release_source_constants(word w, void* ignored)
+{
+   forall_term_constants(w, "uncompiled constant", release_constant);
+}
+
 void free_predicate(Predicate p)
 {
+   // Release constants contained in the source for the predicate
+   list_apply(&p->clauses, NULL, release_source_constants);
    free_clauses(p->firstClause);
    if ((p->flags & PREDICATE_FOREIGN) == 0)
       free_list(&p->clauses);
@@ -177,17 +184,6 @@ int set_dynamic(Module module, word functor)
       whashmap_put(module->predicates, functor, p);
    }
    return 1;
-}
-
-void _release_uncompiled_constants(word w, void* ignored)
-{
-   forall_term_constants(w, "uncompiled constant", release_constant);
-}
-
-// FIXME: This is a bad idea. We should only do this when the predicate (or clause) is deleted!
-void release_uncompiled_constants(Predicate p)
-{
-   list_apply(&p->clauses, NULL, _release_uncompiled_constants);
 }
 
 void add_clause(Module module, word functor, word clause)
