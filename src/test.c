@@ -68,6 +68,10 @@ void query_complete(RC result)
       printf("Success!\n");
 }
 
+void do_nothing(RC result)
+{
+}
+
 
 EMSCRIPTEN_KEEPALIVE
 void do_test(int argc, char** argv)
@@ -140,16 +144,18 @@ void do_test(int argc, char** argv)
       int initial_atoms = get_constant_count();
       printf("Initial atom count: %d\n", initial_atoms);
       word w = acquire_constant("test", MAKE_ATOM("run_agc_test"));
-      for (int i = 0; i < 100; i++)
+      for (int i = 0; i < 1000; i++)
       {
          State saved = push_state();
          start = clock();
-         execute_query(w, query_complete);
+         execute_query(w, do_nothing);
+         int after_atoms = get_constant_count();
          printf("Atoms after test %d: %d\n", i, get_constant_count());
          restore_state(saved);
          garbage_collect_constants();
-         printf("Atoms after AGC: %d\n", get_constant_count());
+         printf("Collected %d atoms. Atoms after AGC: %d\n", after_atoms - get_constant_count(), get_constant_count());
       }
+      assert(initial_atoms == get_constant_count());
       printf("Initial atoms: %d, atoms now: %d\n", initial_atoms, get_constant_count());
    }
    else

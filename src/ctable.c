@@ -18,6 +18,7 @@ int CTableSize = 0;
 int CNext = 0;
 int constant_count = 0;
 
+
 void ctable_check()
 {
    bihashmap_check(map[ATOM_TYPE]);
@@ -195,7 +196,7 @@ word intern(int type, uint32_t hashcode, void* key1, int key2, void*(*create)(vo
       *isNew = 1;
    constant_count++;
    bihashmap_put(map[type], hashcode, created, w);
-   printf("Created constant word %lu: ", w); PORTRAY(((word)((index << CONSTANT_BITS) | CONSTANT_TAG))); printf("\n");
+   //printf("Created constant word %lu: ", w); PORTRAY(((word)((index << CONSTANT_BITS) | CONSTANT_TAG))); printf("\n");
    return w;
 }
 
@@ -233,7 +234,7 @@ word intern_blob(const char* type, void* ptr, char* (*portray)(char*, void*, Opt
 void delete_constant(int index)
 {
    constant c = CTable[index];
-   printf("Deleting constant %d: ", index); PORTRAY(((word)((index << CONSTANT_BITS) | CONSTANT_TAG))); printf("\n");
+   //printf("Deleting constant %d: ", index); PORTRAY(((word)((index << CONSTANT_BITS) | CONSTANT_TAG))); printf("\n");
    switch(c.type)
    {
       case ATOM_TYPE:
@@ -304,7 +305,7 @@ word acquire_constant(char* context, word w)
 {
    assert(TAGOF(w) == CONSTANT_TAG);
    CTable[w >> CONSTANT_BITS].references++;
-   printf("(%s) Acquiring constant %lu: ", context, w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
+   //printf("(%s) Acquiring constant %lu: ", context, w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
    // This return value makes it easier to chain things together. You can do something like
    //   return acquire_constant(MAKE_ATOM("foo"))
    return w;
@@ -314,7 +315,7 @@ word release_constant(char* context, word w)
 {
    assert(TAGOF(w) == CONSTANT_TAG);
    CTable[w >> CONSTANT_BITS].references--;
-   printf("(%s) Releasing constant %lu, ", context, w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
+   //printf("(%s) Releasing constant %lu, ", context, w); PORTRAY(w); printf(" which now has %d references\n", CTable[w >> CONSTANT_BITS].references);
    assert (CTable[w >> CONSTANT_BITS].references >= 0);
    return 0;
 }
@@ -355,7 +356,7 @@ void garbage_collect_constants()
    {
       if (CTable[i].type != TOMBSTONE_TYPE && CTable[i].references == 0)
       {
-         printf("Marking possible garbage constant %d: ", i);  PORTRAY((word)((i << CONSTANT_BITS) | CONSTANT_TAG)); printf(" (refs=%d)\n", CTable[i].references);
+         //printf("Marking possible garbage constant %d: ", i);  PORTRAY((word)((i << CONSTANT_BITS) | CONSTANT_TAG)); printf(" (refs=%d)\n", CTable[i].references);
          CTable[i].marked = 1;
       }
    }

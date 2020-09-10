@@ -737,7 +737,6 @@ void _assemble(void *p, instruction_t* i)
       assert(whashmap_get(context->constants, i->constant, (void*)&index) == MAP_OK);
       assert(index < (1 << 16) && "Too many constants in clause!");
       context->clause->constants[index] = i->constant;
-      //printf("compilation: "); acquire_constant(i->constant);
       context->clause->code[context->codep++] = (index >> 8) & 0xff;
       context->clause->code[context->codep++] = (index >> 0) & 0xff;
    }
@@ -800,6 +799,8 @@ Clause assemble(instruction_list_t* instructions)
    context.clause->constant_size = context.constant_count;
    //#endif
    instruction_list_apply(instructions, &context, _assemble);
+   for (int i = 0; i < context.constant_count; i++)
+      acquire_constant("compiled constant", context.clause->constants[i]);
    whashmap_free(context.constants);
    assert(context.codep == context.size);
 
@@ -890,14 +891,16 @@ Query compile_query(word term)
    q->clause->slot_count = slot_count;
    deinit_instruction_list(&instructions);
    free_list(&variables);
-   forall_term_constants(term, "query", acquire_constant);
    return q;
 }
 
 void free_query(Query q)
 {
    free(q->variables);
-//   free_clause(q->clause); AGC: Why can we not free this?
+   // We cannot free the clause itself here because prepare_query calls free_query but then proceeds to use the code in the clause
+   // We free the clause later when we backtrack over or cut it away. We can tell that the clause needs to be freed because we
+   // set is_local=1 on the frame
+
    free(q);
 }
 

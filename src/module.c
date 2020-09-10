@@ -31,11 +31,11 @@ void free_clause(Clause c)
       free(c->code);
    if (c->constants != NULL)
    {
-      printf("Releasing constants from freed clause\n");
+      //printf("Releasing constants from freed clause %p\n", c);
       for (int i = 0; i < c->constant_size; i++)
          release_constant("freed clause constant", c->constants[i]);
       free(c->constants);
-      printf("... done\n");
+      //printf("... done\n");
    }
    free(c);
 }
@@ -52,7 +52,7 @@ void free_clauses(Clause c)
 
 void release_source_constants(word w, void* ignored)
 {
-   forall_term_constants(w, "uncompiled constant", release_constant);
+   forall_term_constants(w, "source constant", release_constant);
 }
 
 void free_predicate(Predicate p)
