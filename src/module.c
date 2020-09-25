@@ -189,7 +189,7 @@ int set_dynamic(Module module, word functor)
 void add_clause(Module module, word functor, word clause)
 {
    Predicate p;
-   printf("Adding clause to "); PORTRAY(functor); printf("\n");
+   //printf("Adding clause to "); PORTRAY(functor); printf("\n");
    // See asserta for an explanaton of what is going on here.
    word* local;
    copy_local(clause, &local);
